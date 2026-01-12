@@ -1,0 +1,24 @@
+{
+  "name": "martin3r/platform-integrations",
+  "description": "Integrations Service for Platform (OAuth + manual credentials, grants per team/user)",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Platform\\Integrations\\": "src/",
+      "Platform\\Integrations\\Database\\": "database/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Platform\\Integrations\\IntegrationsServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+  }
+}
+
