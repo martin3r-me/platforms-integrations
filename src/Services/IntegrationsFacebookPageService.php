@@ -37,78 +37,86 @@ class IntegrationsFacebookPageService
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
         $userId = $connection->owner_user_id;
 
-        // Business Accounts holen
-        $businessResponse = Http::get("https://graph.facebook.com/{$apiVersion}/me/businesses", [
+        // Direkter Weg: /me/accounts holt alle Pages, die der User verwaltet
+        // (inkl. Pagination)
+        $url = "https://graph.facebook.com/{$apiVersion}/me/accounts";
+        $params = [
             'access_token' => $accessToken,
-        ]);
+            'fields' => 'id,name,about,access_token,category,tasks',
+            'limit' => 100,
+        ];
 
-        if ($businessResponse->failed()) {
-            $error = $businessResponse->json()['error'] ?? [];
-            throw new \Exception('Fehler beim Abrufen der Business Accounts: ' . ($error['message'] ?? 'Unbekannter Fehler'));
-        }
+        $syncedPages = [];
+        $allPages = [];
 
-        $businessData = $businessResponse->json();
-        $businessAccounts = $businessData['data'] ?? [];
+        // Pagination durchlaufen
+        do {
+            $response = Http::get($url, $params);
 
-        if (empty($businessAccounts)) {
-            Log::warning('No business accounts found', ['user_id' => $userId]);
+            if ($response->failed()) {
+                $error = $response->json()['error'] ?? [];
+                Log::error('Failed to fetch Facebook pages', [
+                    'user_id' => $userId,
+                    'error' => $error,
+                ]);
+                throw new \Exception('Fehler beim Abrufen der Facebook Pages: ' . ($error['message'] ?? 'Unbekannter Fehler'));
+            }
+
+            $data = $response->json();
+            $pages = $data['data'] ?? [];
+
+            if (!empty($pages)) {
+                $allPages = array_merge($allPages, $pages);
+            }
+
+            // Nächste Seite holen (falls vorhanden)
+            $url = $data['paging']['next'] ?? null;
+            $params = []; // Bei next-URL sind alle Parameter bereits enthalten
+        } while ($url);
+
+        if (empty($allPages)) {
+            Log::warning('No Facebook pages found', ['user_id' => $userId]);
             return [];
         }
 
-        $syncedPages = [];
+        Log::info('Found Facebook pages', [
+            'user_id' => $userId,
+            'count' => count($allPages),
+        ]);
 
-        // Für jede Business Account die Pages holen
-        foreach ($businessAccounts as $businessAccount) {
-            $businessId = $businessAccount['id'];
+        // Alle Pages speichern
+        foreach ($allPages as $pageData) {
+            $pageId = $pageData['id'];
+            $pageName = $pageData['name'] ?? 'Facebook Page';
+            $pageAccessToken = $pageData['access_token'] ?? $accessToken;
+
+            // Page auf User-Ebene erstellen oder aktualisieren
+            $credentials = $connection->credentials ?? [];
+            $oauth = $credentials['oauth'] ?? [];
             
-            $pagesResponse = Http::get("https://graph.facebook.com/{$apiVersion}/{$businessId}/owned_pages", [
-                'access_token' => $accessToken,
-            ]);
-
-            if ($pagesResponse->failed()) {
-                Log::error('Failed to fetch pages for business', [
-                    'business_id' => $businessId,
-                    'error' => $pagesResponse->json()['error'] ?? [],
-                ]);
-                continue;
-            }
-
-            $pagesData = $pagesResponse->json();
-            $pages = $pagesData['data'] ?? [];
-
-            foreach ($pages as $pageData) {
-                $pageId = $pageData['id'];
-                $pageName = $pageData['name'] ?? 'Facebook Page';
-                $pageAccessToken = $pageData['access_token'] ?? $accessToken;
-
-                // Page auf User-Ebene erstellen oder aktualisieren
-                $credentials = $connection->credentials ?? [];
-                $oauth = $credentials['oauth'] ?? [];
-                
-                $facebookPage = IntegrationsFacebookPage::updateOrCreate(
-                    [
-                        'external_id' => $pageId,
-                        'user_id' => $userId,
-                    ],
-                    [
-                        'name' => $pageName,
-                        'description' => $pageData['about'] ?? null,
-                        'access_token' => $pageAccessToken,
-                        'refresh_token' => $oauth['refresh_token'] ?? null,
-                        'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
-                        'token_type' => $oauth['token_type'] ?? 'Bearer',
-                        'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
-                    ]
-                );
-
-                $syncedPages[] = $facebookPage;
-
-                Log::info('Facebook Page synced', [
-                    'page_id' => $facebookPage->id,
+            $facebookPage = IntegrationsFacebookPage::updateOrCreate(
+                [
                     'external_id' => $pageId,
                     'user_id' => $userId,
-                ]);
-            }
+                ],
+                [
+                    'name' => $pageName,
+                    'description' => $pageData['about'] ?? null,
+                    'access_token' => $pageAccessToken,
+                    'refresh_token' => $oauth['refresh_token'] ?? null,
+                    'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
+                    'token_type' => $oauth['token_type'] ?? 'Bearer',
+                    'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
+                ]
+            );
+
+            $syncedPages[] = $facebookPage;
+
+            Log::info('Facebook Page synced', [
+                'page_id' => $facebookPage->id,
+                'external_id' => $pageId,
+                'user_id' => $userId,
+            ]);
         }
 
         return $syncedPages;
