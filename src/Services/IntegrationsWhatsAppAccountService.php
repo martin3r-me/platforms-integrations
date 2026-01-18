@@ -85,6 +85,13 @@ class IntegrationsWhatsAppAccountService
         // Für jede Business Account die WhatsApp Business Accounts holen (mit Pagination)
         foreach ($allBusinessAccounts as $businessAccount) {
             $businessId = $businessAccount['id'];
+            $businessName = $businessAccount['name'] ?? 'Unknown';
+            
+            Log::info('Checking WhatsApp Business Accounts for business', [
+                'business_id' => $businessId,
+                'business_name' => $businessName,
+                'user_id' => $userId,
+            ]);
             
             $wabaUrl = "https://graph.facebook.com/{$apiVersion}/{$businessId}/owned_whatsapp_business_accounts";
             $wabaParams = [
@@ -93,14 +100,21 @@ class IntegrationsWhatsAppAccountService
                 'limit' => 100,
             ];
 
+            $wabaAccountsFound = 0;
+
             // Pagination für WhatsApp Business Accounts pro Business Account
             do {
                 $wabaResponse = Http::get($wabaUrl, $wabaParams);
 
                 if ($wabaResponse->failed()) {
+                    $error = $wabaResponse->json()['error'] ?? [];
                     Log::error('Failed to fetch WhatsApp Business Accounts for business', [
                         'business_id' => $businessId,
-                        'error' => $wabaResponse->json()['error'] ?? [],
+                        'business_name' => $businessName,
+                        'error' => $error,
+                        'error_code' => $error['code'] ?? null,
+                        'error_message' => $error['message'] ?? null,
+                        'error_type' => $error['type'] ?? null,
                     ]);
                     break;
                 }
@@ -108,9 +122,33 @@ class IntegrationsWhatsAppAccountService
                 $wabaData = $wabaResponse->json();
                 $wabaAccounts = $wabaData['data'] ?? [];
 
+                Log::info('WhatsApp Business Accounts response', [
+                    'business_id' => $businessId,
+                    'accounts_count' => count($wabaAccounts),
+                    'has_paging' => isset($wabaData['paging']),
+                    'response_keys' => array_keys($wabaData),
+                ]);
+
                 foreach ($wabaAccounts as $wabaAccountData) {
-                    $wabaId = $wabaAccountData['id'];
+                    $wabaId = $wabaAccountData['id'] ?? null;
+                    
+                    if (!$wabaId) {
+                        Log::warning('WhatsApp Business Account without ID', [
+                            'business_id' => $businessId,
+                            'account_data' => $wabaAccountData,
+                        ]);
+                        continue;
+                    }
+                    
                     $wabaName = $wabaAccountData['name'] ?? 'WhatsApp Business Account';
+                    $wabaAccountsFound++;
+                    
+                    Log::info('Processing WhatsApp Business Account', [
+                        'waba_id' => $wabaId,
+                        'waba_name' => $wabaName,
+                        'business_id' => $businessId,
+                        'user_id' => $userId,
+                    ]);
 
                     // Phone Numbers für diesen WABA holen (mit Pagination)
                     $phoneNumbersUrl = "https://graph.facebook.com/{$apiVersion}/{$wabaId}/phone_numbers";
@@ -147,29 +185,47 @@ class IntegrationsWhatsAppAccountService
                     $phoneNumberId = $primaryPhoneNumber['id'] ?? null;
 
                     // WhatsApp Account auf User-Ebene erstellen oder aktualisieren
-                    $whatsappAccount = IntegrationsWhatsAppAccount::updateOrCreate(
-                        [
+                    try {
+                        $whatsappAccount = IntegrationsWhatsAppAccount::updateOrCreate(
+                            [
+                                'external_id' => $wabaId,
+                                'user_id' => $userId,
+                            ],
+                            [
+                                'title' => $wabaName,
+                                'description' => $wabaAccountData['account_review_status'] ?? null,
+                                'phone_number' => $phoneNumber,
+                                'phone_number_id' => $phoneNumberId,
+                                'active' => $wabaAccountData['is_enabled'] ?? true,
+                                'access_token' => $accessToken, // WABA-spezifischer Token könnte später separat geholt werden
+                                'verified_at' => isset($primaryPhoneNumber['verified_name']) ? now() : null,
+                            ]
+                        );
+
+                        $syncedAccounts[] = $whatsappAccount;
+
+                        Log::info('WhatsApp Business Account synced successfully', [
+                            'account_id' => $whatsappAccount->id,
                             'external_id' => $wabaId,
                             'user_id' => $userId,
-                        ],
-                        [
-                            'title' => $wabaName,
-                            'description' => $wabaAccountData['account_review_status'] ?? null,
+                            'phone_numbers_count' => count($allPhoneNumbers),
                             'phone_number' => $phoneNumber,
                             'phone_number_id' => $phoneNumberId,
-                            'active' => $wabaAccountData['is_enabled'] ?? true,
-                            'access_token' => $accessToken, // WABA-spezifischer Token könnte später separat geholt werden
-                            'verified_at' => isset($primaryPhoneNumber['verified_name']) ? now() : null,
-                        ]
-                    );
-
-                    $syncedAccounts[] = $whatsappAccount;
-
-                    Log::info('WhatsApp Business Account synced', [
-                        'account_id' => $whatsappAccount->id,
-                        'external_id' => $wabaId,
-                        'user_id' => $userId,
-                        'phone_numbers_count' => count($allPhoneNumbers),
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to save WhatsApp Business Account', [
+                            'waba_id' => $wabaId,
+                            'user_id' => $userId,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                    }
+                }
+                
+                if ($wabaAccountsFound === 0 && empty($wabaAccounts)) {
+                    Log::info('No WhatsApp Business Accounts found for business', [
+                        'business_id' => $businessId,
+                        'business_name' => $businessName,
                     ]);
                 }
 
@@ -178,6 +234,12 @@ class IntegrationsWhatsAppAccountService
                 $wabaParams = []; // Bei next-URL sind alle Parameter bereits enthalten
             } while ($wabaUrl);
         }
+
+        Log::info('WhatsApp sync completed', [
+            'user_id' => $userId,
+            'business_accounts_checked' => count($allBusinessAccounts),
+            'whatsapp_accounts_synced' => count($syncedAccounts),
+        ]);
 
         return $syncedAccounts;
     }
