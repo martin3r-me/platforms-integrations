@@ -108,12 +108,28 @@ class IntegrationsWhatsAppAccountService
 
                 if ($wabaResponse->failed()) {
                     $error = $wabaResponse->json()['error'] ?? [];
+                    $errorCode = $error['code'] ?? null;
+                    $errorMessage = $error['message'] ?? null;
+                    
+                    // Fehler 10: App ist nicht als Business Solution Provider registriert
+                    // Das ist eine Meta-App-Konfiguration, kein OAuth-Problem
+                    // Wir überspringen dieses Business Account und versuchen die nächsten
+                    if ($errorCode === 10 && str_contains($errorMessage ?? '', 'Business Solution Provider')) {
+                        Log::warning('App is not registered as Business Solution Provider for WhatsApp', [
+                            'business_id' => $businessId,
+                            'business_name' => $businessName,
+                            'note' => 'This requires Meta App configuration, not OAuth scopes. Skipping this business account.',
+                        ]);
+                        break; // Nächstes Business Account versuchen
+                    }
+                    
+                    // Andere Fehler (z.B. fehlende Berechtigungen) loggen
                     Log::error('Failed to fetch WhatsApp Business Accounts for business', [
                         'business_id' => $businessId,
                         'business_name' => $businessName,
                         'error' => $error,
-                        'error_code' => $error['code'] ?? null,
-                        'error_message' => $error['message'] ?? null,
+                        'error_code' => $errorCode,
+                        'error_message' => $errorMessage,
                         'error_type' => $error['type'] ?? null,
                     ]);
                     break;
@@ -184,6 +200,10 @@ class IntegrationsWhatsAppAccountService
                     $phoneNumber = $primaryPhoneNumber['display_phone_number'] ?? null;
                     $phoneNumberId = $primaryPhoneNumber['id'] ?? null;
 
+                    // Versuche WABA-spezifischen Access Token zu holen (falls verfügbar)
+                    // Falls nicht, verwende den User-Token (wie im glowkit-master)
+                    $wabaAccessToken = $wabaAccountData['access_token'] ?? $accessToken;
+                    
                     // WhatsApp Account auf User-Ebene erstellen oder aktualisieren
                     try {
                         $whatsappAccount = IntegrationsWhatsAppAccount::updateOrCreate(
@@ -197,7 +217,7 @@ class IntegrationsWhatsAppAccountService
                                 'phone_number' => $phoneNumber,
                                 'phone_number_id' => $phoneNumberId,
                                 'active' => $wabaAccountData['is_enabled'] ?? true,
-                                'access_token' => $accessToken, // WABA-spezifischer Token könnte später separat geholt werden
+                                'access_token' => $wabaAccessToken, // WABA-spezifischer Token oder User-Token als Fallback
                                 'verified_at' => isset($primaryPhoneNumber['verified_name']) ? now() : null,
                             ]
                         );
