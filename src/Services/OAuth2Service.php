@@ -81,10 +81,28 @@ class OAuth2Service
      */
     public function handleCallback(Request $request, string $integrationKey): IntegrationConnection
     {
+        \Log::info('OAuth2 handleCallback Start', [
+            'integration_key' => $integrationKey,
+            'has_state' => $request->has('state'),
+            'has_code' => $request->has('code'),
+            'session_id' => $request->session()->getId(),
+            'session_data' => [
+                'has_state' => $request->session()->has('integrations.oauth2.state'),
+                'has_owner_user_id' => $request->session()->has('integrations.oauth2.owner_user_id'),
+            ],
+        ]);
+
         $cfg = $this->getProviderConfig($integrationKey);
 
         $state = (string) $request->query('state', '');
         $expectedState = (string) $request->session()->pull('integrations.oauth2.state');
+        
+        \Log::info('OAuth2 State Check', [
+            'received_state' => $state,
+            'expected_state' => $expectedState,
+            'match' => hash_equals($expectedState, $state),
+        ]);
+
         if (!$state || !$expectedState || !hash_equals($expectedState, $state)) {
             throw new \RuntimeException('Ungültiger OAuth state.');
         }
@@ -95,12 +113,40 @@ class OAuth2Service
             throw new \RuntimeException('OAuth Callback ohne code: ' . $err);
         }
 
+        // Versuche owner_user_id aus Session zu holen
         $ownerUserId = (int) $request->session()->pull('integrations.oauth2.owner_user_id');
+        
+        // Fallback: Wenn Session-Daten fehlen, verwende eingeloggten User
+        if ($ownerUserId <= 0 && $request->user()) {
+            $ownerUserId = $request->user()->id;
+            \Log::info('OAuth2 Owner User ID from authenticated user', [
+                'owner_user_id' => $ownerUserId,
+            ]);
+        }
+        
+        \Log::info('OAuth2 Owner User ID', [
+            'owner_user_id' => $ownerUserId,
+            'from_session' => $request->session()->has('integrations.oauth2.owner_user_id'),
+            'from_auth' => $request->user() !== null,
+        ]);
+
         if ($ownerUserId <= 0) {
-            throw new \RuntimeException('Owner-User-ID fehlt.');
+            throw new \RuntimeException('Owner-User-ID fehlt. Bitte stelle sicher, dass du eingeloggt bist.');
         }
 
-        $integration = Integration::query()->where('key', $integrationKey)->firstOrFail();
+        $integration = Integration::query()->where('key', $integrationKey)->first();
+        
+        if (!$integration) {
+            \Log::error('OAuth2 Integration Not Found', [
+                'integration_key' => $integrationKey,
+            ]);
+            throw new \RuntimeException("Integration '{$integrationKey}' nicht gefunden. Bitte zuerst die Integration in der Datenbank anlegen.");
+        }
+
+        \Log::info('OAuth2 Integration Found', [
+            'integration_id' => $integration->id,
+            'integration_key' => $integration->key,
+        ]);
 
         // Token URL dynamisch bauen (für Meta mit api_version)
         $tokenUrl = $cfg['token_url'] ?? null;
@@ -115,29 +161,60 @@ class OAuth2Service
             throw new \RuntimeException("token_url fehlt für '{$integrationKey}'.");
         }
 
-        $resp = Http::asForm()->post($tokenUrl, [
+        $tokenParams = [
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => $this->redirectUri($integrationKey),
             'client_id' => $cfg['client_id'],
-            'client_secret' => $cfg['client_secret'] ?? null,
+        ];
+
+        // Meta benötigt client_secret als Query-Parameter, nicht im Body
+        if ($cfg['client_secret'] ?? null) {
+            $tokenParams['client_secret'] = $cfg['client_secret'];
+        }
+
+        \Log::info('OAuth2 Token Exchange', [
+            'integration_key' => $integrationKey,
+            'token_url' => $tokenUrl,
+            'redirect_uri' => $this->redirectUri($integrationKey),
+            'has_client_secret' => !empty($cfg['client_secret']),
         ]);
 
+        $resp = Http::asForm()->post($tokenUrl, $tokenParams);
+
         if (!$resp->successful()) {
+            \Log::error('OAuth2 Token Exchange Failed', [
+                'integration_key' => $integrationKey,
+                'status' => $resp->status(),
+                'body' => $resp->body(),
+                'json' => $resp->json(),
+            ]);
             throw new \RuntimeException('Token Exchange fehlgeschlagen: ' . $resp->body());
         }
 
         $payload = $resp->json();
+        
+        \Log::info('OAuth2 Token Exchange Success', [
+            'integration_key' => $integrationKey,
+            'has_access_token' => !empty($payload['access_token']),
+            'has_refresh_token' => !empty($payload['refresh_token']),
+            'expires_in' => $payload['expires_in'] ?? null,
+        ]);
+
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
         $expiresAt = $expiresIn ? now()->addSeconds($expiresIn)->timestamp : null;
 
         $connection = IntegrationConnection::query()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $ownerUserId)
-            ->first() ?? new IntegrationConnection([
+            ->first();
+
+        if (!$connection) {
+            $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $ownerUserId,
             ]);
+        }
 
         $credentials = $connection->credentials ?? [];
         $credentials['oauth'] = array_merge($credentials['oauth'] ?? [], [
@@ -152,7 +229,20 @@ class OAuth2Service
         $connection->status = 'active';
         $connection->last_error = null;
         $connection->credentials = $credentials;
+        
+        \Log::info('OAuth2 Saving Connection', [
+            'integration_id' => $integration->id,
+            'owner_user_id' => $ownerUserId,
+            'has_credentials' => !empty($credentials),
+            'has_oauth' => !empty($credentials['oauth']),
+        ]);
+
         $connection->save();
+
+        \Log::info('OAuth2 Connection Saved', [
+            'connection_id' => $connection->id,
+            'saved' => $connection->exists,
+        ]);
 
         return $connection;
     }

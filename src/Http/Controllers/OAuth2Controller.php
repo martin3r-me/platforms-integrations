@@ -20,6 +20,9 @@ class OAuth2Controller extends Controller
         $state = $this->oauth2->newState();
         $request->session()->put('integrations.oauth2.state', $state);
         $request->session()->put('integrations.oauth2.owner_user_id', $ownerUserId);
+        
+        // Session explizit speichern, bevor wir zu externem Service weiterleiten
+        $request->session()->save();
 
         try {
             $authorizeUrl = $this->oauth2->buildAuthorizeUrl($integrationKey, $state);
@@ -27,6 +30,8 @@ class OAuth2Controller extends Controller
             \Log::info('OAuth2 Start', [
                 'integration_key' => $integrationKey,
                 'user_id' => $ownerUserId,
+                'state' => $state,
+                'session_id' => $request->session()->getId(),
                 'authorize_url' => $authorizeUrl,
                 'redirect_uri' => $this->oauth2->redirectUri($integrationKey),
             ]);

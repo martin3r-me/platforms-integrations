@@ -41,17 +41,15 @@ class IntegrationsServiceProvider extends ServiceProvider
         }
 
         // Schritt 3: Routes laden
-        // OAuth-Routes müssen immer verfügbar sein (auch ohne Auth für Callback)
-        // Daher laden wir sie direkt, nicht über ModuleRouter
+        // OAuth-Routes müssen immer verfügbar sein
+        // Callback benötigt auch Auth, da User eingeloggt sein sollte
         Route::prefix('integrations')
-            ->middleware(['web']) // Nur web, kein auth - Callback muss ohne Auth funktionieren
+            ->middleware(['web', 'auth']) // Beide Routes benötigen Auth
             ->group(function () {
                 Route::get('/oauth2/{integrationKey}/start', [\Platform\Integrations\Http\Controllers\OAuth2Controller::class, 'start'])
-                    ->name('integrations.oauth2.start')
-                    ->middleware('auth'); // Start benötigt Auth
+                    ->name('integrations.oauth2.start');
                 Route::get('/oauth2/{integrationKey}/callback', [\Platform\Integrations\Http\Controllers\OAuth2Controller::class, 'callback'])
                     ->name('integrations.oauth2.callback');
-                    // Callback ohne auth - User wird nach OAuth zurückgeleitet
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
