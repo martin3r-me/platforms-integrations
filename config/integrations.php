@@ -64,6 +64,7 @@ return [
                     'instagram_manage_insights',
                     'whatsapp_business_management',
                     'whatsapp_business_messaging',
+                    'business_management', // Benötigt für WhatsApp Business Accounts über Business Accounts
                 ],
             ],
             // 'lexoffice' => [ ... ]
