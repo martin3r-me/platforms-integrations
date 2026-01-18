@@ -22,7 +22,8 @@ return new class extends Migration
             $table->string('status')->default('draft'); // draft|active|disabled|error
 
             // Verschlüsselte Credentials (JSON): Tokens, API-Key, username/pass, etc.
-            $table->json('credentials')->nullable();
+            // WICHTIG: longText, nicht json, da verschlüsselte Werte keine gültigen JSON-Strings sind
+            $table->longText('credentials')->nullable();
             $table->string('credentials_hash')->nullable(); // optional: später für Change-Detection
 
             $table->timestamp('last_tested_at')->nullable();
