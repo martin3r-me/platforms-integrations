@@ -47,10 +47,41 @@ class OAuth2Controller extends Controller
 
     public function callback(Request $request, string $integrationKey)
     {
-        $connection = $this->oauth2->handleCallback($request, $integrationKey);
+        try {
+            $connection = $this->oauth2->handleCallback($request, $integrationKey);
 
-        return redirect()
-            ->route('integrations.connections.index')
-            ->with('status', "OAuth Verbindung für '{$integrationKey}' gespeichert (Connection #{$connection->id}).");
+            \Log::info('OAuth2 Callback Success', [
+                'integration_key' => $integrationKey,
+                'connection_id' => $connection->id,
+            ]);
+
+            // User einloggen, falls nicht eingeloggt (für Redirect)
+            if (!$request->user() && $connection->ownerUser) {
+                auth()->login($connection->ownerUser);
+            }
+
+            return redirect()
+                ->route('integrations.connections.index')
+                ->with('status', "OAuth Verbindung für '{$integrationKey}' gespeichert (Connection #{$connection->id}).");
+        } catch (\Exception $e) {
+            \Log::error('OAuth2 Callback Error', [
+                'integration_key' => $integrationKey,
+                'error' => $e->getMessage(),
+                'request_params' => $request->all(),
+            ]);
+
+            // Versuche User zu finden für besseren Redirect
+            $ownerUserId = $request->session()->get('integrations.oauth2.owner_user_id');
+            if ($ownerUserId) {
+                $user = \Platform\Core\Models\User::find($ownerUserId);
+                if ($user) {
+                    auth()->login($user);
+                }
+            }
+
+            return redirect()
+                ->route('integrations.connections.index')
+                ->with('error', 'Fehler beim OAuth-Callback: ' . $e->getMessage());
+        }
     }
 }

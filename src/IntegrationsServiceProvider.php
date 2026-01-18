@@ -2,6 +2,7 @@
 
 namespace Platform\Integrations;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -39,10 +40,26 @@ class IntegrationsServiceProvider extends ServiceProvider
             ]);
         }
 
-        // Schritt 3: Routes laden, wenn Modul aktiv ist
+        // Schritt 3: Routes laden
+        // OAuth-Routes müssen immer verfügbar sein (auch ohne Auth für Callback)
+        // Daher laden wir sie direkt, nicht über ModuleRouter
+        Route::prefix('integrations')
+            ->middleware(['web']) // Nur web, kein auth - Callback muss ohne Auth funktionieren
+            ->group(function () {
+                Route::get('/oauth2/{integrationKey}/start', [\Platform\Integrations\Http\Controllers\OAuth2Controller::class, 'start'])
+                    ->name('integrations.oauth2.start')
+                    ->middleware('auth'); // Start benötigt Auth
+                Route::get('/oauth2/{integrationKey}/callback', [\Platform\Integrations\Http\Controllers\OAuth2Controller::class, 'callback'])
+                    ->name('integrations.oauth2.callback');
+                    // Callback ohne auth - User wird nach OAuth zurückgeleitet
+            });
+
+        // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
         if (PlatformCore::getModule('integrations')) {
             ModuleRouter::group('integrations', function () {
-                $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+                // Nur non-OAuth Routes hier
+                Route::get('/', [\Platform\Integrations\Livewire\Connections\Index::class])->name('integrations.connections.index');
+                Route::get('/connections/{connection}/grants', [\Platform\Integrations\Livewire\Grants\Manage::class])->name('integrations.connections.grants');
             });
         }
 

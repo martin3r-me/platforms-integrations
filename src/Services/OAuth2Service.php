@@ -19,6 +19,8 @@ class OAuth2Service
         $authorizeUrl = $cfg['authorize_url'] ?? null;
         if (!$authorizeUrl && isset($cfg['authorize_url_template'])) {
             $version = $cfg['api_version'] ?? '21.0';
+            // Entferne "v" am Anfang, falls vorhanden (Template fügt es hinzu)
+            $version = ltrim($version, 'vV');
             $authorizeUrl = str_replace('{version}', $version, $cfg['authorize_url_template']);
         }
 
@@ -104,6 +106,8 @@ class OAuth2Service
         $tokenUrl = $cfg['token_url'] ?? null;
         if (!$tokenUrl && isset($cfg['token_url_template'])) {
             $version = $cfg['api_version'] ?? '21.0';
+            // Entferne "v" am Anfang, falls vorhanden (Template fügt es hinzu)
+            $version = ltrim($version, 'vV');
             $tokenUrl = str_replace('{version}', $version, $cfg['token_url_template']);
         }
 
@@ -169,6 +173,8 @@ class OAuth2Service
         $tokenUrl = $cfg['token_url'] ?? null;
         if (!$tokenUrl && isset($cfg['token_url_template'])) {
             $version = $cfg['api_version'] ?? '21.0';
+            // Entferne "v" am Anfang, falls vorhanden (Template fügt es hinzu)
+            $version = ltrim($version, 'vV');
             $tokenUrl = str_replace('{version}', $version, $cfg['token_url_template']);
         }
 
