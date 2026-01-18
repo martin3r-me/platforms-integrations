@@ -55,16 +55,29 @@ return [
                 'client_secret' => env('META_CLIENT_SECRET'),
                 'redirect_domain' => env('META_OAUTH_REDIRECT_DOMAIN'), // Optional: Nur Domain, URI wird automatisch generiert
                 'scopes' => [
+                    // Facebook Pages
                     'pages_show_list',
                     'pages_read_engagement',
                     'pages_read_user_content',
                     'pages_manage_metadata',
+                    'pages_manage_posts', // Für Posts (wie im glowkit-master)
+                    
+                    // Instagram
                     'instagram_basic',
                     'instagram_manage_comments',
                     'instagram_manage_insights',
+                    'instagram_manage_messages', // Für Instagram Messages (wie im glowkit-master)
+                    'instagram_shopping_tag_products', // Für Instagram Shopping (wie im glowkit-master)
+                    
+                    // WhatsApp
                     'whatsapp_business_management',
                     'whatsapp_business_messaging',
+                    
+                    // Business Management
                     'business_management', // Benötigt für WhatsApp Business Accounts über Business Accounts
+                    
+                    // Optional: Ads (falls benötigt)
+                    // 'ads_management', // Nur wenn Werbekonten benötigt werden
                 ],
             ],
             // 'lexoffice' => [ ... ]

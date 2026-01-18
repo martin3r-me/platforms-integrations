@@ -40,6 +40,14 @@ class IntegrationsWhatsAppAccountService
         // Versuche Meta User ID aus Credentials zu holen (wie im glowkit-master)
         $credentials = $connection->credentials ?? [];
         $metaUserId = $credentials['oauth']['meta_user_id'] ?? null;
+        
+        Log::info('WhatsApp sync - Meta User ID check', [
+            'user_id' => $userId,
+            'has_meta_user_id' => !empty($metaUserId),
+            'meta_user_id' => $metaUserId,
+            'credentials_keys' => array_keys($credentials),
+            'oauth_keys' => array_keys($credentials['oauth'] ?? []),
+        ]);
 
         // Versuche zuerst direkten Zugriff über /me (falls verfügbar)
         // Falls das nicht funktioniert, verwenden wir den Business-Account-Weg
