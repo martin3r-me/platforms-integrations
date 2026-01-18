@@ -15,17 +15,16 @@ return new class extends Migration
                 ->constrained('integration_connections')
                 ->cascadeOnDelete();
 
-            // polymorph-light: team|user
-            $table->string('grantee_type'); // team|user
-            $table->unsignedBigInteger('grantee_id');
+            // Nur User-Grants (kein Team-Bezug)
+            $table->foreignId('grantee_user_id')->constrained('users')->cascadeOnDelete();
 
             // optional: feinere Rechte/Scopes
             $table->json('permissions')->nullable();
 
             $table->timestamps();
 
-            $table->unique(['connection_id', 'grantee_type', 'grantee_id'], 'uniq_connection_grantee');
-            $table->index(['grantee_type', 'grantee_id'], 'idx_grantee_lookup');
+            $table->unique(['connection_id', 'grantee_user_id'], 'icg_connection_user_uniq');
+            $table->index(['grantee_user_id'], 'icg_grantee_user_idx');
         });
     }
 
@@ -34,4 +33,3 @@ return new class extends Migration
         Schema::dropIfExists('integration_connection_grants');
     }
 };
-

@@ -15,29 +15,11 @@ class OAuth2Controller extends Controller
     public function start(Request $request, string $integrationKey)
     {
         $user = $request->user();
-
-        $ownerType = (string) $request->query('owner_type', 'team'); // team|user
-        $ownerId = (int) $request->query('owner_id', 0);
-
-        if (!in_array($ownerType, ['team', 'user'], true)) {
-            abort(422, 'Ungültiger owner_type');
-        }
-
-        if ($ownerType === 'user') {
-            $ownerId = $user->id;
-        } else {
-            // Default: aktuelles Team
-            $ownerId = $ownerId > 0 ? $ownerId : (int) ($user->currentTeam?->id ?? 0);
-        }
-
-        if ($ownerId <= 0) {
-            abort(422, 'Owner-Kontext fehlt');
-        }
+        $ownerUserId = $user->id;
 
         $state = $this->oauth2->newState();
         $request->session()->put('integrations.oauth2.state', $state);
-        $request->session()->put('integrations.oauth2.owner_type', $ownerType);
-        $request->session()->put('integrations.oauth2.owner_id', $ownerId);
+        $request->session()->put('integrations.oauth2.owner_user_id', $ownerUserId);
 
         return redirect()->away($this->oauth2->buildAuthorizeUrl($integrationKey, $state));
     }
@@ -51,4 +33,3 @@ class OAuth2Controller extends Controller
             ->with('status', "OAuth Verbindung für '{$integrationKey}' gespeichert (Connection #{$connection->id}).");
     }
 }
-

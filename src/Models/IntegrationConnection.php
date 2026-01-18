@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Platform\Core\Models\Team;
 use Platform\Core\Models\User;
 use Platform\Core\Traits\Encryptable;
 
@@ -19,7 +18,6 @@ class IntegrationConnection extends Model
 
     protected $fillable = [
         'integration_id',
-        'owner_team_id',
         'owner_user_id',
         'auth_scheme',
         'status',
@@ -44,11 +42,6 @@ class IntegrationConnection extends Model
         return $this->belongsTo(Integration::class, 'integration_id');
     }
 
-    public function ownerTeam(): BelongsTo
-    {
-        return $this->belongsTo(Team::class, 'owner_team_id');
-    }
-
     public function ownerUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
@@ -61,19 +54,6 @@ class IntegrationConnection extends Model
 
     public function isOwner(User $user): bool
     {
-        if ($this->owner_user_id && $this->owner_user_id === $user->id) {
-            return true;
-        }
-
-        // Team-Owner (Team.user_id) gilt als Owner für team-owned Connection
-        if ($this->owner_team_id) {
-            $team = $this->ownerTeam;
-            if ($team && $team->user_id === $user->id) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->owner_user_id === $user->id;
     }
 }
-

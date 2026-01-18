@@ -1,6 +1,6 @@
 {
   "name": "martin3r/platform-integrations",
-  "description": "Integrations Service for Platform (OAuth + manual credentials, grants per team/user)",
+  "description": "Integrations Service for Platform (OAuth + manual credentials, grants per user)",
   "type": "library",
   "license": "MIT",
   "autoload": {

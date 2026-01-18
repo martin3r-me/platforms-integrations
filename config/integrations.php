@@ -2,7 +2,7 @@
 
 return [
     'name' => 'Integrations',
-    'description' => 'External integrations (OAuth + manual credentials) with grants per team/user',
+    'description' => 'External integrations (OAuth + manual credentials) with grants per user',
     'version' => '1.0.0',
 
     'routing' => [
@@ -46,6 +46,24 @@ return [
      */
     'oauth2' => [
         'providers' => [
+            'meta' => [
+                'api_version' => env('META_API_VERSION', '21.0'),
+                'authorize_url' => 'https://www.facebook.com/v' . env('META_API_VERSION', '21.0') . '/dialog/oauth',
+                'token_url' => 'https://graph.facebook.com/v' . env('META_API_VERSION', '21.0') . '/oauth/access_token',
+                'client_id' => env('META_CLIENT_ID'),
+                'client_secret' => env('META_CLIENT_SECRET'),
+                'scopes' => [
+                    'pages_show_list',
+                    'pages_read_engagement',
+                    'pages_read_user_content',
+                    'pages_manage_metadata',
+                    'instagram_basic',
+                    'instagram_manage_comments',
+                    'instagram_manage_insights',
+                    'whatsapp_business_management',
+                    'whatsapp_business_messaging',
+                ],
+            ],
             // 'lexoffice' => [ ... ]
         ],
     ],

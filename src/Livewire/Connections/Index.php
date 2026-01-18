@@ -5,7 +5,6 @@ namespace Platform\Integrations\Livewire\Connections;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Platform\Core\Models\Team;
 use Platform\Core\Models\User;
 use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Models\IntegrationConnection;
@@ -21,10 +20,6 @@ class Index extends Component
     public ?int $editingId = null;
 
     public string $integrationKey = '';
-    public string $ownerType = 'team'; // team|user
-    public ?int $ownerTeamId = null;
-    public bool $isEnabled = true;
-
     public string $authScheme = 'oauth2'; // oauth2|api_key|basic|bearer|custom
     public string $status = 'draft';
 
@@ -33,25 +28,14 @@ class Index extends Component
 
     public ?string $lastError = null;
 
-    public function mount(): void
-    {
-        $user = auth()->user();
-        $this->ownerTeamId = (int) ($user?->currentTeam?->id ?? 0) ?: null;
-    }
-
     public function render()
     {
         /** @var User $user */
         $user = auth()->user();
 
-        $teamIds = $user->teams()->pluck('teams.id')->all();
-
         $connections = IntegrationConnection::query()
-            ->with(['integration', 'ownerTeam', 'ownerUser'])
-            ->where(function ($q) use ($user, $teamIds) {
-                $q->where('owner_user_id', $user->id)
-                  ->orWhereIn('owner_team_id', $teamIds);
-            })
+            ->with(['integration', 'ownerUser'])
+            ->where('owner_user_id', $user->id)
             ->orderByDesc('updated_at')
             ->paginate(15);
 
@@ -60,12 +44,9 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        $teams = $user->teams()->orderBy('name')->get();
-
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
-            'teams' => $teams,
         ])->layout('platform::layouts.app');
     }
 
@@ -74,7 +55,6 @@ class Index extends Component
         $this->resetValidation();
         $this->editingId = null;
         $this->integrationKey = '';
-        $this->ownerType = 'team';
         $this->authScheme = 'oauth2';
         $this->status = 'draft';
         $this->credentialsJson = "{}";
@@ -96,8 +76,6 @@ class Index extends Component
 
         $this->editingId = $conn->id;
         $this->integrationKey = $conn->integration?->key ?? '';
-        $this->ownerType = $conn->owner_user_id ? 'user' : 'team';
-        $this->ownerTeamId = $conn->owner_team_id;
         $this->authScheme = $conn->auth_scheme;
         $this->status = $conn->status;
         $this->credentialsJson = json_encode($conn->credentials ?? new \stdClass(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: "{}";
@@ -121,39 +99,23 @@ class Index extends Component
             return;
         }
 
-        $ownerTeamId = $this->ownerType === 'team' ? (int) ($this->ownerTeamId ?? 0) : null;
-        $ownerUserId = $this->ownerType === 'user' ? (int) auth()->id() : null;
-
-        if ($this->ownerType === 'team' && (!$ownerTeamId || $ownerTeamId <= 0)) {
-            $this->addError('ownerTeamId', 'Bitte ein Team wählen.');
-            return;
-        }
+        $ownerUserId = auth()->id();
 
         $credentials = $this->decodeCredentialsJson();
         if ($credentials === null) {
             return; // error already set
         }
 
-        $query = IntegrationConnection::query()
-            ->where('integration_id', $integration->id);
-
-        if ($ownerTeamId) {
-            $query->where('owner_team_id', $ownerTeamId);
-        }
-        if ($ownerUserId) {
-            $query->where('owner_user_id', $ownerUserId);
-        }
-
-        $connection = $this->editingId
-            ? IntegrationConnection::findOrFail($this->editingId)
-            : ($query->first() ?? new IntegrationConnection());
+        $connection = IntegrationConnection::query()
+            ->where('integration_id', $integration->id)
+            ->where('owner_user_id', $ownerUserId)
+            ->first() ?? new IntegrationConnection();
 
         if ($connection->exists) {
             $this->assertCanManage($connection);
         }
 
         $connection->integration_id = $integration->id;
-        $connection->owner_team_id = $ownerTeamId;
         $connection->owner_user_id = $ownerUserId;
         $connection->auth_scheme = $this->authScheme;
         $connection->status = $this->status;
@@ -186,18 +148,7 @@ class Index extends Component
             return;
         }
 
-        // Für user-owned immer owner_type=user (owner_id wird serverseitig auf current user gesetzt)
-        $ownerType = $conn->owner_user_id ? 'user' : 'team';
-        $ownerId = $conn->owner_team_id ?: null;
-
-        $params = [
-            'owner_type' => $ownerType,
-        ];
-
-        if ($ownerType === 'team' && $ownerId) {
-            $params['owner_id'] = $ownerId;
-        }
-        $url = route('integrations.oauth2.start', ['integrationKey' => $integrationKey]) . '?' . http_build_query($params);
+        $url = route('integrations.oauth2.start', ['integrationKey' => $integrationKey]);
         $this->redirect($url);
     }
 
@@ -205,8 +156,6 @@ class Index extends Component
     {
         return [
             'integrationKey' => ['required', 'string'],
-            'ownerType' => ['required', Rule::in(['team', 'user'])],
-            'ownerTeamId' => ['nullable', 'integer'],
             'authScheme' => ['required', Rule::in(['oauth2', 'api_key', 'basic', 'bearer', 'custom'])],
             'status' => ['required', Rule::in(['draft', 'active', 'disabled', 'error'])],
             'credentialsJson' => ['required', 'string'],
@@ -235,4 +184,3 @@ class Index extends Component
         }
     }
 }
-

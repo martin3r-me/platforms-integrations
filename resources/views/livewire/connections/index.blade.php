@@ -17,10 +17,11 @@
     </div>
 
     @if (session('status'))
-        <div class="mb-4">
-            <x-ui-alert variant="success">
-                {{ session('status') }}
-            </x-ui-alert>
+        <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="flex items-center gap-2">
+                @svg('heroicon-o-check-circle', 'w-5 h-5 text-green-600')
+                <p class="text-sm text-green-800">{{ session('status') }}</p>
+            </div>
         </div>
     @endif
 
@@ -29,7 +30,6 @@
             <x-ui-table>
                 <x-ui-table-header>
                     <x-ui-table-header-cell>Integration</x-ui-table-header-cell>
-                    <x-ui-table-header-cell>Owner</x-ui-table-header-cell>
                     <x-ui-table-header-cell>Auth</x-ui-table-header-cell>
                     <x-ui-table-header-cell>Status</x-ui-table-header-cell>
                     <x-ui-table-header-cell align="right">Aktionen</x-ui-table-header-cell>
@@ -40,15 +40,6 @@
                         <x-ui-table-row>
                             <x-ui-table-cell class="font-medium">
                                 {{ $conn->integration->name ?? $conn->integration->key ?? '—' }}
-                            </x-ui-table-cell>
-                            <x-ui-table-cell>
-                                @if($conn->owner_user_id)
-                                    User: {{ $conn->ownerUser->name ?? $conn->owner_user_id }}
-                                @elseif($conn->owner_team_id)
-                                    Team: {{ $conn->ownerTeam->name ?? $conn->owner_team_id }}
-                                @else
-                                    —
-                                @endif
                             </x-ui-table-cell>
                             <x-ui-table-cell>{{ $conn->auth_scheme }}</x-ui-table-cell>
                             <x-ui-table-cell>
@@ -109,32 +100,10 @@
                     :errorKey="'integrationKey'"
                 />
 
-                <x-ui-input-select
-                    name="ownerType"
-                    label="Owner"
-                    :options="collect([['value' => 'team','label' => 'Team'],['value' => 'user','label' => 'User']])"
-                    optionValue="value"
-                    optionLabel="label"
-                    :nullable="false"
-                    wire:model.live="ownerType"
-                    :errorKey="'ownerType'"
-                />
-            </div>
-
-            @if($ownerType === 'team')
-                <div class="grid grid-cols-1 gap-4">
-                    <x-ui-input-select
-                        name="ownerTeamId"
-                        label="Team"
-                        :options="$teams->map(fn($t) => ['value' => $t->id, 'label' => $t->name])"
-                        optionValue="value"
-                        optionLabel="label"
-                        :nullable="false"
-                        wire:model.live="ownerTeamId"
-                        :errorKey="'ownerTeamId'"
-                    />
+                <div class="text-sm text-gray-600">
+                    Owner: {{ auth()->user()->name ?? auth()->user()->email }}
                 </div>
-            @endif
+            </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <x-ui-input-select
@@ -190,32 +159,12 @@
         <x-slot name="header">Connection bearbeiten</x-slot>
 
         <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4">
                 <x-ui-input-text name="integrationKey" wire:model.live="integrationKey" label="Integration Key" :errorKey="'integrationKey'" />
-                <x-ui-input-select
-                    name="ownerType"
-                    label="Owner"
-                    :options="collect([['value' => 'team','label' => 'Team'],['value' => 'user','label' => 'User']])"
-                    optionValue="value"
-                    optionLabel="label"
-                    :nullable="false"
-                    wire:model.live="ownerType"
-                    :errorKey="'ownerType'"
-                />
+                <div class="text-sm text-gray-600">
+                    Owner: {{ auth()->user()->name ?? auth()->user()->email }}
+                </div>
             </div>
-
-            @if($ownerType === 'team')
-                <x-ui-input-select
-                    name="ownerTeamId"
-                    label="Team"
-                    :options="$teams->map(fn($t) => ['value' => $t->id, 'label' => $t->name])"
-                    optionValue="value"
-                    optionLabel="label"
-                    :nullable="false"
-                    wire:model.live="ownerTeamId"
-                    :errorKey="'ownerTeamId'"
-                />
-            @endif
 
             <div class="grid grid-cols-2 gap-4">
                 <x-ui-input-select
@@ -249,12 +198,15 @@
             />
 
             @if($lastError)
-                <x-ui-alert variant="danger">
-                    <div class="text-sm">
-                        <div class="font-medium">Letzter Fehler</div>
-                        <div class="mt-1 whitespace-pre-wrap">{{ $lastError }}</div>
+                <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-start gap-2">
+                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                        <div class="text-sm">
+                            <div class="font-medium text-red-800">Letzter Fehler</div>
+                            <div class="mt-1 whitespace-pre-wrap text-red-700">{{ $lastError }}</div>
+                        </div>
                     </div>
-                </x-ui-alert>
+                </div>
             @endif
         </div>
 

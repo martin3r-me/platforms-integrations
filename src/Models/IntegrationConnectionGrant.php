@@ -4,6 +4,7 @@ namespace Platform\Integrations\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Platform\Core\Models\User;
 
 class IntegrationConnectionGrant extends Model
 {
@@ -11,8 +12,7 @@ class IntegrationConnectionGrant extends Model
 
     protected $fillable = [
         'connection_id',
-        'grantee_type',
-        'grantee_id',
+        'grantee_user_id',
         'permissions',
     ];
 
@@ -24,5 +24,9 @@ class IntegrationConnectionGrant extends Model
     {
         return $this->belongsTo(IntegrationConnection::class, 'connection_id');
     }
-}
 
+    public function granteeUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'grantee_user_id');
+    }
+}

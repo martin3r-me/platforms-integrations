@@ -46,10 +46,18 @@ class IntegrationsServiceProvider extends ServiceProvider
             });
         }
 
-        // Schritt 4: Migrationen + Views + Livewire
+        // Schritt 4: Migrationen + Views + Livewire + Commands
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'integrations');
         $this->registerLivewireComponents();
+        
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Platform\Integrations\Console\Commands\SyncFacebookPages::class,
+                \Platform\Integrations\Console\Commands\SyncInstagramAccounts::class,
+                \Platform\Integrations\Console\Commands\SyncWhatsAppAccounts::class,
+            ]);
+        }
 
         // Schritt 5: Config publish
         $this->publishes([

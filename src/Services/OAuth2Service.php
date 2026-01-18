@@ -36,8 +36,7 @@ class OAuth2Service
      *
      * Expected session keys (set by Controller):
      * - integrations.oauth2.state
-     * - integrations.oauth2.owner_type (team|user)
-     * - integrations.oauth2.owner_id
+     * - integrations.oauth2.owner_user_id
      */
     public function handleCallback(Request $request, string $integrationKey): IntegrationConnection
     {
@@ -55,10 +54,9 @@ class OAuth2Service
             throw new \RuntimeException('OAuth Callback ohne code: ' . $err);
         }
 
-        $ownerType = (string) $request->session()->pull('integrations.oauth2.owner_type');
-        $ownerId = (int) $request->session()->pull('integrations.oauth2.owner_id');
-        if (!in_array($ownerType, ['team', 'user'], true) || $ownerId <= 0) {
-            throw new \RuntimeException('Owner-Kontext fehlt (team/user).');
+        $ownerUserId = (int) $request->session()->pull('integrations.oauth2.owner_user_id');
+        if ($ownerUserId <= 0) {
+            throw new \RuntimeException('Owner-User-ID fehlt.');
         }
 
         $integration = Integration::query()->where('key', $integrationKey)->firstOrFail();
@@ -79,18 +77,13 @@ class OAuth2Service
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
         $expiresAt = $expiresIn ? now()->addSeconds($expiresIn)->timestamp : null;
 
-        $connQuery = IntegrationConnection::query()->where('integration_id', $integration->id);
-        if ($ownerType === 'team') {
-            $connQuery->where('owner_team_id', $ownerId);
-        } else {
-            $connQuery->where('owner_user_id', $ownerId);
-        }
-
-        $connection = $connQuery->first() ?? new IntegrationConnection([
-            'integration_id' => $integration->id,
-            'owner_team_id' => $ownerType === 'team' ? $ownerId : null,
-            'owner_user_id' => $ownerType === 'user' ? $ownerId : null,
-        ]);
+        $connection = IntegrationConnection::query()
+            ->where('integration_id', $integration->id)
+            ->where('owner_user_id', $ownerUserId)
+            ->first() ?? new IntegrationConnection([
+                'integration_id' => $integration->id,
+                'owner_user_id' => $ownerUserId,
+            ]);
 
         $credentials = $connection->credentials ?? [];
         $credentials['oauth'] = array_merge($credentials['oauth'] ?? [], [
@@ -170,4 +163,3 @@ class OAuth2Service
         return $cfg;
     }
 }
-

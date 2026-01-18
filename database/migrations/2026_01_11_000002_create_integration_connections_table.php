@@ -15,9 +15,8 @@ return new class extends Migration
                 ->constrained('integrations')
                 ->cascadeOnDelete();
 
-            // Owner: genau eins von beiden (enforced application-level; unique indexes sichern Eindeutigkeit)
-            $table->foreignId('owner_team_id')->nullable()->constrained('teams')->cascadeOnDelete();
-            $table->foreignId('owner_user_id')->nullable()->constrained('users')->cascadeOnDelete();
+            // Owner: User-zentriert (kein Team-Bezug)
+            $table->foreignId('owner_user_id')->constrained('users')->cascadeOnDelete();
 
             $table->string('auth_scheme')->default('oauth2'); // oauth2|api_key|basic|bearer|custom
             $table->string('status')->default('draft'); // draft|active|disabled|error
@@ -32,13 +31,11 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Eindeutigkeit pro Integration + Owner
-            $table->unique(['integration_id', 'owner_team_id'], 'uniq_integration_owner_team');
-            $table->unique(['integration_id', 'owner_user_id'], 'uniq_integration_owner_user');
+            // Eindeutigkeit pro Integration + User
+            $table->unique(['integration_id', 'owner_user_id'], 'ic_integration_user_uniq');
 
-            $table->index(['integration_id', 'status']);
-            $table->index(['owner_team_id']);
-            $table->index(['owner_user_id']);
+            $table->index(['integration_id', 'status'], 'ic_integration_status_idx');
+            $table->index(['owner_user_id'], 'ic_owner_user_idx');
         });
     }
 
@@ -47,4 +44,3 @@ return new class extends Migration
         Schema::dropIfExists('integration_connections');
     }
 };
-

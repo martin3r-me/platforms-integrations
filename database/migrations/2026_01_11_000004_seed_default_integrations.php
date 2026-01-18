@@ -7,6 +7,22 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Meta Integration (Facebook, Instagram, WhatsApp)
+        DB::table('integrations')->updateOrInsert(
+            ['key' => 'meta'],
+            [
+                'name' => 'Meta (Facebook, Instagram, WhatsApp)',
+                'is_enabled' => true,
+                'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
+                'meta' => json_encode([
+                    'description' => 'Meta Platform Integration für Facebook Pages, Instagram Accounts und WhatsApp Business Accounts',
+                    'icon' => 'heroicon-o-globe-alt',
+                ], JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
         // Minimaler Bootstrap: mindestens Lexoffice als Beispiel
         DB::table('integrations')->updateOrInsert(
             ['key' => 'lexoffice'],
@@ -25,6 +41,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::table('integrations')->where('key', 'meta')->delete();
         DB::table('integrations')->where('key', 'lexoffice')->delete();
     }
 };

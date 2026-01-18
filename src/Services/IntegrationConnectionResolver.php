@@ -15,40 +15,26 @@ class IntegrationConnectionResolver
     /**
      * Resolve Connection für Integration-Key.
      *
-     * Priorität: User > Team (nur wenn Zugriff via Grants/Owner gegeben ist).
+     * User-zentriert: Nur User-owned Connections
      */
     public function resolveForUser(string $integrationKey, User $user): ?IntegrationConnection
     {
-        $team = $user->currentTeam;
         $integration = Integration::query()->where('key', $integrationKey)->first();
 
         if (!$integration || !$integration->is_enabled) {
             return null;
         }
 
-        // 1) User-owned Connection
+        // User-owned Connection
         $userConn = IntegrationConnection::query()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $user->id)
             ->first();
 
-        if ($userConn && $this->access->canUse($user, $team, $userConn)) {
+        if ($userConn && $this->access->canUse($user, $userConn)) {
             return $userConn;
-        }
-
-        // 2) Team-owned Connection (aktuelles Team)
-        if ($team) {
-            $teamConn = IntegrationConnection::query()
-                ->where('integration_id', $integration->id)
-                ->where('owner_team_id', $team->id)
-                ->first();
-
-            if ($teamConn && $this->access->canUse($user, $team, $teamConn)) {
-                return $teamConn;
-            }
         }
 
         return null;
     }
 }
-
