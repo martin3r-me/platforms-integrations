@@ -28,7 +28,7 @@ class IntegrationsMetaTokenService
      */
     public function refreshToken(IntegrationsMetaToken $token): ?string
     {
-        $apiVersion = config('integrations.oauth2.providers.meta.api_version', config('brands.meta.api_version', 'v21.0'));
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
         
         try {
             $response = Http::get("https://graph.facebook.com/debug_token", [
@@ -43,8 +43,8 @@ class IntegrationsMetaTokenService
                 $expiresIn = $expiresAt - time();
                 
                 if ($expiresIn < 86400) { // Weniger als 24 Stunden
-                    $clientId = config('integrations.oauth2.providers.meta.client_id', config('brands.meta.client_id'));
-                    $clientSecret = config('integrations.oauth2.providers.meta.client_secret', config('brands.meta.client_secret'));
+                    $clientId = config('integrations.oauth2.providers.meta.client_id');
+                    $clientSecret = config('integrations.oauth2.providers.meta.client_secret');
                     
                     $refreshResponse = Http::get("https://graph.facebook.com/{$apiVersion}/oauth/access_token", [
                         'grant_type' => 'fb_exchange_token',

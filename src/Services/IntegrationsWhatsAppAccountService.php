@@ -35,7 +35,7 @@ class IntegrationsWhatsAppAccountService
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
         }
 
-        $apiVersion = config('integrations.oauth2.providers.meta.api_version', config('brands.meta.api_version', 'v21.0'));
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
         $userId = $metaToken->user_id;
 
         // Business Accounts holen

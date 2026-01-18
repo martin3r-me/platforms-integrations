@@ -48,10 +48,12 @@ return [
         'providers' => [
             'meta' => [
                 'api_version' => env('META_API_VERSION', '21.0'),
-                'authorize_url' => 'https://www.facebook.com/v' . env('META_API_VERSION', '21.0') . '/dialog/oauth',
-                'token_url' => 'https://graph.facebook.com/v' . env('META_API_VERSION', '21.0') . '/oauth/access_token',
+                // authorize_url wird dynamisch im Service gebaut (mit api_version)
+                'authorize_url_template' => 'https://www.facebook.com/v{version}/dialog/oauth',
+                'token_url_template' => 'https://graph.facebook.com/v{version}/oauth/access_token',
                 'client_id' => env('META_CLIENT_ID'),
                 'client_secret' => env('META_CLIENT_SECRET'),
+                'redirect_domain' => env('META_OAUTH_REDIRECT_DOMAIN'), // Optional: Nur Domain, URI wird automatisch generiert
                 'scopes' => [
                     'pages_show_list',
                     'pages_read_engagement',

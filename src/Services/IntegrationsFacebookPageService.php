@@ -35,7 +35,7 @@ class IntegrationsFacebookPageService
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
         }
 
-        $apiVersion = config('integrations.oauth2.providers.meta.api_version', config('brands.meta.api_version', 'v21.0'));
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
         $userId = $metaToken->user_id;
 
         // Business Accounts holen
@@ -127,7 +127,7 @@ class IntegrationsFacebookPageService
             throw new \Exception('Kein Access Token für diese Facebook Page gefunden.');
         }
 
-        $apiVersion = config('integrations.oauth2.providers.meta.api_version', config('brands.meta.api_version', 'v21.0'));
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
 
         $params = [
             'fields' => 'id,message,story,created_time,permalink_url,attachments,type,status_type',

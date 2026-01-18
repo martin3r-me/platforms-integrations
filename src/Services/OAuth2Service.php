@@ -15,6 +15,17 @@ class OAuth2Service
         $cfg = $this->getProviderConfig($integrationKey);
         $scopes = $cfg['scopes'] ?? [];
 
+        // URL dynamisch bauen (für Meta mit api_version)
+        $authorizeUrl = $cfg['authorize_url'] ?? null;
+        if (!$authorizeUrl && isset($cfg['authorize_url_template'])) {
+            $version = $cfg['api_version'] ?? '21.0';
+            $authorizeUrl = str_replace('{version}', $version, $cfg['authorize_url_template']);
+        }
+
+        if (!$authorizeUrl) {
+            throw new \RuntimeException("authorize_url fehlt für '{$integrationKey}'.");
+        }
+
         $params = [
             'response_type' => 'code',
             'client_id' => $cfg['client_id'],
@@ -23,12 +34,40 @@ class OAuth2Service
             'state' => $state,
         ];
 
-        return rtrim($cfg['authorize_url'], '?') . '?' . http_build_query($params);
+        return rtrim($authorizeUrl, '?') . '?' . http_build_query($params);
     }
 
     public function redirectUri(string $integrationKey): string
     {
-        return route('integrations.oauth2.callback', ['integrationKey' => $integrationKey]);
+        $callbackRoute = route('integrations.oauth2.callback', ['integrationKey' => $integrationKey]);
+        
+        // Prüfe ob redirect_domain in der Config gesetzt ist
+        $cfg = $this->getProviderConfig($integrationKey);
+        $redirectDomain = $cfg['redirect_domain'] ?? null;
+        
+        if ($redirectDomain) {
+            // Wenn redirect_domain gesetzt ist, diese verwenden
+            if (filter_var($callbackRoute, FILTER_VALIDATE_URL)) {
+                // Absolute URL: nur den Pfad extrahieren
+                $path = parse_url($callbackRoute, PHP_URL_PATH);
+                $query = parse_url($callbackRoute, PHP_URL_QUERY);
+                $redirectUri = rtrim($redirectDomain, '/') . $path;
+                if ($query) {
+                    $redirectUri .= '?' . $query;
+                }
+            } else {
+                // Relative URL: direkt anhängen
+                $redirectUri = rtrim($redirectDomain, '/') . '/' . ltrim($callbackRoute, '/');
+            }
+            return $redirectUri;
+        }
+        
+        // Fallback: absolute URL erstellen (aus route())
+        if (filter_var($callbackRoute, FILTER_VALIDATE_URL)) {
+            return $callbackRoute;
+        }
+        
+        return url($callbackRoute);
     }
 
     /**
@@ -61,7 +100,18 @@ class OAuth2Service
 
         $integration = Integration::query()->where('key', $integrationKey)->firstOrFail();
 
-        $resp = Http::asForm()->post($cfg['token_url'], [
+        // Token URL dynamisch bauen (für Meta mit api_version)
+        $tokenUrl = $cfg['token_url'] ?? null;
+        if (!$tokenUrl && isset($cfg['token_url_template'])) {
+            $version = $cfg['api_version'] ?? '21.0';
+            $tokenUrl = str_replace('{version}', $version, $cfg['token_url_template']);
+        }
+
+        if (!$tokenUrl) {
+            throw new \RuntimeException("token_url fehlt für '{$integrationKey}'.");
+        }
+
+        $resp = Http::asForm()->post($tokenUrl, [
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => $this->redirectUri($integrationKey),
@@ -115,7 +165,18 @@ class OAuth2Service
             throw new \RuntimeException('Kein refresh_token vorhanden.');
         }
 
-        $resp = Http::asForm()->post($cfg['token_url'], [
+        // Token URL dynamisch bauen (für Meta mit api_version)
+        $tokenUrl = $cfg['token_url'] ?? null;
+        if (!$tokenUrl && isset($cfg['token_url_template'])) {
+            $version = $cfg['api_version'] ?? '21.0';
+            $tokenUrl = str_replace('{version}', $version, $cfg['token_url_template']);
+        }
+
+        if (!$tokenUrl) {
+            throw new \RuntimeException("token_url fehlt für '{$integrationKey}'.");
+        }
+
+        $resp = Http::asForm()->post($tokenUrl, [
             'grant_type' => 'refresh_token',
             'refresh_token' => $refreshToken,
             'client_id' => $cfg['client_id'],
@@ -156,8 +217,17 @@ class OAuth2Service
     {
         $providers = (array) config('integrations.oauth2.providers', []);
         $cfg = $providers[$integrationKey] ?? null;
-        if (!$cfg || empty($cfg['authorize_url']) || empty($cfg['token_url']) || empty($cfg['client_id'])) {
+        
+        if (!$cfg || empty($cfg['client_id'])) {
             throw new \RuntimeException("OAuth2 Provider-Konfiguration fehlt für '{$integrationKey}'.");
+        }
+
+        // Prüfe ob authorize_url oder authorize_url_template vorhanden ist
+        $hasAuthorizeUrl = !empty($cfg['authorize_url']) || !empty($cfg['authorize_url_template']);
+        $hasTokenUrl = !empty($cfg['token_url']) || !empty($cfg['token_url_template']);
+        
+        if (!$hasAuthorizeUrl || !$hasTokenUrl) {
+            throw new \RuntimeException("OAuth2 Provider-Konfiguration unvollständig für '{$integrationKey}'. authorize_url/token_url oder Templates fehlen.");
         }
 
         return $cfg;

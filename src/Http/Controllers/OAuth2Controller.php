@@ -21,7 +21,28 @@ class OAuth2Controller extends Controller
         $request->session()->put('integrations.oauth2.state', $state);
         $request->session()->put('integrations.oauth2.owner_user_id', $ownerUserId);
 
-        return redirect()->away($this->oauth2->buildAuthorizeUrl($integrationKey, $state));
+        try {
+            $authorizeUrl = $this->oauth2->buildAuthorizeUrl($integrationKey, $state);
+            
+            \Log::info('OAuth2 Start', [
+                'integration_key' => $integrationKey,
+                'user_id' => $ownerUserId,
+                'authorize_url' => $authorizeUrl,
+                'redirect_uri' => $this->oauth2->redirectUri($integrationKey),
+            ]);
+
+            return redirect()->away($authorizeUrl);
+        } catch (\Exception $e) {
+            \Log::error('OAuth2 Start Error', [
+                'integration_key' => $integrationKey,
+                'user_id' => $ownerUserId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('integrations.connections.index')
+                ->with('error', 'Fehler beim Starten des OAuth-Flows: ' . $e->getMessage());
+        }
     }
 
     public function callback(Request $request, string $integrationKey)
