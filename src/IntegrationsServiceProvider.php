@@ -56,10 +56,10 @@ class IntegrationsServiceProvider extends ServiceProvider
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
         if (PlatformCore::getModule('integrations')) {
-            ModuleRouter::group('integrations', function () {
-                // Nur non-OAuth Routes hier
-                Route::get('/', [\Platform\Integrations\Livewire\Connections\Index::class])->name('integrations.connections.index');
-                Route::get('/connections/{connection}/grants', [\Platform\Integrations\Livewire\Grants\Manage::class])->name('integrations.connections.grants');
+            $routesPath = __DIR__ . '/../routes/web.php';
+            ModuleRouter::group('integrations', function () use ($routesPath) {
+                // Routes aus web.php laden (ohne OAuth-Routes, die sind bereits oben registriert)
+                require $routesPath;
             });
         }
 
