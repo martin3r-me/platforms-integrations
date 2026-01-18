@@ -71,6 +71,7 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncFacebookPages::class,
                 \Platform\Integrations\Console\Commands\SyncInstagramAccounts::class,
                 \Platform\Integrations\Console\Commands\SyncWhatsAppAccounts::class,
+                \Platform\Integrations\Console\Commands\SeedIntegrations::class,
             ]);
         }
 

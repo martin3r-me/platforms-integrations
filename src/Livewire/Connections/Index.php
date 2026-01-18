@@ -8,7 +8,6 @@ use Livewire\WithPagination;
 use Platform\Core\Models\User;
 use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Models\IntegrationConnection;
-use Platform\Integrations\Models\IntegrationsMetaToken;
 use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
@@ -57,14 +56,10 @@ class Index extends Component
             ->where('owner_user_id', $user->id)
             ->first();
 
-        // Meta Token prüfen (für zusätzliche Info)
-        $metaToken = \Platform\Integrations\Models\IntegrationsMetaToken::where('user_id', $user->id)->first();
-
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
             'metaConnection' => $metaConnection,
-            'metaToken' => $metaToken,
         ])->layout('platform::layouts.app');
     }
 

@@ -137,10 +137,34 @@ class OAuth2Service
         $integration = Integration::query()->where('key', $integrationKey)->first();
         
         if (!$integration) {
-            \Log::error('OAuth2 Integration Not Found', [
+            \Log::warning('OAuth2 Integration Not Found - Attempting to create', [
                 'integration_key' => $integrationKey,
             ]);
-            throw new \RuntimeException("Integration '{$integrationKey}' nicht gefunden. Bitte zuerst die Integration in der Datenbank anlegen.");
+            
+            // Fallback: Versuche Meta Integration automatisch anzulegen
+            if ($integrationKey === 'meta') {
+                $integration = Integration::updateOrCreate(
+                    ['key' => 'meta'],
+                    [
+                        'name' => 'Meta (Facebook, Instagram, WhatsApp)',
+                        'is_enabled' => true,
+                        'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
+                        'meta' => json_encode([
+                            'description' => 'Meta Platform Integration für Facebook Pages, Instagram Accounts und WhatsApp Business Accounts',
+                            'icon' => 'heroicon-o-globe-alt',
+                        ], JSON_THROW_ON_ERROR),
+                    ]
+                );
+                
+                \Log::info('OAuth2 Meta Integration Auto-Created', [
+                    'integration_id' => $integration->id,
+                ]);
+            } else {
+                \Log::error('OAuth2 Integration Not Found', [
+                    'integration_key' => $integrationKey,
+                ]);
+                throw new \RuntimeException("Integration '{$integrationKey}' nicht gefunden. Bitte zuerst 'php artisan integrations:seed' ausführen oder die Integration manuell anlegen.");
+            }
         }
 
         \Log::info('OAuth2 Integration Found', [
@@ -168,19 +192,22 @@ class OAuth2Service
             'client_id' => $cfg['client_id'],
         ];
 
-        // Meta benötigt client_secret als Query-Parameter, nicht im Body
-        if ($cfg['client_secret'] ?? null) {
+        // Meta benötigt client_secret als Query-Parameter und verwendet GET
+        if ($integrationKey === 'meta' && ($cfg['client_secret'] ?? null)) {
             $tokenParams['client_secret'] = $cfg['client_secret'];
+            $resp = Http::get($tokenUrl, $tokenParams); // GET für Meta
+        } else {
+            // Andere Provider verwenden POST
+            $resp = Http::asForm()->post($tokenUrl, $tokenParams);
         }
 
         \Log::info('OAuth2 Token Exchange', [
             'integration_key' => $integrationKey,
             'token_url' => $tokenUrl,
+            'method' => $integrationKey === 'meta' ? 'GET' : 'POST',
             'redirect_uri' => $this->redirectUri($integrationKey),
             'has_client_secret' => !empty($cfg['client_secret']),
         ]);
-
-        $resp = Http::asForm()->post($tokenUrl, $tokenParams);
 
         if (!$resp->successful()) {
             \Log::error('OAuth2 Token Exchange Failed', [
@@ -199,6 +226,7 @@ class OAuth2Service
             'has_access_token' => !empty($payload['access_token']),
             'has_refresh_token' => !empty($payload['refresh_token']),
             'expires_in' => $payload['expires_in'] ?? null,
+            'all_payload_keys' => array_keys($payload),
         ]);
 
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
@@ -216,32 +244,94 @@ class OAuth2Service
             ]);
         }
 
+        // Alle relevanten OAuth-Daten aus dem Response speichern
         $credentials = $connection->credentials ?? [];
         $credentials['oauth'] = array_merge($credentials['oauth'] ?? [], [
             'access_token' => $payload['access_token'] ?? null,
             'refresh_token' => $payload['refresh_token'] ?? ($credentials['oauth']['refresh_token'] ?? null),
             'token_type' => $payload['token_type'] ?? 'Bearer',
             'scope' => $payload['scope'] ?? null,
-            'expires_at' => $expiresAt,
+            'expires_in' => $expiresIn, // Original-Wert in Sekunden (für spätere Berechnungen)
+            'expires_at' => $expiresAt, // Timestamp (berechnet)
+            // Zusätzliche Meta-spezifische Felder, falls vorhanden
+            'token_issued_at' => now()->timestamp, // Wann wurde der Token erhalten
+            'owner_user_id' => $ownerUserId, // Platform User ID (für schnellen Zugriff)
         ]);
+        
+        // Alle anderen Felder aus dem Response ebenfalls speichern (zukunftssicher)
+        foreach ($payload as $key => $value) {
+            if (!in_array($key, ['access_token', 'refresh_token', 'token_type', 'scope', 'expires_in'])) {
+                // Unbekannte Felder in 'meta' speichern
+                if (!isset($credentials['oauth']['meta'])) {
+                    $credentials['oauth']['meta'] = [];
+                }
+                $credentials['oauth']['meta'][$key] = $value;
+            }
+        }
 
         $connection->auth_scheme = 'oauth2';
         $connection->status = 'active';
         $connection->last_error = null;
         $connection->credentials = $credentials;
         
+        // Für Meta: Versuche Meta User-ID abzurufen (optional, nicht kritisch)
+        if ($integrationKey === 'meta' && !empty($payload['access_token'])) {
+            try {
+                $apiVersion = $cfg['api_version'] ?? '21.0';
+                $meResponse = Http::get("https://graph.facebook.com/{$apiVersion}/me", [
+                    'access_token' => $payload['access_token'],
+                    'fields' => 'id,name',
+                ]);
+                
+                if ($meResponse->successful()) {
+                    $meData = $meResponse->json();
+                    if (isset($meData['id'])) {
+                        $credentials['oauth']['meta_user_id'] = $meData['id'];
+                        $credentials['oauth']['meta_user_name'] = $meData['name'] ?? null;
+                        $connection->credentials = $credentials;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Nicht kritisch, nur Log
+                \Log::warning('OAuth2: Could not fetch Meta user info', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
         \Log::info('OAuth2 Saving Connection', [
             'integration_id' => $integration->id,
             'owner_user_id' => $ownerUserId,
             'has_credentials' => !empty($credentials),
             'has_oauth' => !empty($credentials['oauth']),
+            'has_access_token' => !empty($credentials['oauth']['access_token'] ?? null),
+            'has_refresh_token' => !empty($credentials['oauth']['refresh_token'] ?? null),
+            'has_meta_user_id' => !empty($credentials['oauth']['meta_user_id'] ?? null),
+            'connection_exists_before' => $connection->exists,
         ]);
 
-        $connection->save();
+        // Connection speichern
+        $saved = $connection->save();
+        
+        if (!$saved) {
+            \Log::error('OAuth2 Connection Save Failed', [
+                'integration_id' => $integration->id,
+                'owner_user_id' => $ownerUserId,
+                'connection_id' => $connection->id,
+            ]);
+            throw new \RuntimeException('Fehler beim Speichern der Connection.');
+        }
 
-        \Log::info('OAuth2 Connection Saved', [
+        // Nach dem Speichern nochmal laden, um sicherzustellen, dass alles gespeichert wurde
+        $connection->refresh();
+
+        \Log::info('OAuth2 Connection Saved Successfully', [
             'connection_id' => $connection->id,
             'saved' => $connection->exists,
+            'has_credentials_after_save' => !empty($connection->credentials),
+            'has_oauth_after_save' => !empty($connection->credentials['oauth'] ?? []),
+            'status' => $connection->status,
+            'auth_scheme' => $connection->auth_scheme,
         ]);
 
         return $connection;

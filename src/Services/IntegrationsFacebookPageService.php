@@ -3,8 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsFacebookPage;
-use Platform\Integrations\Models\IntegrationsMetaToken;
-use Platform\Integrations\Services\IntegrationsMetaTokenService;
+use Platform\Integrations\Models\IntegrationConnection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -14,29 +13,29 @@ use Carbon\Carbon;
  */
 class IntegrationsFacebookPageService
 {
-    protected IntegrationsMetaTokenService $tokenService;
+    protected MetaIntegrationService $metaService;
 
-    public function __construct(IntegrationsMetaTokenService $tokenService)
+    public function __construct(MetaIntegrationService $metaService)
     {
-        $this->tokenService = $tokenService;
+        $this->metaService = $metaService;
     }
 
     /**
      * Ruft alle Facebook Pages für einen User ab und speichert sie (generisch)
      * 
-     * @param IntegrationsMetaToken $metaToken
+     * @param IntegrationConnection $connection
      * @return array
      */
-    public function syncFacebookPagesForUser(IntegrationsMetaToken $metaToken): array
+    public function syncFacebookPagesForUser(IntegrationConnection $connection): array
     {
-        $accessToken = $this->tokenService->getValidAccessToken($metaToken);
+        $accessToken = $this->metaService->getValidAccessToken($connection);
         
         if (!$accessToken) {
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
         }
 
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
-        $userId = $metaToken->user_id;
+        $userId = $connection->owner_user_id;
 
         // Business Accounts holen
         $businessResponse = Http::get("https://graph.facebook.com/{$apiVersion}/me/businesses", [
@@ -83,6 +82,9 @@ class IntegrationsFacebookPageService
                 $pageAccessToken = $pageData['access_token'] ?? $accessToken;
 
                 // Page auf User-Ebene erstellen oder aktualisieren
+                $credentials = $connection->credentials ?? [];
+                $oauth = $credentials['oauth'] ?? [];
+                
                 $facebookPage = IntegrationsFacebookPage::updateOrCreate(
                     [
                         'external_id' => $pageId,
@@ -92,10 +94,10 @@ class IntegrationsFacebookPageService
                         'name' => $pageName,
                         'description' => $pageData['about'] ?? null,
                         'access_token' => $pageAccessToken,
-                        'refresh_token' => $metaToken->refresh_token,
-                        'expires_at' => $metaToken->expires_at,
-                        'token_type' => 'Bearer',
-                        'scopes' => $metaToken->scopes,
+                        'refresh_token' => $oauth['refresh_token'] ?? null,
+                        'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
+                        'token_type' => $oauth['token_type'] ?? 'Bearer',
+                        'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
                     ]
                 );
 

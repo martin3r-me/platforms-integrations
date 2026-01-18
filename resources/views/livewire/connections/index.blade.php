@@ -74,28 +74,26 @@
                             </div>
                         </div>
 
-                        @if($metaToken)
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                    <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Facebook Pages</div>
-                                    <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                        {{ \Platform\Integrations\Models\IntegrationsFacebookPage::where('user_id', auth()->id())->count() }}
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                    <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Instagram Accounts</div>
-                                    <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                        {{ \Platform\Integrations\Models\IntegrationsInstagramAccount::where('user_id', auth()->id())->count() }}
-                                    </div>
-                                </div>
-                                <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                    <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WhatsApp Accounts</div>
-                                    <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                        {{ \Platform\Integrations\Models\IntegrationsWhatsAppAccount::where('user_id', auth()->id())->count() }}
-                                    </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Facebook Pages</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsFacebookPage::where('user_id', auth()->id())->count() }}
                                 </div>
                             </div>
-                        @endif
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Instagram Accounts</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsInstagramAccount::where('user_id', auth()->id())->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WhatsApp Accounts</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsWhatsAppAccount::where('user_id', auth()->id())->count() }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">

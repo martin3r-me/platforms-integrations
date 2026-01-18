@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Service für Meta OAuth Token Management
+ * 
+ * @deprecated Für Meta wird dieser Service nicht mehr verwendet.
+ * Verwende stattdessen MetaIntegrationService mit IntegrationConnection.
+ * Dieser Service bleibt für andere Integrations, die manuelle Token-Eingabe benötigen.
  */
 class IntegrationsMetaTokenService
 {

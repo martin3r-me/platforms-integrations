@@ -3,7 +3,8 @@
 namespace Platform\Integrations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Platform\Integrations\Models\IntegrationsMetaToken;
+use Platform\Integrations\Models\IntegrationConnection;
+use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
 
 class SyncWhatsAppAccounts extends Command
@@ -26,28 +27,37 @@ class SyncWhatsAppAccounts extends Command
         $this->info('🔄 Starte WhatsApp Business Accounts Synchronisation...');
         $this->newLine();
 
-        // Meta Tokens finden
-        $query = IntegrationsMetaToken::query();
-
-        if ($userId) {
-            $query->where('user_id', $userId);
+        // Meta Integration finden
+        $metaIntegration = Integration::where('key', 'meta')->first();
+        
+        if (!$metaIntegration) {
+            $this->error('⚠️  Meta Integration nicht gefunden. Bitte zuerst "php artisan integrations:seed" ausführen.');
+            return Command::FAILURE;
         }
 
-        $metaTokens = $query->with(['user'])->get();
+        // Meta Connections finden
+        $query = IntegrationConnection::query()
+            ->where('integration_id', $metaIntegration->id);
 
-        if ($metaTokens->isEmpty()) {
-            $this->warn('⚠️  Keine Meta Tokens gefunden.');
+        if ($userId) {
+            $query->where('owner_user_id', $userId);
+        }
+
+        $connections = $query->with(['ownerUser'])->get();
+
+        if ($connections->isEmpty()) {
+            $this->warn('⚠️  Keine Meta Connections gefunden.');
             return Command::SUCCESS;
         }
 
-        $this->info("📋 {$metaTokens->count()} Meta Token(s) gefunden:");
+        $this->info("📋 {$connections->count()} Meta Connection(s) gefunden:");
         $this->newLine();
 
         $syncedCount = 0;
         $skippedCount = 0;
 
-        foreach ($metaTokens as $metaToken) {
-            $user = $metaToken->user;
+        foreach ($connections as $connection) {
+            $user = $connection->ownerUser;
             
             $this->info("  📝 Verarbeite User: '{$user->email}' (ID: {$user->id})");
 
@@ -58,7 +68,7 @@ class SyncWhatsAppAccounts extends Command
             }
 
             try {
-                $result = $service->syncWhatsAppAccountsForUser($metaToken);
+                $result = $service->syncWhatsAppAccountsForUser($connection);
                 $accountsCount = count($result);
                 $this->info("     ✅ {$accountsCount} WhatsApp Business Account(s) synchronisiert");
                 $syncedCount++;

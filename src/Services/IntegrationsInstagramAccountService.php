@@ -4,8 +4,7 @@ namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
-use Platform\Integrations\Models\IntegrationsMetaToken;
-use Platform\Integrations\Services\IntegrationsMetaTokenService;
+use Platform\Integrations\Models\IntegrationConnection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,29 +13,29 @@ use Illuminate\Support\Facades\Log;
  */
 class IntegrationsInstagramAccountService
 {
-    protected IntegrationsMetaTokenService $tokenService;
+    protected MetaIntegrationService $metaService;
 
-    public function __construct(IntegrationsMetaTokenService $tokenService)
+    public function __construct(MetaIntegrationService $metaService)
     {
-        $this->tokenService = $tokenService;
+        $this->metaService = $metaService;
     }
 
     /**
      * Ruft Instagram Accounts für einen User ab und speichert sie (generisch)
      * 
-     * @param IntegrationsMetaToken $metaToken
+     * @param IntegrationConnection $connection
      * @return array
      */
-    public function syncInstagramAccountsForUser(IntegrationsMetaToken $metaToken): array
+    public function syncInstagramAccountsForUser(IntegrationConnection $connection): array
     {
-        $accessToken = $this->tokenService->getValidAccessToken($metaToken);
+        $accessToken = $this->metaService->getValidAccessToken($connection);
         
         if (!$accessToken) {
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
         }
 
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
-        $userId = $metaToken->user_id;
+        $userId = $connection->owner_user_id;
 
         // Instagram Accounts über Facebook Pages holen (alle Pages des Users)
         $facebookPages = IntegrationsFacebookPage::where('user_id', $userId)->get();
@@ -63,6 +62,9 @@ class IntegrationsInstagramAccountService
                         $username = $this->fetchInstagramUsername($instagramId, $pageAccessToken, $apiVersion);
                         
                         // Account auf User-Ebene erstellen oder aktualisieren
+                        $credentials = $connection->credentials ?? [];
+                        $oauth = $credentials['oauth'] ?? [];
+                        
                         $instagramAccount = IntegrationsInstagramAccount::updateOrCreate(
                             [
                                 'external_id' => $instagramId,
@@ -72,10 +74,10 @@ class IntegrationsInstagramAccountService
                                 'username' => $username,
                                 'description' => null,
                                 'access_token' => $pageAccessToken,
-                                'refresh_token' => $metaToken->refresh_token,
-                                'expires_at' => $metaToken->expires_at,
-                                'token_type' => 'Bearer',
-                                'scopes' => $metaToken->scopes,
+                                'refresh_token' => $oauth['refresh_token'] ?? null,
+                                'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
+                                'token_type' => $oauth['token_type'] ?? 'Bearer',
+                                'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
                                 'facebook_page_id' => $facebookPage->id,
                             ]
                         );
@@ -122,6 +124,9 @@ class IntegrationsInstagramAccountService
                                 $username = $this->fetchInstagramUsername($instagramId, $accessToken, $apiVersion);
                                 
                                 // Account auf User-Ebene erstellen oder aktualisieren
+                                $credentials = $connection->credentials ?? [];
+                                $oauth = $credentials['oauth'] ?? [];
+                                
                                 $instagramAccount = IntegrationsInstagramAccount::updateOrCreate(
                                     [
                                         'external_id' => $instagramId,
@@ -131,10 +136,10 @@ class IntegrationsInstagramAccountService
                                         'username' => $username,
                                         'description' => null,
                                         'access_token' => $accessToken,
-                                        'refresh_token' => $metaToken->refresh_token,
-                                        'expires_at' => $metaToken->expires_at,
-                                        'token_type' => 'Bearer',
-                                        'scopes' => $metaToken->scopes,
+                                        'refresh_token' => $oauth['refresh_token'] ?? null,
+                                        'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
+                                        'token_type' => $oauth['token_type'] ?? 'Bearer',
+                                        'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
                                         'facebook_page_id' => null,
                                     ]
                                 );

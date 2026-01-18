@@ -3,8 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
-use Platform\Integrations\Models\IntegrationsMetaToken;
-use Platform\Integrations\Services\IntegrationsMetaTokenService;
+use Platform\Integrations\Models\IntegrationConnection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -14,29 +13,29 @@ use Carbon\Carbon;
  */
 class IntegrationsWhatsAppAccountService
 {
-    protected IntegrationsMetaTokenService $tokenService;
+    protected MetaIntegrationService $metaService;
 
-    public function __construct(IntegrationsMetaTokenService $tokenService)
+    public function __construct(MetaIntegrationService $metaService)
     {
-        $this->tokenService = $tokenService;
+        $this->metaService = $metaService;
     }
 
     /**
      * Ruft alle WhatsApp Business Accounts für einen User ab und speichert sie (generisch)
      * 
-     * @param IntegrationsMetaToken $metaToken
+     * @param IntegrationConnection $connection
      * @return array
      */
-    public function syncWhatsAppAccountsForUser(IntegrationsMetaToken $metaToken): array
+    public function syncWhatsAppAccountsForUser(IntegrationConnection $connection): array
     {
-        $accessToken = $this->tokenService->getValidAccessToken($metaToken);
+        $accessToken = $this->metaService->getValidAccessToken($connection);
         
         if (!$accessToken) {
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
         }
 
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
-        $userId = $metaToken->user_id;
+        $userId = $connection->owner_user_id;
 
         // Business Accounts holen
         $businessResponse = Http::get("https://graph.facebook.com/{$apiVersion}/me/businesses", [
