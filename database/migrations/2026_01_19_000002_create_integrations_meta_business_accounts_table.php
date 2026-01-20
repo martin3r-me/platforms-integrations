@@ -22,7 +22,7 @@ return new class extends Migration
                 $table->string('vertical')->nullable(); // Business vertical (z.B. "RETAIL", "E_COMMERCE")
                 $table->json('metadata')->nullable(); // Weitere Meta-Daten (z.B. primary_page_id, etc.)
                 $table->foreignId('integration_connection_id')
-                    ->constrained('integration_connections')
+                    ->constrained('integration_connections', 'id', 'imba_conn_id_fk')
                     ->onDelete('cascade');
                 $table->foreignId('user_id')
                     ->constrained('users')

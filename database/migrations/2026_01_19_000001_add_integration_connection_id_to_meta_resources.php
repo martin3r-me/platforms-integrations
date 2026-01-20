@@ -27,7 +27,7 @@ return new class extends Migration
                     $table->foreignId('integration_connection_id')
                         ->nullable()
                         ->after('user_id')
-                        ->constrained('integration_connections')
+                        ->constrained('integration_connections', 'id', 'ifp_conn_id_fk')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'ifp_connection_id_idx');
@@ -50,7 +50,7 @@ return new class extends Migration
                     $table->foreignId('integration_connection_id')
                         ->nullable()
                         ->after('user_id')
-                        ->constrained('integration_connections')
+                        ->constrained('integration_connections', 'id', 'iia_conn_id_fk')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'iia_connection_id_idx');
@@ -73,7 +73,7 @@ return new class extends Migration
                     $table->foreignId('integration_connection_id')
                         ->nullable()
                         ->after('user_id')
-                        ->constrained('integration_connections')
+                        ->constrained('integration_connections', 'id', 'iwa_conn_id_fk')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'iwa_connection_id_idx');
@@ -136,7 +136,7 @@ return new class extends Migration
                 );
 
                 if ($columnExists[0]->count > 0) {
-                    $table->dropForeign(['integration_connection_id']);
+                    $table->dropForeign('ifp_conn_id_fk');
                     $table->dropColumn('integration_connection_id');
                 }
             });
@@ -162,7 +162,7 @@ return new class extends Migration
                 );
 
                 if ($columnExists[0]->count > 0) {
-                    $table->dropForeign(['integration_connection_id']);
+                    $table->dropForeign('iia_conn_id_fk');
                     $table->dropColumn('integration_connection_id');
                 }
             });
@@ -188,7 +188,7 @@ return new class extends Migration
                 );
 
                 if ($columnExists[0]->count > 0) {
-                    $table->dropForeign(['integration_connection_id']);
+                    $table->dropForeign('iwa_conn_id_fk');
                     $table->dropColumn('integration_connection_id');
                 }
             });

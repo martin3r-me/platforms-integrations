@@ -26,7 +26,7 @@ return new class extends Migration
                     $table->foreignId('meta_business_account_id')
                         ->nullable()
                         ->after('integration_connection_id')
-                        ->constrained('integrations_meta_business_accounts')
+                        ->constrained('integrations_meta_business_accounts', 'id', 'iwa_mba_id_fk')
                         ->onDelete('set null');
                     
                     $table->index(['meta_business_account_id'], 'iwa_business_account_id_idx');
@@ -60,7 +60,7 @@ return new class extends Migration
                 );
 
                 if ($columnExists[0]->count > 0) {
-                    $table->dropForeign(['meta_business_account_id']);
+                    $table->dropForeign('iwa_mba_id_fk');
                     $table->dropColumn('meta_business_account_id');
                 }
             });
