@@ -14,7 +14,7 @@ return new class extends Migration
         $databaseName = $connection->getDatabaseName();
 
         if (Schema::hasTable($tableName) && Schema::hasTable('integrations_meta_business_accounts')) {
-            Schema::table($tableName, function (Blueprint $table) use ($databaseName) {
+            Schema::table($tableName, function (Blueprint $table) use ($databaseName, $tableName) {
                 // Prüfe ob Spalte bereits existiert
                 $columnExists = DB::select(
                     "SELECT COUNT(*) as count FROM information_schema.columns 
@@ -45,7 +45,7 @@ return new class extends Migration
         $databaseName = $connection->getDatabaseName();
 
         if (Schema::hasTable($tableName)) {
-            Schema::table($tableName, function (Blueprint $table) use ($databaseName) {
+            Schema::table($tableName, function (Blueprint $table) use ($databaseName, $tableName) {
                 $indexExists = DB::select(
                     "SELECT COUNT(*) as count FROM information_schema.statistics 
                      WHERE table_schema = ? AND table_name = ? AND index_name = ?",
