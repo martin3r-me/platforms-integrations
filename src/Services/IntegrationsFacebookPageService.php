@@ -107,6 +107,7 @@ class IntegrationsFacebookPageService
                     'expires_at' => isset($oauth['expires_at']) ? \Carbon\Carbon::createFromTimestamp($oauth['expires_at']) : null,
                     'token_type' => $oauth['token_type'] ?? 'Bearer',
                     'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
+                    'integration_connection_id' => $connection->id,
                 ]
             );
 

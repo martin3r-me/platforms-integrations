@@ -52,6 +52,38 @@ class IntegrationConnection extends Model
         return $this->hasMany(IntegrationConnectionGrant::class, 'connection_id');
     }
 
+    /**
+     * Facebook Pages, die über diese Meta-Connection synchronisiert wurden
+     */
+    public function facebookPages(): HasMany
+    {
+        return $this->hasMany(IntegrationsFacebookPage::class, 'integration_connection_id');
+    }
+
+    /**
+     * Instagram Accounts, die über diese Meta-Connection synchronisiert wurden
+     */
+    public function instagramAccounts(): HasMany
+    {
+        return $this->hasMany(IntegrationsInstagramAccount::class, 'integration_connection_id');
+    }
+
+    /**
+     * WhatsApp Accounts, die über diese Meta-Connection synchronisiert wurden
+     */
+    public function whatsappAccounts(): HasMany
+    {
+        return $this->hasMany(IntegrationsWhatsAppAccount::class, 'integration_connection_id');
+    }
+
+    /**
+     * Meta Business Accounts, die über diese Connection synchronisiert wurden (optional)
+     */
+    public function metaBusinessAccounts(): HasMany
+    {
+        return $this->hasMany(IntegrationsMetaBusinessAccount::class, 'integration_connection_id');
+    }
+
     public function isOwner(User $user): bool
     {
         return $this->owner_user_id === $user->id;

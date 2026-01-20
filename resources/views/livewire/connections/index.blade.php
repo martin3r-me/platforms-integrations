@@ -94,6 +94,92 @@
                                 </div>
                             </div>
                         </div>
+
+                        {{-- Sync-Buttons --}}
+                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <x-ui-button 
+                                    variant="primary" 
+                                    size="sm"
+                                    wire:click="syncAll"
+                                    :disabled="$isSyncing"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @if($isSyncing)
+                                            @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                        @else
+                                            @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                        @endif
+                                        <span>Alle synchronisieren</span>
+                                    </span>
+                                </x-ui-button>
+                                
+                                <div class="flex gap-2 flex-wrap">
+                                    <x-ui-button 
+                                        variant="secondary-outline" 
+                                        size="sm"
+                                        wire:click="syncFacebookPages"
+                                        :disabled="$isSyncing"
+                                    >
+                                        <span class="inline-flex items-center gap-2">
+                                            @if($isSyncing)
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                            @else
+                                                @svg('heroicon-o-facebook', 'w-4 h-4')
+                                            @endif
+                                            <span>Facebook Pages</span>
+                                        </span>
+                                    </x-ui-button>
+                                    
+                                    <x-ui-button 
+                                        variant="secondary-outline" 
+                                        size="sm"
+                                        wire:click="syncInstagramAccounts"
+                                        :disabled="$isSyncing"
+                                    >
+                                        <span class="inline-flex items-center gap-2">
+                                            @if($isSyncing)
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                            @else
+                                                @svg('heroicon-o-camera', 'w-4 h-4')
+                                            @endif
+                                            <span>Instagram</span>
+                                        </span>
+                                    </x-ui-button>
+                                    
+                                    <x-ui-button 
+                                        variant="secondary-outline" 
+                                        size="sm"
+                                        wire:click="syncWhatsAppAccounts"
+                                        :disabled="$isSyncing"
+                                    >
+                                        <span class="inline-flex items-center gap-2">
+                                            @if($isSyncing)
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                            @else
+                                                @svg('heroicon-o-chat-bubble-left-right', 'w-4 h-4')
+                                            @endif
+                                            <span>WhatsApp</span>
+                                        </span>
+                                    </x-ui-button>
+                                </div>
+                            </div>
+
+                            @if($syncMessage)
+                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                                </div>
+                            @endif
+
+                            @if($syncError)
+                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <div class="flex items-start gap-2">
+                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">

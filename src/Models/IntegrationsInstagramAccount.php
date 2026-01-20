@@ -32,6 +32,7 @@ class IntegrationsInstagramAccount extends Model implements HasDisplayName
         'token_type',
         'scopes',
         'user_id',
+        'integration_connection_id',
     ];
 
     protected $casts = [
@@ -64,6 +65,14 @@ class IntegrationsInstagramAccount extends Model implements HasDisplayName
     public function facebookPage(): BelongsTo
     {
         return $this->belongsTo(IntegrationsFacebookPage::class, 'facebook_page_id');
+    }
+
+    /**
+     * Die Meta-IntegrationConnection, über die dieser Instagram Account synchronisiert wurde
+     */
+    public function integrationConnection(): BelongsTo
+    {
+        return $this->belongsTo(IntegrationConnection::class, 'integration_connection_id');
     }
 
     /**

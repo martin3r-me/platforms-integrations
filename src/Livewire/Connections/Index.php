@@ -12,6 +12,9 @@ use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
 use Platform\Integrations\Services\IntegrationAccessService;
+use Platform\Integrations\Services\IntegrationsFacebookPageService;
+use Platform\Integrations\Services\IntegrationsInstagramAccountService;
+use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
 
 class Index extends Component
 {
@@ -30,6 +33,11 @@ class Index extends Component
     public string $credentialsJson = "{}";
 
     public ?string $lastError = null;
+
+    // Sync-Status
+    public bool $isSyncing = false;
+    public ?string $syncMessage = null;
+    public ?string $syncError = null;
 
     public function render()
     {
@@ -183,6 +191,237 @@ class Index extends Component
         } catch (\Throwable $e) {
             $this->addError('credentialsJson', 'Ungültiges JSON: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    public function syncFacebookPages(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+            
+            $metaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'meta');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$metaConnection) {
+                $this->syncError = 'Keine Meta-Connection gefunden. Bitte zuerst mit Meta verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($metaConnection->status !== 'active') {
+                $this->syncError = 'Meta-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsFacebookPageService::class);
+            $result = $service->syncFacebookPagesForUser($metaConnection);
+            
+            $count = count($result);
+            $this->syncMessage = "✅ {$count} Facebook Page(s) synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('Facebook Pages Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function syncInstagramAccounts(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+            
+            $metaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'meta');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$metaConnection) {
+                $this->syncError = 'Keine Meta-Connection gefunden. Bitte zuerst mit Meta verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($metaConnection->status !== 'active') {
+                $this->syncError = 'Meta-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsInstagramAccountService::class);
+            $result = $service->syncInstagramAccountsForUser($metaConnection);
+            
+            $count = count($result);
+            $this->syncMessage = "✅ {$count} Instagram Account(s) synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('Instagram Accounts Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function syncWhatsAppAccounts(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+            
+            $metaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'meta');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$metaConnection) {
+                $this->syncError = 'Keine Meta-Connection gefunden. Bitte zuerst mit Meta verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($metaConnection->status !== 'active') {
+                $this->syncError = 'Meta-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsWhatsAppAccountService::class);
+            $result = $service->syncWhatsAppAccountsForUser($metaConnection);
+            
+            $count = count($result);
+            $this->syncMessage = "✅ {$count} WhatsApp Account(s) synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('WhatsApp Accounts Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function syncAll(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+            
+            $metaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'meta');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$metaConnection) {
+                $this->syncError = 'Keine Meta-Connection gefunden. Bitte zuerst mit Meta verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($metaConnection->status !== 'active') {
+                $this->syncError = 'Meta-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $results = [];
+            
+            // Facebook Pages
+            try {
+                $fbService = app(IntegrationsFacebookPageService::class);
+                $fbResult = $fbService->syncFacebookPagesForUser($metaConnection);
+                $results['facebook'] = count($fbResult);
+            } catch (\Exception $e) {
+                \Log::error('Facebook Pages Sync Error in syncAll', ['error' => $e->getMessage()]);
+                $results['facebook'] = 'error';
+            }
+
+            // Instagram Accounts
+            try {
+                $igService = app(IntegrationsInstagramAccountService::class);
+                $igResult = $igService->syncInstagramAccountsForUser($metaConnection);
+                $results['instagram'] = count($igResult);
+            } catch (\Exception $e) {
+                \Log::error('Instagram Accounts Sync Error in syncAll', ['error' => $e->getMessage()]);
+                $results['instagram'] = 'error';
+            }
+
+            // WhatsApp Accounts
+            try {
+                $waService = app(IntegrationsWhatsAppAccountService::class);
+                $waResult = $waService->syncWhatsAppAccountsForUser($metaConnection);
+                $results['whatsapp'] = count($waResult);
+            } catch (\Exception $e) {
+                \Log::error('WhatsApp Accounts Sync Error in syncAll', ['error' => $e->getMessage()]);
+                $results['whatsapp'] = 'error';
+            }
+
+            $message = "✅ Synchronisation abgeschlossen: ";
+            $parts = [];
+            if (isset($results['facebook'])) {
+                $parts[] = "Facebook: {$results['facebook']}";
+            }
+            if (isset($results['instagram'])) {
+                $parts[] = "Instagram: {$results['instagram']}";
+            }
+            if (isset($results['whatsapp'])) {
+                $parts[] = "WhatsApp: {$results['whatsapp']}";
+            }
+            $this->syncMessage = $message . implode(', ', $parts);
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('Sync All Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
         }
     }
 

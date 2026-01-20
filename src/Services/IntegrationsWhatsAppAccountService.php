@@ -4,8 +4,10 @@ namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
 use Platform\Integrations\Models\IntegrationConnection;
+use Platform\Integrations\Models\IntegrationsMetaBusinessAccount;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 /**
@@ -111,11 +113,48 @@ class IntegrationsWhatsAppAccountService
         ]);
 
         $syncedAccounts = [];
+        
+        // Optional: Business Accounts speichern, falls Tabelle existiert
+        $businessAccountsTableExists = Schema::hasTable('integrations_meta_business_accounts');
+        $savedBusinessAccounts = [];
 
         // Exakt wie im glowkit-master: Für jede Business Account die WhatsApp Business Accounts holen
         foreach ($allBusinessAccounts as $businessAccount) {
             $businessId = $businessAccount['id'];
             $businessName = $businessAccount['name'] ?? 'Unknown';
+            
+            // Optional: Business Account speichern
+            $metaBusinessAccount = null;
+            if ($businessAccountsTableExists) {
+                try {
+                    $metaBusinessAccount = IntegrationsMetaBusinessAccount::updateOrCreate(
+                        [
+                            'external_id' => $businessId,
+                            'user_id' => $userId,
+                        ],
+                        [
+                            'name' => $businessName,
+                            'description' => $businessAccount['description'] ?? null,
+                            'timezone' => $businessAccount['timezone'] ?? null,
+                            'vertical' => $businessAccount['vertical'] ?? null,
+                            'metadata' => $businessAccount, // Alle Meta-Daten speichern
+                            'integration_connection_id' => $connection->id,
+                        ]
+                    );
+                    $savedBusinessAccounts[$businessId] = $metaBusinessAccount;
+                    
+                    Log::info('Meta Business Account saved', [
+                        'business_account_id' => $metaBusinessAccount->id,
+                        'external_id' => $businessId,
+                        'name' => $businessName,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to save Meta Business Account (continuing)', [
+                        'business_id' => $businessId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // Retrieve WhatsApp Business Accounts (exakt wie im glowkit-master)
             $waAccountsResponse = Http::get("https://graph.facebook.com/{$apiVersion}/{$businessId}/owned_whatsapp_business_accounts", [
@@ -153,20 +192,28 @@ class IntegrationsWhatsAppAccountService
 
                 // Step 4: Update or create WhatsAppAccount (exakt wie im glowkit-master)
                 try {
+                    $whatsappAccountData = [
+                        'title' => $waAccountData['name'] ?? 'Unnamed Account',
+                        'phone_number' => $phoneNumber,
+                        'phone_number_id' => $phoneNumberId,
+                        'description' => $waAccountData['description'] ?? null,
+                        'active' => isset($waAccountData['status']) && $waAccountData['status'] === 'ACTIVE',
+                        'access_token' => $waAccountData['access_token'] ?? $accessToken,
+                        'verified_at' => isset($waAccountData['verified']) && $waAccountData['verified'] ? now() : null,
+                        'integration_connection_id' => $connection->id,
+                    ];
+                    
+                    // Optional: Business Account verknüpfen, falls vorhanden
+                    if ($metaBusinessAccount) {
+                        $whatsappAccountData['meta_business_account_id'] = $metaBusinessAccount->id;
+                    }
+                    
                     $whatsappAccount = IntegrationsWhatsAppAccount::updateOrCreate(
                         [
                             'external_id' => $wabaId,
                             'user_id' => $userId,
                         ],
-                        [
-                            'title' => $waAccountData['name'] ?? 'Unnamed Account',
-                            'phone_number' => $phoneNumber,
-                            'phone_number_id' => $phoneNumberId,
-                            'description' => $waAccountData['description'] ?? null,
-                            'active' => isset($waAccountData['status']) && $waAccountData['status'] === 'ACTIVE',
-                            'access_token' => $waAccountData['access_token'] ?? $accessToken,
-                            'verified_at' => isset($waAccountData['verified']) && $waAccountData['verified'] ? now() : null,
-                        ]
+                        $whatsappAccountData
                     );
 
                     $syncedAccounts[] = $whatsappAccount;

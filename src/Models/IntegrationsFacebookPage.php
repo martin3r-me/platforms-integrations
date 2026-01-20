@@ -31,6 +31,7 @@ class IntegrationsFacebookPage extends Model implements HasDisplayName
         'token_type',
         'scopes',
         'user_id',
+        'integration_connection_id',
     ];
 
     protected $casts = [
@@ -58,6 +59,14 @@ class IntegrationsFacebookPage extends Model implements HasDisplayName
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Die Meta-IntegrationConnection, über die diese Facebook Page synchronisiert wurde
+     */
+    public function integrationConnection(): BelongsTo
+    {
+        return $this->belongsTo(IntegrationConnection::class, 'integration_connection_id');
     }
 
     /**

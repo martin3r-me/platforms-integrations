@@ -11,6 +11,10 @@ use Platform\Core\Models\User;
 /**
  * Model für Meta OAuth Tokens (user-zentriert)
  * 
+ * @deprecated Dieses Model wird nicht mehr verwendet. 
+ * Meta-Tokens werden jetzt über IntegrationConnection gespeichert (credentials.oauth).
+ * Verwende stattdessen MetaIntegrationService::getConnectionForUser().
+ * 
  * Ein User kann einen Meta Token haben, der dann für alle Services verwendet werden kann
  */
 class IntegrationsMetaToken extends Model

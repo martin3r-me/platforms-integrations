@@ -79,6 +79,7 @@ class IntegrationsInstagramAccountService
                                 'token_type' => $oauth['token_type'] ?? 'Bearer',
                                 'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
                                 'facebook_page_id' => $facebookPage->id,
+                                'integration_connection_id' => $connection->id,
                             ]
                         );
 
@@ -198,6 +199,7 @@ class IntegrationsInstagramAccountService
                                     'token_type' => $oauth['token_type'] ?? 'Bearer',
                                     'scopes' => $oauth['scope'] ? explode(' ', $oauth['scope']) : [],
                                     'facebook_page_id' => null,
+                                    'integration_connection_id' => $connection->id,
                                 ]
                             );
 
