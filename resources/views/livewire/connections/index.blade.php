@@ -125,7 +125,7 @@
                                             @if($isSyncing)
                                                 @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
                                             @else
-                                                @svg('heroicon-o-facebook', 'w-4 h-4')
+                                                @svg('heroicon-o-globe-alt', 'w-4 h-4')
                                             @endif
                                             <span>Facebook Pages</span>
                                         </span>
