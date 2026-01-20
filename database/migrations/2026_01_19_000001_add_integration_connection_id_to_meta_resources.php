@@ -26,8 +26,11 @@ return new class extends Migration
                 if ($columnExists[0]->count == 0) {
                     $table->foreignId('integration_connection_id')
                         ->nullable()
-                        ->after('user_id')
-                        ->constrained('integration_connections', 'id', 'ifp_conn_id_fk')
+                        ->after('user_id');
+                    
+                    $table->foreign('integration_connection_id', 'ifp_conn_id_fk')
+                        ->references('id')
+                        ->on('integration_connections')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'ifp_connection_id_idx');
@@ -49,8 +52,11 @@ return new class extends Migration
                 if ($columnExists[0]->count == 0) {
                     $table->foreignId('integration_connection_id')
                         ->nullable()
-                        ->after('user_id')
-                        ->constrained('integration_connections', 'id', 'iia_conn_id_fk')
+                        ->after('user_id');
+                    
+                    $table->foreign('integration_connection_id', 'iia_conn_id_fk')
+                        ->references('id')
+                        ->on('integration_connections')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'iia_connection_id_idx');
@@ -72,8 +78,11 @@ return new class extends Migration
                 if ($columnExists[0]->count == 0) {
                     $table->foreignId('integration_connection_id')
                         ->nullable()
-                        ->after('user_id')
-                        ->constrained('integration_connections', 'id', 'iwa_conn_id_fk')
+                        ->after('user_id');
+                    
+                    $table->foreign('integration_connection_id', 'iwa_conn_id_fk')
+                        ->references('id')
+                        ->on('integration_connections')
                         ->onDelete('cascade');
                     
                     $table->index(['integration_connection_id'], 'iwa_connection_id_idx');
