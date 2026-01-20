@@ -141,7 +141,7 @@ class IntegrationsFacebookPageService
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
 
         $params = [
-            'fields' => 'id,message,story,created_time,permalink_url,attachments,type,status_type',
+            'fields' => 'id,message,story,created_time,permalink_url,full_picture,picture,source,type,status_type',
             'access_token' => $accessToken,
             'limit' => $limit,
         ];
@@ -173,11 +173,9 @@ class IntegrationsFacebookPageService
                     ? Carbon::parse($postData['created_time'])->format('Y-m-d H:i:s')
                     : null;
 
-                // Media URL aus Attachments extrahieren
-                $mediaUrl = null;
-                if (isset($postData['attachments']['data'][0]['media'])) {
-                    $mediaUrl = $postData['attachments']['data'][0]['media']['image']['src'] ?? null;
-                }
+                // Media URL extrahieren (neue API-Struktur)
+                // full_picture für Bilder, source für Videos
+                $mediaUrl = $postData['full_picture'] ?? $postData['picture'] ?? $postData['source'] ?? null;
 
                 $allPosts[] = [
                     'external_id' => $postId,
