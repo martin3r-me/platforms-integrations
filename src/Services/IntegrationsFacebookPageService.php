@@ -132,7 +132,25 @@ class IntegrationsFacebookPageService
      */
     public function fetchFacebookPosts(IntegrationsFacebookPage $facebookPage, int $limit = 100): array
     {
+        // Verwende zuerst den Page Token
         $accessToken = $facebookPage->access_token;
+        
+        // Falls Page Token fehlt oder abgelaufen, hole neuen Page Token vom Connection Token
+        if (!$accessToken || $facebookPage->isExpired()) {
+            $connection = $facebookPage->integrationConnection;
+            if ($connection) {
+                $connectionToken = $this->metaService->getValidAccessToken($connection);
+                if ($connectionToken) {
+                    // Hole neuen Page Token für diese spezifische Page
+                    $accessToken = $this->getPageAccessToken($facebookPage->external_id, $connectionToken);
+                    if ($accessToken) {
+                        // Speichere den neuen Page Token
+                        $facebookPage->access_token = $accessToken;
+                        $facebookPage->save();
+                    }
+                }
+            }
+        }
         
         if (!$accessToken) {
             throw new \Exception('Kein Access Token für diese Facebook Page gefunden.');
@@ -140,13 +158,16 @@ class IntegrationsFacebookPageService
 
         $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
 
+        // Minimale Felder verwenden, um deprecated fields zu vermeiden
+        // Laut Facebook API Docs sind attachments, source, picture deprecated
         $params = [
-            'fields' => 'id,message,story,created_time,permalink_url,full_picture,picture,source,type,status_type',
+            'fields' => 'id,message,created_time,permalink_url,full_picture',
             'access_token' => $accessToken,
             'limit' => $limit,
         ];
 
-        $url = "https://graph.facebook.com/{$apiVersion}/{$facebookPage->external_id}/posts";
+        // Verwende /feed statt /posts, da /posts deprecated fields verwendet
+        $url = "https://graph.facebook.com/{$apiVersion}/{$facebookPage->external_id}/feed";
         $allPosts = [];
 
         do {
@@ -173,15 +194,14 @@ class IntegrationsFacebookPageService
                     ? Carbon::parse($postData['created_time'])->format('Y-m-d H:i:s')
                     : null;
 
-                // Media URL extrahieren (neue API-Struktur)
-                // full_picture für Bilder, source für Videos
-                $mediaUrl = $postData['full_picture'] ?? $postData['picture'] ?? $postData['source'] ?? null;
+                // Media URL extrahieren - nur full_picture verwenden (andere Felder sind deprecated)
+                $mediaUrl = $postData['full_picture'] ?? null;
 
                 $allPosts[] = [
                     'external_id' => $postId,
                     'message' => $postData['message'] ?? null,
-                    'story' => $postData['story'] ?? null,
-                    'type' => $postData['type'] ?? $postData['status_type'] ?? null,
+                    'story' => null, // Deprecated field entfernt
+                    'type' => null, // Deprecated field entfernt
                     'media_url' => $mediaUrl,
                     'permalink_url' => $postData['permalink_url'] ?? null,
                     'published_at' => $createdTime,
@@ -192,5 +212,32 @@ class IntegrationsFacebookPageService
         } while ($url);
 
         return $allPosts;
+    }
+
+    /**
+     * Holt einen Page Access Token für eine spezifische Page vom Connection Token
+     */
+    protected function getPageAccessToken(string $pageId, string $connectionToken): ?string
+    {
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
+        
+        try {
+            $response = Http::get("https://graph.facebook.com/{$apiVersion}/{$pageId}", [
+                'fields' => 'access_token',
+                'access_token' => $connectionToken,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                return $data['access_token'] ?? null;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to get page access token', [
+                'page_id' => $pageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 }
