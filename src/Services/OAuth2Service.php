@@ -223,7 +223,15 @@ class OAuth2Service
             throw new \RuntimeException('Token Exchange fehlgeschlagen: ' . $resp->body());
         }
 
-        $payload = $resp->json();
+        // GitHub gibt Tokens als application/x-www-form-urlencoded zurück, nicht JSON
+        // Andere Provider (Meta) geben JSON zurück
+        if ($integrationKey === 'github') {
+            // GitHub Response parsen (form-urlencoded)
+            parse_str($resp->body(), $payload);
+        } else {
+            // Andere Provider (JSON)
+            $payload = $resp->json() ?? [];
+        }
         
         \Log::info('OAuth2 Token Exchange Success', [
             'integration_key' => $integrationKey,
@@ -231,6 +239,7 @@ class OAuth2Service
             'has_refresh_token' => !empty($payload['refresh_token']),
             'expires_in' => $payload['expires_in'] ?? null,
             'all_payload_keys' => array_keys($payload),
+            'response_body' => $resp->body(),
         ]);
 
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
@@ -250,11 +259,22 @@ class OAuth2Service
 
         // Alle relevanten OAuth-Daten aus dem Response speichern
         $credentials = $connection->credentials ?? [];
+        
+        // GitHub gibt scope als String zurück (z.B. "repo read:user"), andere als Array
+        $scope = $payload['scope'] ?? null;
+        if ($scope && is_string($scope)) {
+            // GitHub scope ist space-separated, konvertiere zu Array für Konsistenz
+            $scopeArray = explode(' ', $scope);
+        } else {
+            $scopeArray = is_array($scope) ? $scope : [];
+        }
+        
         $credentials['oauth'] = array_merge($credentials['oauth'] ?? [], [
             'access_token' => $payload['access_token'] ?? null,
             'refresh_token' => $payload['refresh_token'] ?? ($credentials['oauth']['refresh_token'] ?? null),
             'token_type' => $payload['token_type'] ?? 'Bearer',
-            'scope' => $payload['scope'] ?? null,
+            'scope' => $scope, // Original als String/Array behalten
+            'scope_array' => $scopeArray, // Als Array für einfacheren Zugriff
             'expires_in' => $expiresIn, // Original-Wert in Sekunden (für spätere Berechnungen)
             'expires_at' => $expiresAt, // Timestamp (berechnet)
             // Zusätzliche Meta-spezifische Felder, falls vorhanden
@@ -298,6 +318,32 @@ class OAuth2Service
             } catch (\Exception $e) {
                 // Nicht kritisch, nur Log
                 \Log::warning('OAuth2: Could not fetch Meta user info', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
+        // Für GitHub: Versuche GitHub User-Info abzurufen (optional, nicht kritisch)
+        if ($integrationKey === 'github' && !empty($payload['access_token'])) {
+            try {
+                $meResponse = Http::withHeaders([
+                    'Accept' => 'application/vnd.github.v3+json',
+                    'Authorization' => 'Bearer ' . $payload['access_token'],
+                ])->get('https://api.github.com/user');
+                
+                if ($meResponse->successful()) {
+                    $meData = $meResponse->json();
+                    if (isset($meData['id'])) {
+                        $credentials['oauth']['github_user_id'] = $meData['id'];
+                        $credentials['oauth']['github_user_login'] = $meData['login'] ?? null;
+                        $credentials['oauth']['github_user_name'] = $meData['name'] ?? null;
+                        $credentials['oauth']['github_user_email'] = $meData['email'] ?? null;
+                        $connection->credentials = $credentials;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Nicht kritisch, nur Log
+                \Log::warning('OAuth2: Could not fetch GitHub user info', [
                     'error' => $e->getMessage(),
                 ]);
             }
