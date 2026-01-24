@@ -23,6 +23,22 @@ return new class extends Migration
             ]
         );
 
+        // GitHub Integration
+        DB::table('integrations')->updateOrInsert(
+            ['key' => 'github'],
+            [
+                'name' => 'GitHub',
+                'is_enabled' => true,
+                'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
+                'meta' => json_encode([
+                    'description' => 'GitHub Integration für Repository-Verwaltung',
+                    'icon' => 'heroicon-o-code-bracket',
+                ], JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
         // Minimaler Bootstrap: mindestens Lexoffice als Beispiel
         DB::table('integrations')->updateOrInsert(
             ['key' => 'lexoffice'],
@@ -42,6 +58,7 @@ return new class extends Migration
     public function down(): void
     {
         DB::table('integrations')->where('key', 'meta')->delete();
+        DB::table('integrations')->where('key', 'github')->delete();
         DB::table('integrations')->where('key', 'lexoffice')->delete();
     }
 };

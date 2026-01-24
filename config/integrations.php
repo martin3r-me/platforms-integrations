@@ -80,6 +80,17 @@ return [
                     // 'ads_management', // Nur wenn Werbekonten benötigt werden
                 ],
             ],
+            'github' => [
+                'authorize_url' => 'https://github.com/login/oauth/authorize',
+                'token_url' => 'https://github.com/login/oauth/access_token',
+                'client_id' => env('GITHUB_CLIENT_ID'),
+                'client_secret' => env('GITHUB_CLIENT_SECRET'),
+                'redirect_domain' => env('GITHUB_OAUTH_REDIRECT_DOMAIN'), // Optional: Nur Domain, URI wird automatisch generiert
+                'scopes' => [
+                    'repo', // Zugriff auf Repositories (read/write)
+                    'read:user', // Benutzerinformationen lesen
+                ],
+            ],
             // 'lexoffice' => [ ... ]
         ],
     ],

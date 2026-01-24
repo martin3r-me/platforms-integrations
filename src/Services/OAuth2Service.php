@@ -197,7 +197,11 @@ class OAuth2Service
             $tokenParams['client_secret'] = $cfg['client_secret'];
             $resp = Http::get($tokenUrl, $tokenParams); // GET für Meta
         } else {
-            // Andere Provider verwenden POST
+            // Andere Provider (z.B. GitHub) verwenden POST
+            // GitHub benötigt client_secret als POST-Parameter
+            if (($cfg['client_secret'] ?? null)) {
+                $tokenParams['client_secret'] = $cfg['client_secret'];
+            }
             $resp = Http::asForm()->post($tokenUrl, $tokenParams);
         }
 
