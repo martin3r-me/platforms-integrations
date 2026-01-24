@@ -11,10 +11,12 @@ use Platform\Integrations\Models\IntegrationConnection;
 use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
+use Platform\Integrations\Models\IntegrationsGithubRepository;
 use Platform\Integrations\Services\IntegrationAccessService;
 use Platform\Integrations\Services\IntegrationsFacebookPageService;
 use Platform\Integrations\Services\IntegrationsInstagramAccountService;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
+use Platform\Integrations\Services\IntegrationsGithubRepositoryService;
 
 class Index extends Component
 {
@@ -64,10 +66,20 @@ class Index extends Component
             ->where('owner_user_id', $user->id)
             ->first();
 
+        // GitHub-Connection prüfen
+        $githubConnection = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', function ($q) {
+                $q->where('key', 'github');
+            })
+            ->where('owner_user_id', $user->id)
+            ->first();
+
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
             'metaConnection' => $metaConnection,
+            'githubConnection' => $githubConnection,
         ])->layout('platform::layouts.app');
     }
 
@@ -416,6 +428,54 @@ class Index extends Component
         } catch (\Exception $e) {
             $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
             \Log::error('Sync All Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function syncGithubRepositories(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+            
+            $githubConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'github');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$githubConnection) {
+                $this->syncError = 'Keine GitHub-Connection gefunden. Bitte zuerst mit GitHub verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($githubConnection->status !== 'active') {
+                $this->syncError = 'GitHub-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsGithubRepositoryService::class);
+            $result = $service->syncGithubRepositoriesForUser($githubConnection);
+            
+            $count = count($result);
+            $this->syncMessage = "✅ {$count} GitHub Repository/Repositories synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('GitHub Repositories Sync Error', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

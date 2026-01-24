@@ -203,6 +203,135 @@
             </div>
         </div>
 
+        {{-- GitHub Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800/10 to-gray-900/5 flex items-center justify-center">
+                            @svg('heroicon-o-code-bracket', 'w-6 h-6 text-gray-800')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">GitHub</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Verbinde dein GitHub-Konto für Repository-Verwaltung</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if($githubConnection && $githubConnection->status === 'active')
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                            <div class="flex-shrink-0">
+                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-green-900">GitHub-Konto ist verbunden</p>
+                                <p class="text-xs text-green-700 mt-1">
+                                    Verbunden am {{ $githubConnection->updated_at->format('d.m.Y H:i') }}
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <x-ui-button 
+                                    variant="secondary" 
+                                    size="sm"
+                                    :href="route('integrations.oauth2.start', ['integrationKey' => 'github'])"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                        <span>Erneut verbinden</span>
+                                    </span>
+                                </x-ui-button>
+                                <x-ui-button 
+                                    variant="danger-outline" 
+                                    size="sm"
+                                    wire:click="deleteConnection({{ $githubConnection->id }})"
+                                    wire:confirm="GitHub-Verbindung wirklich löschen? Alle verknüpften Repositories werden entfernt."
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-trash', 'w-4 h-4')
+                                        <span>Trennen</span>
+                                    </span>
+                                </x-ui-button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Repositories</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Private</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', true)->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Public</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', false)->count() }}
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Sync-Button --}}
+                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
+                            <x-ui-button 
+                                variant="primary" 
+                                size="sm"
+                                wire:click="syncGithubRepositories"
+                                :disabled="$isSyncing"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @if($isSyncing)
+                                        @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                    @else
+                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                    @endif
+                                    <span>Repositories synchronisieren</span>
+                                </span>
+                            </x-ui-button>
+
+                            @if($syncMessage)
+                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                                </div>
+                            @endif
+
+                            @if($syncError)
+                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <div class="flex items-start gap-2">
+                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                            @svg('heroicon-o-code-bracket', 'w-8 h-8 text-gray-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">GitHub-Konto noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein GitHub-Konto, um deine Repositories zu verwalten</p>
+                        <x-ui-button 
+                            variant="primary" 
+                            size="md"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'github'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-link', 'w-5 h-5')
+                                <span>Mit GitHub verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Alle Connections --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -337,6 +466,14 @@
                         @if($metaConnection && $metaConnection->status === 'active')
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">Meta verbunden</span>
+                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                    ✓
+                                </span>
+                            </div>
+                        @endif
+                        @if($githubConnection && $githubConnection->status === 'active')
+                            <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
+                                <span class="text-sm text-green-700">GitHub verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
                                     ✓
                                 </span>
