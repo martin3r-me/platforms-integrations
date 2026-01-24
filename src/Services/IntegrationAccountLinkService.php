@@ -7,6 +7,7 @@ use Platform\Integrations\Contracts\SocialMediaAccountLinkableInterface;
 use Platform\Integrations\Models\IntegrationAccountLink;
 use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
+use Platform\Integrations\Models\IntegrationsGithubRepository;
 
 class IntegrationAccountLinkService
 {
@@ -224,6 +225,87 @@ class IntegrationAccountLinkService
     {
         return IntegrationAccountLink::where('account_type', 'instagram_account')
             ->where('account_id', $instagramAccount->id)
+            ->exists();
+    }
+
+    /**
+     * Verknüpfe ein GitHub Repository mit einem linkable Objekt
+     * 
+     * @param IntegrationsGithubRepository $githubRepository
+     * @param SocialMediaAccountLinkableInterface $linkable
+     * @return bool True wenn erfolgreich verknüpft, false wenn bereits verknüpft
+     */
+    public function linkGithubRepository(IntegrationsGithubRepository $githubRepository, SocialMediaAccountLinkableInterface $linkable): bool
+    {
+        // Prüfe ob dieses Repository bereits verknüpft ist (jedes Repository nur einmal)
+        $existingLink = IntegrationAccountLink::where('account_type', 'github_repository')
+            ->where('account_id', $githubRepository->id)
+            ->first();
+
+        if ($existingLink) {
+            // Repository ist bereits verknüpft - aktualisiere die Verknüpfung
+            $existingLink->update([
+                'linkable_type' => $linkable->getSocialMediaAccountLinkableType(),
+                'linkable_id' => $linkable->getSocialMediaAccountLinkableId(),
+                'team_id' => $linkable->getTeamId(),
+                'created_by_user_id' => auth()->id(),
+            ]);
+            return true;
+        }
+
+        // Neue Verknüpfung erstellen
+        IntegrationAccountLink::create([
+            'linkable_type' => $linkable->getSocialMediaAccountLinkableType(),
+            'linkable_id' => $linkable->getSocialMediaAccountLinkableId(),
+            'account_type' => 'github_repository',
+            'account_id' => $githubRepository->id,
+            'team_id' => $linkable->getTeamId(),
+            'created_by_user_id' => auth()->id(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Entferne Verknüpfung eines GitHub Repositories
+     */
+    public function unlinkGithubRepository(IntegrationsGithubRepository $githubRepository, SocialMediaAccountLinkableInterface $linkable): bool
+    {
+        $link = IntegrationAccountLink::where('account_type', 'github_repository')
+            ->where('account_id', $githubRepository->id)
+            ->where('linkable_type', $linkable->getSocialMediaAccountLinkableType())
+            ->where('linkable_id', $linkable->getSocialMediaAccountLinkableId())
+            ->first();
+
+        if ($link) {
+            return $link->delete();
+        }
+
+        return false;
+    }
+
+    /**
+     * Hole alle verknüpften GitHub Repositories für ein linkable Objekt
+     */
+    public function getLinkedGithubRepositories(SocialMediaAccountLinkableInterface $linkable): Collection
+    {
+        $links = IntegrationAccountLink::where('linkable_type', $linkable->getSocialMediaAccountLinkableType())
+            ->where('linkable_id', $linkable->getSocialMediaAccountLinkableId())
+            ->where('account_type', 'github_repository')
+            ->get();
+
+        return $links->map(function ($link) {
+            return $link->getAccount();
+        })->filter();
+    }
+
+    /**
+     * Prüfe ob ein GitHub Repository bereits verknüpft ist
+     */
+    public function isGithubRepositoryLinked(IntegrationsGithubRepository $githubRepository): bool
+    {
+        return IntegrationAccountLink::where('account_type', 'github_repository')
+            ->where('account_id', $githubRepository->id)
             ->exists();
     }
 

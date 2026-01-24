@@ -141,7 +141,7 @@ class OAuth2Service
                 'integration_key' => $integrationKey,
             ]);
             
-            // Fallback: Versuche Meta Integration automatisch anzulegen
+            // Fallback: Versuche bekannte Integrationen automatisch anzulegen
             if ($integrationKey === 'meta') {
                 $integration = Integration::updateOrCreate(
                     ['key' => 'meta'],
@@ -157,6 +157,23 @@ class OAuth2Service
                 );
                 
                 \Log::info('OAuth2 Meta Integration Auto-Created', [
+                    'integration_id' => $integration->id,
+                ]);
+            } elseif ($integrationKey === 'github') {
+                $integration = Integration::updateOrCreate(
+                    ['key' => 'github'],
+                    [
+                        'name' => 'GitHub',
+                        'is_enabled' => true,
+                        'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
+                        'meta' => json_encode([
+                            'description' => 'GitHub Integration für Repository-Verwaltung',
+                            'icon' => 'heroicon-o-code-bracket',
+                        ], JSON_THROW_ON_ERROR),
+                    ]
+                );
+                
+                \Log::info('OAuth2 GitHub Integration Auto-Created', [
                     'integration_id' => $integration->id,
                 ]);
             } else {

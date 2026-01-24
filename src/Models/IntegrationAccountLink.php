@@ -51,6 +51,7 @@ class IntegrationAccountLink extends Model
         return match ($this->account_type) {
             'facebook_page' => IntegrationsFacebookPage::find($this->account_id),
             'instagram_account' => IntegrationsInstagramAccount::find($this->account_id),
+            'github_repository' => IntegrationsGithubRepository::find($this->account_id),
             default => null,
         };
     }
