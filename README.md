@@ -64,3 +64,39 @@ php artisan integrations:sync-whatsapp-accounts --user-id=1
 # GitHub Repositories synchronisieren
 php artisan integrations:sync-github-repositories --user-id=1
 ```
+
+## Scripts
+
+### Repository Ticket Checker
+
+Das Script `/Users/martin3r/Platforms/opt/agent/check_repository_tickets.sh` prüft GitHub Repositories aus whitelabelten Ordnern auf offene Tickets.
+
+**Verwendung:**
+
+```bash
+# Mit Umgebungsvariablen
+export APP_URL="https://deine-platform.de"
+export API_TOKEN="dein-api-token"
+export PLATFORMS_DIR="/Users/martin3r/Platforms"  # Optional, Standard: /Users/martin3r/Platforms
+/Users/martin3r/Platforms/opt/agent/check_repository_tickets.sh
+
+# Oder direkt
+APP_URL="https://deine-platform.de" API_TOKEN="dein-token" /Users/martin3r/Platforms/opt/agent/check_repository_tickets.sh
+```
+
+**API Token erstellen:**
+
+```bash
+php artisan api:token:create --email=your@email.com --name='Script Token' --show
+```
+
+**Konfiguration:**
+
+- `APP_URL`: Base URL der Platform (Standard: `http://localhost:8000`)
+- `API_TOKEN`: API Token für Authentifizierung
+- `WHITELABEL_FOLDERS`: Liste der zu prüfenden Ordner (aktuell: `core`)
+
+Das Script:
+1. Liest GitHub Repository-Informationen aus den whitelabelten Ordnern
+2. Fragt den API-Endpunkt `/api/helpdesk/tickets/github-repository/next-open` ab
+3. Gibt gefundene Tickets aus: "JA TICKET: [Titel]"

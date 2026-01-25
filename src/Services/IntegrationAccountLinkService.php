@@ -230,27 +230,24 @@ class IntegrationAccountLinkService
 
     /**
      * Verknüpfe ein GitHub Repository mit einem linkable Objekt
+     * Ein Repository kann mit mehreren Objekten verknüpft werden
      * 
      * @param IntegrationsGithubRepository $githubRepository
      * @param SocialMediaAccountLinkableInterface $linkable
-     * @return bool True wenn erfolgreich verknüpft, false wenn bereits verknüpft
+     * @return bool True wenn erfolgreich verknüpft, false wenn bereits mit diesem Objekt verknüpft
      */
     public function linkGithubRepository(IntegrationsGithubRepository $githubRepository, SocialMediaAccountLinkableInterface $linkable): bool
     {
-        // Prüfe ob dieses Repository bereits verknüpft ist (jedes Repository nur einmal)
+        // Prüfe ob dieses Repository bereits mit diesem spezifischen Objekt verknüpft ist
         $existingLink = IntegrationAccountLink::where('account_type', 'github_repository')
             ->where('account_id', $githubRepository->id)
+            ->where('linkable_type', $linkable->getSocialMediaAccountLinkableType())
+            ->where('linkable_id', $linkable->getSocialMediaAccountLinkableId())
             ->first();
 
         if ($existingLink) {
-            // Repository ist bereits verknüpft - aktualisiere die Verknüpfung
-            $existingLink->update([
-                'linkable_type' => $linkable->getSocialMediaAccountLinkableType(),
-                'linkable_id' => $linkable->getSocialMediaAccountLinkableId(),
-                'team_id' => $linkable->getTeamId(),
-                'created_by_user_id' => auth()->id(),
-            ]);
-            return true;
+            // Repository ist bereits mit diesem Objekt verknüpft
+            return false;
         }
 
         // Neue Verknüpfung erstellen
@@ -301,12 +298,23 @@ class IntegrationAccountLinkService
 
     /**
      * Prüfe ob ein GitHub Repository bereits verknüpft ist
+     * 
+     * @param IntegrationsGithubRepository $githubRepository
+     * @param SocialMediaAccountLinkableInterface|null $linkable Optional: Prüfe ob mit diesem spezifischen Objekt verknüpft
+     * @return bool
      */
-    public function isGithubRepositoryLinked(IntegrationsGithubRepository $githubRepository): bool
+    public function isGithubRepositoryLinked(IntegrationsGithubRepository $githubRepository, ?SocialMediaAccountLinkableInterface $linkable = null): bool
     {
-        return IntegrationAccountLink::where('account_type', 'github_repository')
-            ->where('account_id', $githubRepository->id)
-            ->exists();
+        $query = IntegrationAccountLink::where('account_type', 'github_repository')
+            ->where('account_id', $githubRepository->id);
+
+        // Wenn ein linkable Objekt angegeben ist, prüfe nur ob mit diesem verknüpft
+        if ($linkable !== null) {
+            $query->where('linkable_type', $linkable->getSocialMediaAccountLinkableType())
+                  ->where('linkable_id', $linkable->getSocialMediaAccountLinkableId());
+        }
+
+        return $query->exists();
     }
 
     /**
