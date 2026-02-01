@@ -71,10 +71,21 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.contacts.update');
                 Route::delete('/contacts/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteContact'])
                     ->name('integrations.lexware.contacts.delete');
+                // Rechnungen (Invoices) - CRUD Endpunkte
                 Route::get('/invoices', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoices'])
                     ->name('integrations.lexware.invoices');
+                Route::post('/invoices', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createInvoice'])
+                    ->name('integrations.lexware.invoices.create');
                 Route::get('/invoices/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoice'])
                     ->name('integrations.lexware.invoice');
+                Route::post('/invoices/{id}/finalize', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'finalizeInvoice'])
+                    ->name('integrations.lexware.invoices.finalize');
+                Route::get('/invoices/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoicePdf'])
+                    ->name('integrations.lexware.invoices.pdf');
+                Route::get('/invoices/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadInvoice'])
+                    ->name('integrations.lexware.invoices.download');
+                Route::get('/invoices/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoiceDeeplink'])
+                    ->name('integrations.lexware.invoices.deeplink');
                 Route::get('/quotations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotations'])
                     ->name('integrations.lexware.quotations');
                 Route::get('/quotations/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotation'])

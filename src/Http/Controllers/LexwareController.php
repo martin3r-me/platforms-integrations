@@ -336,10 +336,52 @@ class LexwareController extends Controller
         }
     }
 
+    // =========================================================================
+    // RECHNUNGEN (INVOICES)
+    // =========================================================================
+
     /**
-     * Rechnungen abrufen
+     * Rechnungen abrufen (paginiert)
+     *
+     * Ruft eine Liste von Rechnungen aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
      *
      * GET /api/integrations/lexware/invoices
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/invoices?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *       "voucherType": "invoice",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "RE-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "dueDate": "2024-02-14",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "openAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Rechnungen oder Fehlermeldung
      */
     public function invoices(Request $request): JsonResponse
     {
@@ -359,7 +401,58 @@ class LexwareController extends Controller
     /**
      * Einzelne Rechnung abrufen
      *
+     * Ruft eine einzelne Rechnung anhand ihrer UUID aus der Lexware API ab.
+     * Gibt alle Details der Rechnung zurück, inklusive Positionen, Adressen und Summen.
+     *
      * GET /api/integrations/lexware/invoices/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Rechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "RE-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "dueDate": "2024-02-14",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   }
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Rechnung
+     * @return JsonResponse Rechnungsdaten oder Fehlermeldung
      */
     public function invoice(Request $request, string $id): JsonResponse
     {
@@ -371,6 +464,279 @@ class LexwareController extends Controller
         } catch (LexwareApiException $e) {
             return $this->handleLexwareException($e);
         }
+    }
+
+    /**
+     * Rechnung erstellen
+     *
+     * Erstellt eine neue Rechnung in der Lexware API.
+     * Die Rechnung kann entweder als Entwurf (Standard) oder direkt finalisiert erstellt werden.
+     * Finalisierte Rechnungen erhalten sofort eine Rechnungsnummer.
+     *
+     * POST /api/integrations/lexware/invoices
+     *
+     * Query-Parameter:
+     * - finalize (bool): Wenn true, wird die Rechnung direkt finalisiert (Standard: false)
+     *
+     * Request-Body (JSON) - Beispiel Rechnung an Kontakt:
+     * {
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "description": "Projektberatung Januar 2024",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "paymentConditions": {
+     *     "paymentTermLabel": "Zahlbar innerhalb von 30 Tagen",
+     *     "paymentTermDuration": 30
+     *   },
+     *   "title": "Rechnung",
+     *   "introduction": "Vielen Dank für Ihren Auftrag.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "resourceUri": "https://api.lexoffice.io/v1/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - address kann entweder contactId (bestehender Kontakt) oder manuelle Adressdaten enthalten
+     * - lineItems.type kann 'custom' (freier Text) oder 'material' (Artikel) sein
+     * - taxConditions.taxType kann 'net', 'gross' oder 'vatfree' sein
+     * - Bei finalize=true wird die Rechnung sofort abgeschlossen und erhält eine Nummer
+     *
+     * @param Request $request HTTP-Request mit Rechnungsdaten im Body
+     * @return JsonResponse Erstellte Rechnungs-Metadaten oder Fehlermeldung
+     */
+    public function createInvoice(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+            $finalize = filter_var($request->get('finalize', false), FILTER_VALIDATE_BOOLEAN);
+
+            $result = $this->lexwareApiService->createInvoice($user, $data, $finalize);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Rechnung finalisieren (abschließen)
+     *
+     * Finalisiert einen Rechnungsentwurf und macht ihn zu einer echten Rechnung.
+     * Nach der Finalisierung erhält die Rechnung eine Rechnungsnummer und kann nicht mehr bearbeitet werden.
+     *
+     * WICHTIG: Diese Operation ist unwiderruflich!
+     *
+     * POST /api/integrations/lexware/invoices/{id}/finalize
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der zu finalisierenden Rechnung
+     *
+     * Beispiel-Request:
+     * POST /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9/finalize
+     *
+     * Beispiel-Response bei Erfolg:
+     * {
+     *   "success": true,
+     *   "message": "Rechnung erfolgreich finalisiert."
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Rechnung muss im Status 'draft' (Entwurf) sein
+     * - Alle Pflichtfelder müssen ausgefüllt sein
+     *
+     * Mögliche Fehler:
+     * - 400: Rechnung ist bereits finalisiert oder ungültige Daten
+     * - 404: Rechnung nicht gefunden
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Rechnung
+     * @return JsonResponse Erfolgsmeldung oder Fehlermeldung
+     */
+    public function finalizeInvoice(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $this->lexwareApiService->finalizeInvoice($user, $id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rechnung erfolgreich finalisiert.',
+            ]);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Rechnung als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Rechnung.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * GET /api/integrations/lexware/invoices/{id}/pdf
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Rechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9/pdf
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Rechnung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann nach einiger Zeit ablaufen
+     * - Für den Download verwende GET /api/integrations/lexware/invoices/{id}/download
+     *   oder GET /api/integrations/lexware/files/{documentFileId}
+     *
+     * Mögliche Fehler:
+     * - 404: Rechnung nicht gefunden
+     * - 406: Rechnung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Rechnung
+     * @return JsonResponse documentFileId oder Fehlermeldung
+     */
+    public function invoicePdf(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->renderInvoicePdf($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Rechnung als PDF herunterladen
+     *
+     * Rendert die Rechnung als PDF und gibt das Dokument direkt zum Download zurück.
+     * Dies ist eine Kombination aus renderInvoicePdf() und downloadFile() in einem Request.
+     *
+     * GET /api/integrations/lexware/invoices/{id}/download
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Rechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9/download
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf
+     * Content-Disposition: attachment; filename="invoice-{id}.pdf"
+     * (Binäre PDF-Daten)
+     *
+     * Voraussetzungen:
+     * - Die Rechnung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Mögliche Fehler:
+     * - 404: Rechnung nicht gefunden
+     * - 406: Rechnung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Rechnung
+     * @return \Illuminate\Http\Response PDF-Download oder JsonResponse bei Fehler
+     */
+    public function downloadInvoice(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Zuerst PDF rendern und documentFileId abrufen
+            $renderResult = $this->lexwareApiService->renderInvoicePdf($user, $id);
+
+            if (!isset($renderResult['documentFileId'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'pdf_render_failed',
+                        'message' => 'PDF konnte nicht gerendert werden.',
+                        'http_status' => 500,
+                    ],
+                ], 500);
+            }
+
+            // PDF herunterladen
+            $pdfContent = $this->lexwareApiService->downloadFile($user, $renderResult['documentFileId']);
+
+            // PDF als Download zurückgeben
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"invoice-{$id}.pdf\"")
+                ->header('Content-Length', strlen($pdfContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zur Rechnung in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Rechnung in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Rechnung in Lexoffice weiterzuleiten.
+     *
+     * GET /api/integrations/lexware/invoices/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Rechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/invoice/e9066f04-8cc7-4616-93f8-ac9c10e55bc9"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Rechnung existiert und der Benutzer Zugriff hat
+     * - Dieser Endpunkt validiert NICHT, ob die Rechnung existiert (für schnelle Response)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Rechnung
+     * @return JsonResponse Array mit dem Deeplink
+     */
+    public function invoiceDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getInvoiceDeeplink($id);
+
+        return response()->json($result);
     }
 
     /**
