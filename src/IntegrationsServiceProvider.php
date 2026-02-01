@@ -63,6 +63,17 @@ class IntegrationsServiceProvider extends ServiceProvider
                 // Belegliste (Voucherlist) - Zentraler Endpunkt für alle Belege
                 Route::get('/voucherlist', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'voucherlist'])
                     ->name('integrations.lexware.voucherlist');
+                // Belege (Vouchers) - CRUD Endpunkte für Eingangs- und Ausgangsbelege
+                Route::get('/vouchers', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'vouchers'])
+                    ->name('integrations.lexware.vouchers');
+                Route::get('/vouchers/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'voucher'])
+                    ->name('integrations.lexware.voucher');
+                Route::post('/vouchers', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createVoucher'])
+                    ->name('integrations.lexware.vouchers.create');
+                Route::put('/vouchers/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'updateVoucher'])
+                    ->name('integrations.lexware.vouchers.update');
+                Route::post('/vouchers/{id}/files', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'uploadFileToVoucher'])
+                    ->name('integrations.lexware.vouchers.files.upload');
                 // Kontakte (Contacts) - CRUD Endpunkte
                 Route::get('/contacts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contacts'])
                     ->name('integrations.lexware.contacts');

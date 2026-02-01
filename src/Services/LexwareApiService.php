@@ -172,6 +172,440 @@ class LexwareApiService
     }
 
     // =========================================================================
+    // BELEGE (VOUCHERS)
+    // =========================================================================
+
+    /**
+     * Einzelnen Beleg abrufen
+     *
+     * Ruft einen einzelnen Beleg (Voucher) anhand seiner ID aus der Lexware API ab.
+     * Der Vouchers-Endpunkt ermöglicht den Zugriff auf verschiedene Belegtypen
+     * wie Eingangsbelege (purchaseinvoice, purchasecreditnote) und
+     * Ausgangsbelege (salesinvoice, salescreditnote).
+     *
+     * WICHTIG: Dieser Endpunkt unterscheidet sich von den spezifischen Endpunkten
+     * (z.B. /invoices, /credit-notes) und bietet eine einheitliche Schnittstelle
+     * für alle Belegtypen.
+     *
+     * @see https://developers.lexoffice.io/docs/#vouchers-endpoint-retrieve-a-voucher
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "type": "salesinvoice",
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "dueDate": "2024-02-14",
+     *   "totalGrossAmount": 1190.00,
+     *   "totalTaxAmount": 190.00,
+     *   "taxType": "net",
+     *   "useCollectiveContact": false,
+     *   "remark": "Rechnung für Projektarbeit",
+     *   "voucherItems": [
+     *     {
+     *       "amount": 1000.00,
+     *       "taxAmount": 190.00,
+     *       "taxRatePercent": 19,
+     *       "categoryId": "8f8664a8-fd86-11e1-a21f-0800200c9a66"
+     *     }
+     *   ],
+     *   "files": [
+     *     {
+     *       "id": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f",
+     *       "name": "rechnung.pdf",
+     *       "type": "application/pdf"
+     *     }
+     *   ],
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 1
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $voucherId Die UUID des Belegs
+     * @return array Beleg-Daten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
+     */
+    public function getVoucher(User $user, string $voucherId): array
+    {
+        return $this->get($user, "/vouchers/{$voucherId}");
+    }
+
+    /**
+     * Belege abrufen (paginiert/gefiltert)
+     *
+     * Ruft eine Liste von Belegen aus der Lexware API ab.
+     * Der Vouchers-Endpunkt ermöglicht das Filtern nach Belegtyp und weiteren Kriterien.
+     *
+     * WICHTIG: Dieser Endpunkt verwendet den /voucherlist Endpunkt mit spezifischen
+     * Filteroptionen für Voucher-Typen (purchaseinvoice, purchasecreditnote,
+     * salesinvoice, salescreditnote).
+     *
+     * Unterstützte Belegtypen (voucherType):
+     * - salesinvoice: Ausgangsrechnungen
+     * - salescreditnote: Ausgangsgutschriften
+     * - purchaseinvoice: Eingangsrechnungen
+     * - purchasecreditnote: Eingangsgutschriften
+     *
+     * Unterstützte Belegstatus (voucherStatus):
+     * - open: Offen
+     * - paid: Bezahlt
+     * - paidoff: Ausgeglichen
+     * - voided: Storniert
+     * - transferred: Übertragen
+     * - sepadebit: SEPA-Lastschrift
+     *
+     * @see https://developers.lexoffice.io/docs/#vouchers-endpoint
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *       "voucherType": "salesinvoice",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "dueDate": "2024-02-14",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "openAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @param string|null $voucherType Belegtyp zum Filtern (z.B. 'salesinvoice', 'purchaseinvoice')
+     * @param string|null $voucherStatus Belegstatus zum Filtern (z.B. 'open', 'paid')
+     * @param string|null $contactId Filter nach Kontakt-UUID
+     * @return array Paginierte Liste von Belegen
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function getVouchers(
+        User $user,
+        int $page = 0,
+        int $size = 25,
+        ?string $voucherType = null,
+        ?string $voucherStatus = null,
+        ?string $contactId = null
+    ): array {
+        // Query-Parameter aufbauen
+        $query = [
+            'page' => $page,
+            'size' => min($size, 250),
+        ];
+
+        // Optionale Filter hinzufügen
+        if ($voucherType !== null) {
+            $query['voucherType'] = $voucherType;
+        }
+
+        if ($voucherStatus !== null) {
+            $query['voucherStatus'] = $voucherStatus;
+        }
+
+        if ($contactId !== null) {
+            $query['contactId'] = $contactId;
+        }
+
+        return $this->get($user, '/voucherlist', $query);
+    }
+
+    /**
+     * Beleg erstellen
+     *
+     * Erstellt einen neuen Beleg (Voucher) in der Lexware API.
+     * Der Vouchers-Endpunkt wird für Eingangs- und Ausgangsbelege verwendet.
+     *
+     * Unterstützte Belegtypen:
+     * - salesinvoice: Ausgangsrechnung
+     * - salescreditnote: Ausgangsgutschrift
+     * - purchaseinvoice: Eingangsrechnung
+     * - purchasecreditnote: Eingangsgutschrift
+     *
+     * @see https://developers.lexoffice.io/docs/#vouchers-endpoint-create-a-voucher
+     *
+     * Beispiel-Request (Eingangsrechnung):
+     * {
+     *   "type": "purchaseinvoice",
+     *   "voucherNumber": "EIN-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "dueDate": "2024-02-14",
+     *   "totalGrossAmount": 1190.00,
+     *   "totalTaxAmount": 190.00,
+     *   "taxType": "net",
+     *   "useCollectiveContact": false,
+     *   "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "remark": "Eingangsrechnung für Büromaterial",
+     *   "voucherItems": [
+     *     {
+     *       "amount": 1000.00,
+     *       "taxAmount": 190.00,
+     *       "taxRatePercent": 19,
+     *       "categoryId": "8f8664a8-fd86-11e1-a21f-0800200c9a66"
+     *     }
+     *   ]
+     * }
+     *
+     * Beispiel-Request (Ausgangsrechnung):
+     * {
+     *   "type": "salesinvoice",
+     *   "voucherNumber": "RE-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "dueDate": "2024-02-14",
+     *   "totalGrossAmount": 595.00,
+     *   "totalTaxAmount": 95.00,
+     *   "taxType": "net",
+     *   "useCollectiveContact": false,
+     *   "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "remark": "Ausgangsrechnung für Beratungsleistung",
+     *   "voucherItems": [
+     *     {
+     *       "amount": 500.00,
+     *       "taxAmount": 95.00,
+     *       "taxRatePercent": 19,
+     *       "categoryId": "97b98491-e953-4dc9-97a9-ae437a8052b4"
+     *     }
+     *   ]
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "resourceUri": "https://api.lexoffice.io/v1/vouchers/a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - type ist ein Pflichtfeld und muss ein gültiger Belegtyp sein
+     * - voucherDate und voucherNumber sind Pflichtfelder
+     * - voucherItems enthält die Belegpositionen mit Beträgen und Steuern
+     * - categoryId muss eine gültige Buchungskategorie sein (siehe /posting-categories)
+     * - Bei useCollectiveContact=true wird kein contactId benötigt
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Beleg-Daten (type, voucherDate, voucherNumber, voucherItems erforderlich)
+     * @return array Erstellte Beleg-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createVoucher(User $user, array $data): array
+    {
+        return $this->post($user, '/vouchers', $data);
+    }
+
+    /**
+     * Beleg aktualisieren
+     *
+     * Aktualisiert einen bestehenden Beleg (Voucher) in der Lexware API.
+     * Der Beleg muss noch im Status sein, der Änderungen erlaubt.
+     *
+     * WICHTIG: Beim Update muss die aktuelle Version des Belegs mitgesendet werden,
+     * um Konflikte bei gleichzeitigen Änderungen zu vermeiden (optimistic locking).
+     *
+     * @see https://developers.lexoffice.io/docs/#vouchers-endpoint-update-a-voucher
+     *
+     * Beispiel-Request:
+     * {
+     *   "version": 1,
+     *   "type": "purchaseinvoice",
+     *   "voucherNumber": "EIN-2024-001-A",
+     *   "voucherDate": "2024-01-16",
+     *   "dueDate": "2024-02-15",
+     *   "totalGrossAmount": 1190.00,
+     *   "totalTaxAmount": 190.00,
+     *   "taxType": "net",
+     *   "useCollectiveContact": false,
+     *   "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "remark": "Aktualisierte Eingangsrechnung",
+     *   "voucherItems": [
+     *     {
+     *       "amount": 1000.00,
+     *       "taxAmount": 190.00,
+     *       "taxRatePercent": 19,
+     *       "categoryId": "8f8664a8-fd86-11e1-a21f-0800200c9a66"
+     *     }
+     *   ]
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "resourceUri": "https://api.lexoffice.io/v1/vouchers/a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-16T14:20:00.000+01:00",
+     *   "version": 2
+     * }
+     *
+     * Hinweise:
+     * - version ist ein Pflichtfeld und muss der aktuellen Version entsprechen
+     * - Bei Versionskonflikt wird ein 409 Conflict zurückgegeben
+     * - Finalisierte/abgeschlossene Belege können nicht mehr aktualisiert werden
+     * - Alle Pflichtfelder müssen auch beim Update mitgesendet werden
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $voucherId Die UUID des zu aktualisierenden Belegs
+     * @param array $data Aktualisierte Beleg-Daten (version erforderlich)
+     * @return array Aktualisierte Beleg-Metadaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 409 bei Versionskonflikt)
+     */
+    public function updateVoucher(User $user, string $voucherId, array $data): array
+    {
+        return $this->put($user, "/vouchers/{$voucherId}", $data);
+    }
+
+    /**
+     * Datei an Beleg anhängen
+     *
+     * Lädt eine Datei hoch und verknüpft sie mit einem Beleg (Voucher).
+     * Dies ermöglicht das Anhängen von Belegbildern, PDFs oder anderen Dokumenten
+     * an einen bestehenden Beleg.
+     *
+     * WICHTIG: Diese Methode kombiniert zwei API-Aufrufe:
+     * 1. Datei hochladen über /files
+     * 2. Beleg aktualisieren um die Datei zu verknüpfen
+     *
+     * Unterstützte Content-Types:
+     * - application/pdf (PDF-Dokumente)
+     * - image/png (PNG-Bilder)
+     * - image/jpeg (JPEG-Bilder)
+     *
+     * @see https://developers.lexoffice.io/docs/#vouchers-endpoint-upload-a-file-to-a-voucher
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "resourceUri": "https://api.lexoffice.io/v1/vouchers/a8691b5d-2393-4317-888a-e9a5a2b76557",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-16T14:20:00.000+01:00",
+     *   "version": 2
+     * }
+     *
+     * Hinweise:
+     * - Die maximale Dateigröße beträgt 5 MB (Lexware API Limit)
+     * - Nur PDF, PNG und JPEG Dateien werden akzeptiert
+     * - Die Datei wird zuerst hochgeladen, dann mit dem Beleg verknüpft
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $voucherId Die UUID des Belegs
+     * @param string $filePath Der vollständige Pfad zur Datei auf dem Server
+     * @param string $fileName Der Dateiname für die hochgeladene Datei
+     * @param string|null $contentType Der Content-Type der Datei (optional, wird automatisch erkannt)
+     * @return array Aktualisierte Beleg-Metadaten
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function uploadFileToVoucher(
+        User $user,
+        string $voucherId,
+        string $filePath,
+        string $fileName,
+        ?string $contentType = null
+    ): array {
+        // Token aus der IntegrationConnection Tabelle holen
+        $connection = $this->integrationService->getConnectionForUser($user);
+
+        if (!$connection) {
+            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
+            throw LexwareApiException::noConnection();
+        }
+
+        $apiToken = $this->integrationService->getApiToken($connection);
+
+        if (!$apiToken) {
+            Log::warning('Lexware API: Kein Token für User', ['user_id' => $user->id]);
+            throw LexwareApiException::unauthorized();
+        }
+
+        // Prüfen ob Datei existiert
+        if (!file_exists($filePath)) {
+            Log::warning('Lexware API: Datei nicht gefunden', [
+                'user_id' => $user->id,
+                'file_path' => $filePath,
+            ]);
+            throw LexwareApiException::fromResponse(400, [
+                'message' => 'Die angegebene Datei wurde nicht gefunden.',
+            ]);
+        }
+
+        // Content-Type automatisch erkennen wenn nicht angegeben
+        if ($contentType === null) {
+            $contentType = $this->detectContentType($filePath, $fileName);
+        }
+
+        $url = self::BASE_URL . "/vouchers/{$voucherId}/files";
+
+        try {
+            // Multipart-Request für Datei-Upload an Voucher erstellen
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Accept' => 'application/json',
+            ])->attach(
+                'file',
+                file_get_contents($filePath),
+                $fileName,
+                ['Content-Type' => $contentType]
+            )->post($url, [
+                'type' => 'voucher',
+            ]);
+
+            if (!$response->successful()) {
+                $this->updateConnectionStatus(
+                    $connection,
+                    $response->status() === 401 ? 'error' : 'active',
+                    $response->json()['message'] ?? null
+                );
+
+                Log::warning('Lexware API: Fehler beim Datei-Upload an Voucher', [
+                    'user_id' => $user->id,
+                    'voucher_id' => $voucherId,
+                    'file_name' => $fileName,
+                    'status_code' => $response->status(),
+                    'response' => $response->json(),
+                ]);
+
+                throw LexwareApiException::fromResponse($response->status(), $response->json() ?? []);
+            }
+
+            $this->updateConnectionStatus($connection, 'active');
+
+            Log::info('Lexware API: Datei erfolgreich an Voucher angehängt', [
+                'user_id' => $user->id,
+                'voucher_id' => $voucherId,
+                'file_name' => $fileName,
+                'file_id' => $response->json()['id'] ?? null,
+            ]);
+
+            return $response->json();
+        } catch (LexwareApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Lexware API: Verbindungsfehler beim Upload an Voucher', [
+                'user_id' => $user->id,
+                'voucher_id' => $voucherId,
+                'file_name' => $fileName,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+            throw LexwareApiException::connectionError($e->getMessage());
+        }
+    }
+
+    // =========================================================================
     // KONTAKTE (CONTACTS)
     // =========================================================================
 
