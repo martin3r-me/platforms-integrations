@@ -21,10 +21,57 @@ class LexwareController extends Controller
         protected LexwareApiService $lexwareApiService,
     ) {}
 
+    // =========================================================================
+    // KONTAKTE (CONTACTS)
+    // =========================================================================
+
     /**
-     * Kontakte abrufen
+     * Kontakte abrufen (paginiert)
+     *
+     * Ruft eine Liste von Kontakten aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
+     * Kontakte können Kunden (customer), Lieferanten (vendor) oder beides sein.
      *
      * GET /api/integrations/lexware/contacts
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/contacts?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *       "version": 1,
+     *       "roles": {
+     *         "customer": { "number": 10001 }
+     *       },
+     *       "company": {
+     *         "name": "Muster GmbH",
+     *         "taxNumber": "DE123456789"
+     *       },
+     *       "addresses": {
+     *         "billing": [{ "street": "Musterstraße 1", "zip": "12345", "city": "Musterstadt", "countryCode": "DE" }]
+     *       },
+     *       "emailAddresses": { "business": ["kontakt@muster.de"] },
+     *       "phoneNumbers": { "business": ["+49 123 456789"] },
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Kontakte oder Fehlermeldung
      */
     public function contacts(Request $request): JsonResponse
     {
@@ -44,7 +91,52 @@ class LexwareController extends Controller
     /**
      * Einzelnen Kontakt abrufen
      *
+     * Ruft einen einzelnen Kontakt anhand seiner UUID aus der Lexware API ab.
+     * Gibt alle Details des Kontakts zurück, inklusive Adressen, E-Mails und Telefonnummern.
+     *
      * GET /api/integrations/lexware/contacts/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Kontakts
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/contacts/e9066f04-8cc7-4616-93f8-ac9c10e55bc9
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "roles": {
+     *     "customer": { "number": 10001 },
+     *     "vendor": { "number": 70001 }
+     *   },
+     *   "company": {
+     *     "name": "Muster GmbH",
+     *     "taxNumber": "DE123456789",
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Herr",
+     *         "firstName": "Max",
+     *         "lastName": "Mustermann",
+     *         "primary": true,
+     *         "emailAddress": "max.mustermann@muster.de"
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [{ "street": "Musterstraße 1", "zip": "12345", "city": "Musterstadt", "countryCode": "DE" }],
+     *     "shipping": [{ "street": "Lieferstraße 5", "zip": "12345", "city": "Musterstadt", "countryCode": "DE" }]
+     *   },
+     *   "emailAddresses": { "business": ["kontakt@muster.de"], "office": ["buero@muster.de"] },
+     *   "phoneNumbers": { "business": ["+49 123 456789"], "mobile": ["+49 170 1234567"] },
+     *   "note": "Wichtiger Kunde seit 2020",
+     *   "archived": false
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Kontakts
+     * @return JsonResponse Kontaktdaten oder Fehlermeldung
      */
     public function contact(Request $request, string $id): JsonResponse
     {
@@ -53,6 +145,192 @@ class LexwareController extends Controller
             $result = $this->lexwareApiService->getContact($user, $id);
 
             return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Kontakt erstellen
+     *
+     * Erstellt einen neuen Kontakt in der Lexware API.
+     * Ein Kontakt kann entweder eine Person oder ein Unternehmen sein.
+     * Die Rolle (customer/vendor) bestimmt, ob der Kontakt als Kunde oder Lieferant geführt wird.
+     *
+     * POST /api/integrations/lexware/contacts
+     *
+     * Request-Body (JSON) - Beispiel Unternehmen als Kunde:
+     * {
+     *   "version": 0,
+     *   "roles": {
+     *     "customer": {}
+     *   },
+     *   "company": {
+     *     "name": "Neue Firma GmbH",
+     *     "taxNumber": "DE987654321",
+     *     "allowTaxFreeInvoices": false,
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Frau",
+     *         "firstName": "Anna",
+     *         "lastName": "Schmidt",
+     *         "primary": true,
+     *         "emailAddress": "anna.schmidt@neuefirma.de"
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [{ "street": "Neuestraße 10", "zip": "54321", "city": "Neustadt", "countryCode": "DE" }]
+     *   },
+     *   "emailAddresses": { "business": ["info@neuefirma.de"] },
+     *   "phoneNumbers": { "business": ["+49 987 654321"] },
+     *   "note": "Neuer Kunde"
+     * }
+     *
+     * Request-Body (JSON) - Beispiel Person als Kunde:
+     * {
+     *   "version": 0,
+     *   "roles": { "customer": {} },
+     *   "person": {
+     *     "salutation": "Herr",
+     *     "firstName": "Peter",
+     *     "lastName": "Müller"
+     *   },
+     *   "addresses": {
+     *     "billing": [{ "street": "Privatweg 5", "zip": "11111", "city": "Heimatstadt", "countryCode": "DE" }]
+     *   },
+     *   "emailAddresses": { "private": ["peter.mueller@email.de"] }
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "resourceUri": "https://api.lexoffice.io/v1/contacts/66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "updatedDate": "2024-01-17T09:00:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit Kontaktdaten im Body
+     * @return JsonResponse Erstellte Kontakt-Metadaten oder Fehlermeldung
+     */
+    public function createContact(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+
+            $result = $this->lexwareApiService->createContact($user, $data);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Kontakt aktualisieren
+     *
+     * Aktualisiert einen bestehenden Kontakt in der Lexware API.
+     * Die aktuelle 'version' muss im Request-Body mitgegeben werden (Optimistic Locking).
+     * Alle Felder, die nicht im Request enthalten sind, werden auf ihre Standardwerte zurückgesetzt.
+     *
+     * PUT /api/integrations/lexware/contacts/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des zu aktualisierenden Kontakts
+     *
+     * Request-Body (JSON):
+     * {
+     *   "version": 1,
+     *   "roles": {
+     *     "customer": { "number": 10001 }
+     *   },
+     *   "company": {
+     *     "name": "Muster GmbH - Aktualisiert",
+     *     "taxNumber": "DE123456789",
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Herr",
+     *         "firstName": "Max",
+     *         "lastName": "Mustermann",
+     *         "primary": true
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [{ "street": "Neue Musterstraße 2", "zip": "12345", "city": "Musterstadt", "countryCode": "DE" }]
+     *   },
+     *   "emailAddresses": { "business": ["neu@muster.de"] },
+     *   "phoneNumbers": { "business": ["+49 123 999888"] },
+     *   "note": "Adresse aktualisiert"
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "resourceUri": "https://api.lexoffice.io/v1/contacts/e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "createdDate": "2024-01-10T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-18T11:45:00.000+01:00",
+     *   "version": 2
+     * }
+     *
+     * @param Request $request HTTP-Request mit aktualisierten Kontaktdaten
+     * @param string $id Die UUID des Kontakts
+     * @return JsonResponse Aktualisierte Kontakt-Metadaten oder Fehlermeldung
+     */
+    public function updateContact(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+
+            $result = $this->lexwareApiService->updateContact($user, $id, $data);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Kontakt löschen
+     *
+     * Löscht einen Kontakt aus der Lexware API.
+     * Hinweis: Kontakte können nur gelöscht werden, wenn sie nicht in Belegen verwendet werden.
+     *
+     * ACHTUNG: Die Lexware API unterstützt möglicherweise kein direktes Löschen von Kontakten.
+     * In diesem Fall wird ein 405 Method Not Allowed zurückgegeben.
+     * Als Alternative kann der Kontakt über PUT /contacts/{id} archiviert werden
+     * (archived: true im Request-Body setzen).
+     *
+     * DELETE /api/integrations/lexware/contacts/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des zu löschenden Kontakts
+     *
+     * Beispiel-Request:
+     * DELETE /api/integrations/lexware/contacts/e9066f04-8cc7-4616-93f8-ac9c10e55bc9
+     *
+     * Beispiel-Response bei Erfolg:
+     * HTTP 204 No Content
+     *
+     * Mögliche Fehler:
+     * - 404: Kontakt nicht gefunden
+     * - 405: Löschen nicht unterstützt (Alternative: archivieren)
+     * - 409: Kontakt wird in Belegen verwendet
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des zu löschenden Kontakts
+     * @return JsonResponse Leere Response (204) oder Fehlermeldung
+     */
+    public function deleteContact(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $this->lexwareApiService->deleteContact($user, $id);
+
+            return response()->json(null, 204);
         } catch (LexwareApiException $e) {
             return $this->handleLexwareException($e);
         }

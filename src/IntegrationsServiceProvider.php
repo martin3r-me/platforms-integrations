@@ -60,10 +60,17 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.profile');
                 Route::get('/test', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'test'])
                     ->name('integrations.lexware.test');
+                // Kontakte (Contacts) - CRUD Endpunkte
                 Route::get('/contacts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contacts'])
                     ->name('integrations.lexware.contacts');
                 Route::get('/contacts/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contact'])
                     ->name('integrations.lexware.contact');
+                Route::post('/contacts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createContact'])
+                    ->name('integrations.lexware.contacts.create');
+                Route::put('/contacts/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'updateContact'])
+                    ->name('integrations.lexware.contacts.update');
+                Route::delete('/contacts/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteContact'])
+                    ->name('integrations.lexware.contacts.delete');
                 Route::get('/invoices', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoices'])
                     ->name('integrations.lexware.invoices');
                 Route::get('/invoices/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoice'])

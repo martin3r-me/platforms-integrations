@@ -52,13 +52,68 @@ class LexwareApiService
     }
 
     // =========================================================================
-    // KONTAKTE
+    // KONTAKTE (CONTACTS)
     // =========================================================================
 
     /**
      * Kontakte abrufen (paginiert)
      *
-     * @throws LexwareApiException
+     * Ruft eine Liste von Kontakten aus der Lexware API ab.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     * Kontakte können Kunden (customer), Lieferanten (vendor) oder beides sein.
+     *
+     * @see https://developers.lexoffice.io/docs/#contacts-endpoint-retrieve-a-list-of-contacts
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "version": 1,
+     *       "roles": {
+     *         "customer": {
+     *           "number": 10001
+     *         }
+     *       },
+     *       "company": {
+     *         "name": "Muster GmbH",
+     *         "taxNumber": "DE123456789",
+     *         "allowTaxFreeInvoices": false
+     *       },
+     *       "addresses": {
+     *         "billing": [
+     *           {
+     *             "street": "Musterstraße 1",
+     *             "zip": "12345",
+     *             "city": "Musterstadt",
+     *             "countryCode": "DE"
+     *           }
+     *         ]
+     *       },
+     *       "emailAddresses": {
+     *         "business": ["kontakt@muster.de"]
+     *       },
+     *       "phoneNumbers": {
+     *         "business": ["+49 123 456789"]
+     *       },
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Kontakten
+     * @throws LexwareApiException Bei API-Fehlern
      */
     public function getContacts(User $user, int $page = 0, int $size = 25): array
     {
@@ -71,7 +126,82 @@ class LexwareApiService
     /**
      * Einzelnen Kontakt abrufen
      *
-     * @throws LexwareApiException
+     * Ruft einen einzelnen Kontakt anhand seiner ID aus der Lexware API ab.
+     * Gibt alle Details des Kontakts zurück, inklusive Adressen, E-Mails und Telefonnummern.
+     *
+     * @see https://developers.lexoffice.io/docs/#contacts-endpoint-retrieve-a-contact
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "roles": {
+     *     "customer": {
+     *       "number": 10001
+     *     },
+     *     "vendor": {
+     *       "number": 70001
+     *     }
+     *   },
+     *   "company": {
+     *     "name": "Muster GmbH",
+     *     "taxNumber": "DE123456789",
+     *     "vatRegistrationId": "DE123456789",
+     *     "allowTaxFreeInvoices": false,
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Herr",
+     *         "firstName": "Max",
+     *         "lastName": "Mustermann",
+     *         "primary": true,
+     *         "emailAddress": "max.mustermann@muster.de",
+     *         "phoneNumber": "+49 123 456789"
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [
+     *       {
+     *         "supplement": "Gebäude A",
+     *         "street": "Musterstraße 1",
+     *         "zip": "12345",
+     *         "city": "Musterstadt",
+     *         "countryCode": "DE"
+     *       }
+     *     ],
+     *     "shipping": [
+     *       {
+     *         "street": "Lieferstraße 5",
+     *         "zip": "12345",
+     *         "city": "Musterstadt",
+     *         "countryCode": "DE"
+     *       }
+     *     ]
+     *   },
+     *   "xpiHeadquarter": null,
+     *   "emailAddresses": {
+     *     "business": ["kontakt@muster.de"],
+     *     "office": ["buero@muster.de"],
+     *     "private": [],
+     *     "other": []
+     *   },
+     *   "phoneNumbers": {
+     *     "business": ["+49 123 456789"],
+     *     "office": [],
+     *     "mobile": ["+49 170 1234567"],
+     *     "private": [],
+     *     "fax": ["+49 123 456780"],
+     *     "other": []
+     *   },
+     *   "note": "Wichtiger Kunde seit 2020",
+     *   "archived": false
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $contactId Die UUID des Kontakts
+     * @return array Kontaktdaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
      */
     public function getContact(User $user, string $contactId): array
     {
@@ -81,7 +211,91 @@ class LexwareApiService
     /**
      * Kontakt erstellen
      *
-     * @throws LexwareApiException
+     * Erstellt einen neuen Kontakt in der Lexware API.
+     * Ein Kontakt kann entweder eine Person oder ein Unternehmen sein.
+     * Die Rolle (customer/vendor) bestimmt, ob der Kontakt als Kunde oder Lieferant geführt wird.
+     *
+     * @see https://developers.lexoffice.io/docs/#contacts-endpoint-create-a-contact
+     *
+     * Beispiel-Request (Unternehmen als Kunde):
+     * {
+     *   "version": 0,
+     *   "roles": {
+     *     "customer": {}
+     *   },
+     *   "company": {
+     *     "name": "Neue Firma GmbH",
+     *     "taxNumber": "DE987654321",
+     *     "allowTaxFreeInvoices": false,
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Frau",
+     *         "firstName": "Anna",
+     *         "lastName": "Schmidt",
+     *         "primary": true,
+     *         "emailAddress": "anna.schmidt@neuefirma.de",
+     *         "phoneNumber": "+49 987 654321"
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [
+     *       {
+     *         "street": "Neuestraße 10",
+     *         "zip": "54321",
+     *         "city": "Neustadt",
+     *         "countryCode": "DE"
+     *       }
+     *     ]
+     *   },
+     *   "emailAddresses": {
+     *     "business": ["info@neuefirma.de"]
+     *   },
+     *   "phoneNumbers": {
+     *     "business": ["+49 987 654321"]
+     *   },
+     *   "note": "Neuer Kunde, gewonnen über Messe"
+     * }
+     *
+     * Beispiel-Request (Person als Kunde):
+     * {
+     *   "version": 0,
+     *   "roles": {
+     *     "customer": {}
+     *   },
+     *   "person": {
+     *     "salutation": "Herr",
+     *     "firstName": "Peter",
+     *     "lastName": "Müller"
+     *   },
+     *   "addresses": {
+     *     "billing": [
+     *       {
+     *         "street": "Privatweg 5",
+     *         "zip": "11111",
+     *         "city": "Heimatstadt",
+     *         "countryCode": "DE"
+     *       }
+     *     ]
+     *   },
+     *   "emailAddresses": {
+     *     "private": ["peter.mueller@email.de"]
+     *   }
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "resourceUri": "https://api.lexoffice.io/v1/contacts/66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "updatedDate": "2024-01-17T09:00:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Kontaktdaten (roles erforderlich, entweder person oder company)
+     * @return array Erstellte Kontakt-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
      */
     public function createContact(User $user, array $data): array
     {
@@ -91,11 +305,102 @@ class LexwareApiService
     /**
      * Kontakt aktualisieren
      *
-     * @throws LexwareApiException
+     * Aktualisiert einen bestehenden Kontakt in der Lexware API.
+     * Die Version muss im Request-Body mitgegeben werden (Optimistic Locking).
+     * Alle Felder, die nicht im Request enthalten sind, werden auf ihre Standardwerte zurückgesetzt.
+     *
+     * @see https://developers.lexoffice.io/docs/#contacts-endpoint-update-a-contact
+     *
+     * Beispiel-Request:
+     * {
+     *   "version": 1,
+     *   "roles": {
+     *     "customer": {
+     *       "number": 10001
+     *     }
+     *   },
+     *   "company": {
+     *     "name": "Muster GmbH - Aktualisiert",
+     *     "taxNumber": "DE123456789",
+     *     "allowTaxFreeInvoices": false,
+     *     "contactPersons": [
+     *       {
+     *         "salutation": "Herr",
+     *         "firstName": "Max",
+     *         "lastName": "Mustermann",
+     *         "primary": true,
+     *         "emailAddress": "max.mustermann@muster.de",
+     *         "phoneNumber": "+49 123 456789"
+     *       }
+     *     ]
+     *   },
+     *   "addresses": {
+     *     "billing": [
+     *       {
+     *         "street": "Neue Musterstraße 2",
+     *         "zip": "12345",
+     *         "city": "Musterstadt",
+     *         "countryCode": "DE"
+     *       }
+     *     ]
+     *   },
+     *   "emailAddresses": {
+     *     "business": ["neu@muster.de"]
+     *   },
+     *   "phoneNumbers": {
+     *     "business": ["+49 123 999888"]
+     *   },
+     *   "note": "Adresse aktualisiert am 15.01.2024"
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "resourceUri": "https://api.lexoffice.io/v1/contacts/e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "createdDate": "2024-01-10T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-18T11:45:00.000+01:00",
+     *   "version": 2
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $contactId Die UUID des zu aktualisierenden Kontakts
+     * @param array $data Aktualisierte Kontaktdaten (version erforderlich)
+     * @return array Aktualisierte Kontakt-Metadaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 409 bei Versionskonflikt)
      */
     public function updateContact(User $user, string $contactId, array $data): array
     {
         return $this->put($user, "/contacts/{$contactId}", $data);
+    }
+
+    /**
+     * Kontakt löschen
+     *
+     * Löscht einen Kontakt aus der Lexware API.
+     * Hinweis: Kontakte können nur gelöscht werden, wenn sie nicht in Belegen
+     * (Rechnungen, Angebote, etc.) verwendet werden.
+     *
+     * ACHTUNG: Die Lexware API unterstützt möglicherweise kein direktes Löschen
+     * von Kontakten. In diesem Fall wird ein 405 Method Not Allowed zurückgegeben.
+     * Als Alternative kann der Kontakt über updateContact archiviert werden
+     * (archived: true setzen).
+     *
+     * @see https://developers.lexoffice.io/docs/#contacts-endpoint
+     *
+     * Beispiel-Response bei Erfolg:
+     * HTTP 204 No Content (leerer Response-Body)
+     *
+     * Alternative (Kontakt archivieren statt löschen):
+     * PUT /contacts/{id} mit { "archived": true, "version": X }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $contactId Die UUID des zu löschenden Kontakts
+     * @return array Leeres Array bei Erfolg
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden, 405 nicht erlaubt, 409 in Verwendung)
+     */
+    public function deleteContact(User $user, string $contactId): array
+    {
+        return $this->delete($user, "/contacts/{$contactId}");
     }
 
     // =========================================================================
