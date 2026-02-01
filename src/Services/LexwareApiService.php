@@ -777,6 +777,67 @@ class LexwareApiService
     }
 
     // =========================================================================
+    // LÄNDER (COUNTRIES)
+    // =========================================================================
+
+    /**
+     * Länder abrufen
+     *
+     * Ruft die Liste aller verfügbaren Länder aus der Lexware API ab.
+     * Die Länder können in Adressen (billing, shipping) verwendet werden.
+     * Der Ländercode (countryCode) entspricht dem ISO 3166-1 alpha-2 Standard.
+     *
+     * @see https://developers.lexoffice.io/docs/#countries-endpoint
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/countries
+     *
+     * Beispiel-Response:
+     * [
+     *   {
+     *     "countryCode": "DE",
+     *     "countryNameDE": "Deutschland",
+     *     "countryNameEN": "Germany",
+     *     "taxClassification": "intraCommunity"
+     *   },
+     *   {
+     *     "countryCode": "AT",
+     *     "countryNameDE": "Österreich",
+     *     "countryNameEN": "Austria",
+     *     "taxClassification": "intraCommunity"
+     *   },
+     *   {
+     *     "countryCode": "CH",
+     *     "countryNameDE": "Schweiz",
+     *     "countryNameEN": "Switzerland",
+     *     "taxClassification": "thirdPartyCountry"
+     *   },
+     *   {
+     *     "countryCode": "US",
+     *     "countryNameDE": "Vereinigte Staaten von Amerika",
+     *     "countryNameEN": "United States of America",
+     *     "taxClassification": "thirdPartyCountry"
+     *   }
+     * ]
+     *
+     * Hinweise:
+     * - Die Liste enthält alle für Lexware verfügbaren Länder
+     * - taxClassification kann sein:
+     *   - "de" (Deutschland)
+     *   - "intraCommunity" (EU-Mitgliedsstaaten)
+     *   - "thirdPartyCountry" (Drittländer außerhalb der EU)
+     * - Der countryCode entspricht ISO 3166-1 alpha-2 (z.B. "DE", "AT", "CH")
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @return array Liste aller verfügbaren Länder
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function getCountries(User $user): array
+    {
+        return $this->get($user, '/countries');
+    }
+
+    // =========================================================================
     // ZAHLUNGEN (PAYMENTS)
     // =========================================================================
 

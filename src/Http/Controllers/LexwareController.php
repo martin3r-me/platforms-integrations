@@ -735,6 +735,74 @@ class LexwareController extends Controller
         }
     }
 
+    // =========================================================================
+    // LÄNDER (COUNTRIES)
+    // =========================================================================
+
+    /**
+     * Länder abrufen
+     *
+     * Ruft die Liste aller verfügbaren Länder aus der Lexware API ab.
+     * Diese Länder können in Adressen (billing, shipping) bei Kontakten verwendet werden.
+     * Der Ländercode entspricht dem ISO 3166-1 alpha-2 Standard.
+     *
+     * GET /api/integrations/lexware/countries
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/countries
+     *
+     * Beispiel-Response:
+     * [
+     *   {
+     *     "countryCode": "DE",
+     *     "countryNameDE": "Deutschland",
+     *     "countryNameEN": "Germany",
+     *     "taxClassification": "de"
+     *   },
+     *   {
+     *     "countryCode": "AT",
+     *     "countryNameDE": "Österreich",
+     *     "countryNameEN": "Austria",
+     *     "taxClassification": "intraCommunity"
+     *   },
+     *   {
+     *     "countryCode": "CH",
+     *     "countryNameDE": "Schweiz",
+     *     "countryNameEN": "Switzerland",
+     *     "taxClassification": "thirdPartyCountry"
+     *   },
+     *   {
+     *     "countryCode": "US",
+     *     "countryNameDE": "Vereinigte Staaten von Amerika",
+     *     "countryNameEN": "United States of America",
+     *     "taxClassification": "thirdPartyCountry"
+     *   }
+     * ]
+     *
+     * Hinweise:
+     * - Die Liste enthält alle für Lexware verfügbaren Länder
+     * - taxClassification kann sein:
+     *   - "de" (Deutschland)
+     *   - "intraCommunity" (EU-Mitgliedsstaaten)
+     *   - "thirdPartyCountry" (Drittländer außerhalb der EU)
+     * - Der countryCode entspricht ISO 3166-1 alpha-2 (z.B. "DE", "AT", "CH")
+     * - Diese Länder werden bei der Adressvalidierung in Kontakten verwendet
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Liste aller verfügbaren Länder oder Fehlermeldung
+     */
+    public function countries(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getCountries($user);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
     /**
      * Behandelt Lexware API Exceptions und gibt passende HTTP-Responses zurück
      */

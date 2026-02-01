@@ -95,6 +95,10 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.articles.update');
                 Route::delete('/articles/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteArticle'])
                     ->name('integrations.lexware.articles.delete');
+
+                // Länder (Countries) - Liste aller verfügbaren Länder
+                Route::get('/countries', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'countries'])
+                    ->name('integrations.lexware.countries');
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
