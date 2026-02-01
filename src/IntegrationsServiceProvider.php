@@ -242,6 +242,101 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.recurring-templates.deeplink');
             });
 
+        // Sipgate API Routes (authentifizierte Endpunkte)
+        Route::prefix('api/integrations/sipgate')
+            ->middleware(['web', 'auth'])
+            ->group(function () {
+                // Connection Management
+                Route::get('/test', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'test'])
+                    ->name('integrations.sipgate.test');
+                Route::delete('/disconnect', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'disconnect'])
+                    ->name('integrations.sipgate.disconnect');
+
+                // Account & User Info
+                Route::get('/userinfo', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'userinfo'])
+                    ->name('integrations.sipgate.userinfo');
+                Route::get('/account', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'account'])
+                    ->name('integrations.sipgate.account');
+                Route::get('/balance', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'balance'])
+                    ->name('integrations.sipgate.balance');
+                Route::get('/users', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'users'])
+                    ->name('integrations.sipgate.users');
+
+                // Telefonnummern & Geräte
+                Route::get('/numbers', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'numbers'])
+                    ->name('integrations.sipgate.numbers');
+                Route::get('/devices', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'devices'])
+                    ->name('integrations.sipgate.devices');
+
+                // Anrufe (Calls)
+                Route::post('/calls', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'initiateCall'])
+                    ->name('integrations.sipgate.calls.initiate');
+                Route::delete('/calls/{sessionId}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'hangupCall'])
+                    ->name('integrations.sipgate.calls.hangup');
+
+                // Anrufhistorie (History)
+                Route::get('/history', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'history'])
+                    ->name('integrations.sipgate.history');
+                Route::get('/history/{id}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'historyEntry'])
+                    ->name('integrations.sipgate.history.entry');
+                Route::put('/history/{id}/archive', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'archiveHistoryEntry'])
+                    ->name('integrations.sipgate.history.archive');
+                Route::delete('/history/{id}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'deleteHistoryEntry'])
+                    ->name('integrations.sipgate.history.delete');
+
+                // SMS
+                Route::post('/sms', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'sendSms'])
+                    ->name('integrations.sipgate.sms.send');
+                Route::get('/sms/extensions', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'smsExtensions'])
+                    ->name('integrations.sipgate.sms.extensions');
+
+                // Fax
+                Route::post('/fax', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'sendFax'])
+                    ->name('integrations.sipgate.fax.send');
+                Route::get('/faxlines', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'faxlines'])
+                    ->name('integrations.sipgate.faxlines');
+
+                // Voicemail
+                Route::get('/voicemails', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'voicemails'])
+                    ->name('integrations.sipgate.voicemails');
+
+                // Kontakte (Contacts)
+                Route::get('/contacts', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'contacts'])
+                    ->name('integrations.sipgate.contacts');
+                Route::get('/contacts/{id}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'contact'])
+                    ->name('integrations.sipgate.contact');
+                Route::post('/contacts', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'createContact'])
+                    ->name('integrations.sipgate.contacts.create');
+                Route::put('/contacts/{id}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'updateContact'])
+                    ->name('integrations.sipgate.contacts.update');
+                Route::delete('/contacts/{id}', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'deleteContact'])
+                    ->name('integrations.sipgate.contacts.delete');
+
+                // Webhook-Konfiguration
+                Route::get('/webhooks', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'getWebhooks'])
+                    ->name('integrations.sipgate.webhooks');
+                Route::put('/webhooks', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'setWebhooks'])
+                    ->name('integrations.sipgate.webhooks.set');
+                Route::delete('/webhooks', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'deleteWebhooks'])
+                    ->name('integrations.sipgate.webhooks.delete');
+
+                // Health & Metrics
+                Route::get('/health', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'health'])
+                    ->name('integrations.sipgate.health');
+                Route::get('/metrics/tokens', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'tokenMetrics'])
+                    ->name('integrations.sipgate.metrics.tokens');
+                Route::get('/tokens/history', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'tokenHistory'])
+                    ->name('integrations.sipgate.tokens.history');
+            });
+
+        // Sipgate Webhook Endpoint (NICHT authentifiziert - empfängt Push von Sipgate)
+        Route::prefix('api/integrations/sipgate')
+            ->middleware(['web']) // Kein 'auth' - Webhooks kommen von Sipgate
+            ->group(function () {
+                Route::post('/webhook', [\Platform\Integrations\Http\Controllers\SipgateController::class, 'webhook'])
+                    ->name('integrations.sipgate.webhook');
+            });
+
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
         if (PlatformCore::getModule('integrations')) {
             $routesPath = __DIR__ . '/../routes/web.php';
@@ -264,6 +359,9 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncGithubRepositories::class,
                 \Platform\Integrations\Console\Commands\SyncLexwareContacts::class,
                 \Platform\Integrations\Console\Commands\SeedIntegrations::class,
+                \Platform\Integrations\Console\Commands\SyncSipgateAccounts::class,
+                \Platform\Integrations\Console\Commands\SipgateRefreshTokens::class,
+                \Platform\Integrations\Console\Commands\SipgateWebhookCleanup::class,
             ]);
         }
 
