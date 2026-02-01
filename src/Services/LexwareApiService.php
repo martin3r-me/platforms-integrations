@@ -52,6 +52,126 @@ class LexwareApiService
     }
 
     // =========================================================================
+    // BELEGLISTE (VOUCHERLIST)
+    // =========================================================================
+
+    /**
+     * Belegliste abrufen (paginiert)
+     *
+     * Ruft eine Liste von Belegen aus der Lexware API ab.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     *
+     * Der Voucherlist-Endpunkt ist der zentrale Einstiegspunkt für das Abrufen von Belegen.
+     * Er ermöglicht das Filtern nach verschiedenen Belegtypen und Kriterien.
+     *
+     * Unterstützte Belegtypen (voucherType):
+     * - salesinvoice: Ausgangsrechnungen
+     * - salescreditnote: Ausgangsgutschriften
+     * - purchaseinvoice: Eingangsrechnungen
+     * - purchasecreditnote: Eingangsgutschriften
+     * - invoice: Rechnungen
+     * - downpaymentinvoice: Anzahlungsrechnungen
+     * - creditnote: Gutschriften
+     * - orderconfirmation: Auftragsbestätigungen
+     * - quotation: Angebote
+     * - deliverynote: Lieferscheine
+     * - dunning: Mahnungen
+     *
+     * Unterstützte Belegstatus (voucherStatus):
+     * - draft: Entwurf
+     * - open: Offen
+     * - paid: Bezahlt
+     * - paidoff: Ausgeglichen
+     * - voided: Storniert
+     * - transferred: Übertragen
+     * - sepadebit: SEPA-Lastschrift
+     * - overdue: Überfällig
+     * - accepted: Angenommen
+     * - rejected: Abgelehnt
+     *
+     * @see https://developers.lexoffice.io/docs/#voucherlist-endpoint-retrieve-a-voucherlist
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *       "voucherType": "invoice",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "RE-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *       "dueDate": "2024-02-14",
+     *       "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "openAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0,
+     *   "sort": [
+     *     {
+     *       "property": "voucherDate",
+     *       "direction": "DESC"
+     *     }
+     *   ]
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @param string|null $voucherType Belegtyp zum Filtern (z.B. 'invoice', 'quotation')
+     * @param string|null $voucherStatus Belegstatus zum Filtern (z.B. 'open', 'paid')
+     * @param bool|null $archived Filter nach archivierten Belegen (true/false)
+     * @param string|null $contactId Filter nach Kontakt-UUID
+     * @return array Paginierte Liste von Belegen
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function getVoucherlist(
+        User $user,
+        int $page = 0,
+        int $size = 25,
+        ?string $voucherType = null,
+        ?string $voucherStatus = null,
+        ?bool $archived = null,
+        ?string $contactId = null
+    ): array {
+        // Query-Parameter aufbauen
+        $query = [
+            'page' => $page,
+            'size' => min($size, 250),
+        ];
+
+        // Optionale Filter hinzufügen
+        if ($voucherType !== null) {
+            $query['voucherType'] = $voucherType;
+        }
+
+        if ($voucherStatus !== null) {
+            $query['voucherStatus'] = $voucherStatus;
+        }
+
+        if ($archived !== null) {
+            $query['archived'] = $archived ? 'true' : 'false';
+        }
+
+        if ($contactId !== null) {
+            $query['contactId'] = $contactId;
+        }
+
+        return $this->get($user, '/voucherlist', $query);
+    }
+
+    // =========================================================================
     // KONTAKTE (CONTACTS)
     // =========================================================================
 

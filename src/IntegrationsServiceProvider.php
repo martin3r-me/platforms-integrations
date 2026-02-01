@@ -60,6 +60,9 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.profile');
                 Route::get('/test', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'test'])
                     ->name('integrations.lexware.test');
+                // Belegliste (Voucherlist) - Zentraler Endpunkt für alle Belege
+                Route::get('/voucherlist', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'voucherlist'])
+                    ->name('integrations.lexware.voucherlist');
                 // Kontakte (Contacts) - CRUD Endpunkte
                 Route::get('/contacts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contacts'])
                     ->name('integrations.lexware.contacts');

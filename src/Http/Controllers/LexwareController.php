@@ -22,6 +22,116 @@ class LexwareController extends Controller
     ) {}
 
     // =========================================================================
+    // BELEGLISTE (VOUCHERLIST)
+    // =========================================================================
+
+    /**
+     * Belegliste abrufen (paginiert)
+     *
+     * Ruft eine Liste von Belegen aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
+     * Ermöglicht das Filtern nach Belegtyp, Status, Archivierung und Kontakt.
+     *
+     * Der Voucherlist-Endpunkt ist der zentrale Einstiegspunkt für das Abrufen von Belegen.
+     * Er gibt eine vereinfachte Liste aller Belege zurück, die dann nach Bedarf
+     * über die spezifischen Endpunkte (z.B. /invoices/{id}) detailliert abgerufen werden können.
+     *
+     * GET /api/integrations/lexware/voucherlist
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     * - voucherType (string): Belegtyp zum Filtern (optional)
+     *   Mögliche Werte: salesinvoice, salescreditnote, purchaseinvoice, purchasecreditnote,
+     *                   invoice, downpaymentinvoice, creditnote, orderconfirmation,
+     *                   quotation, deliverynote, dunning
+     * - voucherStatus (string): Belegstatus zum Filtern (optional)
+     *   Mögliche Werte: draft, open, paid, paidoff, voided, transferred, sepadebit,
+     *                   overdue, accepted, rejected
+     * - archived (bool): Filter nach archivierten Belegen (optional)
+     * - contactId (string): Filter nach Kontakt-UUID (optional)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/voucherlist?page=0&size=25&voucherType=invoice&voucherStatus=open
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *       "voucherType": "invoice",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "RE-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *       "dueDate": "2024-02-14",
+     *       "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "openAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0,
+     *   "sort": [
+     *     {
+     *       "property": "voucherDate",
+     *       "direction": "DESC"
+     *     }
+     *   ]
+     * }
+     *
+     * Hinweise:
+     * - Die Response enthält eine vereinfachte Darstellung der Belege
+     * - Für vollständige Belegdetails muss der spezifische Endpunkt verwendet werden
+     * - Der Filter voucherType kann mehrfach angegeben werden (kommasepariert)
+     * - Standardmäßig werden alle nicht-archivierten Belege zurückgegeben
+     *
+     * @param Request $request HTTP-Request mit optionalen Filterparametern
+     * @return JsonResponse Liste der Belege oder Fehlermeldung
+     */
+    public function voucherlist(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Paginierungsparameter
+            $page = (int) $request->get('page', 0);
+            $size = (int) $request->get('size', 25);
+
+            // Optionale Filterparameter
+            $voucherType = $request->get('voucherType');
+            $voucherStatus = $request->get('voucherStatus');
+            $archived = $request->has('archived')
+                ? filter_var($request->get('archived'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                : null;
+            $contactId = $request->get('contactId');
+
+            $result = $this->lexwareApiService->getVoucherlist(
+                $user,
+                $page,
+                $size,
+                $voucherType,
+                $voucherStatus,
+                $archived,
+                $contactId
+            );
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    // =========================================================================
     // KONTAKTE (CONTACTS)
     // =========================================================================
 
