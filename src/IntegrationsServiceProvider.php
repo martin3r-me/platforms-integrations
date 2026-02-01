@@ -99,6 +99,16 @@ class IntegrationsServiceProvider extends ServiceProvider
                 // Länder (Countries) - Liste aller verfügbaren Länder
                 Route::get('/countries', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'countries'])
                     ->name('integrations.lexware.countries');
+
+                // Event-Subscriptions (Webhooks) - CRUD Endpunkte
+                Route::get('/event-subscriptions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'eventSubscriptions'])
+                    ->name('integrations.lexware.event-subscriptions');
+                Route::get('/event-subscriptions/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'eventSubscription'])
+                    ->name('integrations.lexware.event-subscription');
+                Route::post('/event-subscriptions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createEventSubscription'])
+                    ->name('integrations.lexware.event-subscriptions.create');
+                Route::delete('/event-subscriptions/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteEventSubscription'])
+                    ->name('integrations.lexware.event-subscriptions.delete');
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)

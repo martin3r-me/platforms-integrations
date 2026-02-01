@@ -803,6 +803,200 @@ class LexwareController extends Controller
         }
     }
 
+    // =========================================================================
+    // EVENT-SUBSCRIPTIONS (WEBHOOKS)
+    // =========================================================================
+
+    /**
+     * Event-Subscriptions abrufen (alle Webhooks auflisten)
+     *
+     * Ruft alle registrierten Event-Subscriptions (Webhooks) aus der Lexware API ab.
+     * Im Gegensatz zu anderen Listen-Endpunkten ist diese Liste NICHT paginiert.
+     *
+     * GET /api/integrations/lexware/event-subscriptions
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/event-subscriptions
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *       "eventType": "contact.changed",
+     *       "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     *     },
+     *     {
+     *       "subscriptionId": "b3702926-5g24-59f9-b8f0-4001cf6c6g2e",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "createdDate": "2024-01-18T10:00:00.000+01:00",
+     *       "eventType": "invoice.created",
+     *       "callbackUrl": "https://example.com/webhooks/lexware/invoices"
+     *     }
+     *   ]
+     * }
+     *
+     * Hinweise:
+     * - Alle aktiven Subscriptions werden zurückgegeben (keine Paginierung)
+     * - Gelöschte Subscriptions erscheinen nicht in der Liste
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Liste aller Event-Subscriptions oder Fehlermeldung
+     */
+    public function eventSubscriptions(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getEventSubscriptions($user);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Einzelne Event-Subscription abrufen
+     *
+     * Ruft eine einzelne Event-Subscription anhand ihrer UUID aus der Lexware API ab.
+     * Gibt Details zur Subscription zurück, inklusive Event-Typ und Callback-URL.
+     *
+     * GET /api/integrations/lexware/event-subscriptions/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Event-Subscription
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/event-subscriptions/a2691815-4f13-48e8-a7e9-3990be5b5f1d
+     *
+     * Beispiel-Response:
+     * {
+     *   "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Event-Subscription
+     * @return JsonResponse Subscription-Daten oder Fehlermeldung
+     */
+    public function eventSubscription(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getEventSubscription($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Event-Subscription erstellen (Webhook registrieren)
+     *
+     * Erstellt eine neue Event-Subscription (Webhook) in der Lexware API.
+     * Mit Event-Subscriptions können Sie über Änderungen an Ressourcen benachrichtigt werden.
+     *
+     * POST /api/integrations/lexware/event-subscriptions
+     *
+     * Request-Body (JSON):
+     * {
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * Verfügbare Event-Typen:
+     * - contact.created, contact.changed, contact.deleted
+     * - invoice.created, invoice.changed, invoice.deleted, invoice.status.changed
+     * - quotation.created, quotation.changed, quotation.deleted, quotation.status.changed
+     * - order-confirmation.created, order-confirmation.changed, order-confirmation.deleted, order-confirmation.status.changed
+     * - credit-note.created, credit-note.changed, credit-note.deleted, credit-note.status.changed
+     * - delivery-note.created, delivery-note.changed, delivery-note.deleted
+     * - down-payment-invoice.created, down-payment-invoice.changed, down-payment-invoice.deleted, down-payment-invoice.status.changed
+     * - recurring-template.created, recurring-template.changed, recurring-template.deleted
+     * - payment.changed
+     * - article.created, article.changed, article.deleted
+     * - dunning.created, dunning.changed, dunning.deleted
+     * - token.revoked
+     *
+     * Beispiel-Response:
+     * {
+     *   "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * Validierungshinweise:
+     * - eventType: Erforderlich, muss ein gültiger Event-Typ sein
+     * - callbackUrl: Erforderlich, muss eine gültige HTTPS-URL sein (localhost für Entwicklung erlaubt)
+     * - Pro Event-Typ kann nur eine Subscription existieren (Duplikat = 409 Conflict)
+     *
+     * @param Request $request HTTP-Request mit eventType und callbackUrl im Body
+     * @return JsonResponse Erstellte Subscription-Daten oder Fehlermeldung
+     */
+    public function createEventSubscription(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+
+            $result = $this->lexwareApiService->createEventSubscription($user, $data);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Event-Subscription löschen (Webhook abmelden)
+     *
+     * Löscht eine Event-Subscription aus der Lexware API.
+     * Nach dem Löschen werden keine weiteren Webhook-Benachrichtigungen
+     * für diesen Event-Typ an die registrierte Callback-URL gesendet.
+     *
+     * DELETE /api/integrations/lexware/event-subscriptions/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der zu löschenden Event-Subscription
+     *
+     * Beispiel-Request:
+     * DELETE /api/integrations/lexware/event-subscriptions/a2691815-4f13-48e8-a7e9-3990be5b5f1d
+     *
+     * Beispiel-Response bei Erfolg:
+     * HTTP 204 No Content
+     *
+     * Mögliche Fehler:
+     * - 404: Event-Subscription nicht gefunden
+     * - 401: Nicht autorisiert (ungültiger oder abgelaufener Token)
+     *
+     * Hinweise:
+     * - Die Subscription kann jederzeit neu erstellt werden
+     * - Diese Operation ist unwiderruflich
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der zu löschenden Event-Subscription
+     * @return JsonResponse Leere Response (204) oder Fehlermeldung
+     */
+    public function deleteEventSubscription(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $this->lexwareApiService->deleteEventSubscription($user, $id);
+
+            return response()->json(null, 204);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
     /**
      * Behandelt Lexware API Exceptions und gibt passende HTTP-Responses zurück
      */

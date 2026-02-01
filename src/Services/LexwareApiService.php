@@ -855,6 +855,309 @@ class LexwareApiService
     }
 
     // =========================================================================
+    // EVENT-SUBSCRIPTIONS (WEBHOOKS)
+    // =========================================================================
+
+    /**
+     * Event-Subscription erstellen (Webhook registrieren)
+     *
+     * Erstellt eine neue Event-Subscription (Webhook) in der Lexware API.
+     * Mit Event-Subscriptions können Sie über Änderungen an Ressourcen benachrichtigt werden.
+     * Die Lexware API sendet HTTP POST Requests an die angegebene Callback-URL,
+     * wenn ein abonniertes Event auftritt.
+     *
+     * @see https://developers.lexoffice.io/docs/#event-subscriptions-endpoint-create-an-event-subscription
+     *
+     * Verfügbare Event-Typen:
+     * - contact.created: Neuer Kontakt erstellt
+     * - contact.changed: Kontakt geändert
+     * - contact.deleted: Kontakt gelöscht
+     * - invoice.created: Neue Rechnung erstellt
+     * - invoice.changed: Rechnung geändert
+     * - invoice.deleted: Rechnung gelöscht
+     * - invoice.status.changed: Rechnungsstatus geändert
+     * - quotation.created: Neues Angebot erstellt
+     * - quotation.changed: Angebot geändert
+     * - quotation.deleted: Angebot gelöscht
+     * - quotation.status.changed: Angebotsstatus geändert
+     * - order-confirmation.created: Neue Auftragsbestätigung erstellt
+     * - order-confirmation.changed: Auftragsbestätigung geändert
+     * - order-confirmation.deleted: Auftragsbestätigung gelöscht
+     * - order-confirmation.status.changed: Status Auftragsbestätigung geändert
+     * - credit-note.created: Neue Gutschrift erstellt
+     * - credit-note.changed: Gutschrift geändert
+     * - credit-note.deleted: Gutschrift gelöscht
+     * - credit-note.status.changed: Gutschriftstatus geändert
+     * - delivery-note.created: Neuer Lieferschein erstellt
+     * - delivery-note.changed: Lieferschein geändert
+     * - delivery-note.deleted: Lieferschein gelöscht
+     * - down-payment-invoice.created: Neue Anzahlungsrechnung erstellt
+     * - down-payment-invoice.changed: Anzahlungsrechnung geändert
+     * - down-payment-invoice.deleted: Anzahlungsrechnung gelöscht
+     * - down-payment-invoice.status.changed: Status Anzahlungsrechnung geändert
+     * - recurring-template.created: Neues wiederkehrendes Template erstellt
+     * - recurring-template.changed: Wiederkehrendes Template geändert
+     * - recurring-template.deleted: Wiederkehrendes Template gelöscht
+     * - payment.changed: Zahlung geändert
+     * - article.created: Neuer Artikel erstellt
+     * - article.changed: Artikel geändert
+     * - article.deleted: Artikel gelöscht
+     * - dunning.created: Neue Mahnung erstellt
+     * - dunning.changed: Mahnung geändert
+     * - dunning.deleted: Mahnung gelöscht
+     * - token.revoked: API-Token widerrufen
+     *
+     * Beispiel-Request:
+     * {
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * Hinweise:
+     * - Die Callback-URL muss HTTPS verwenden (außer localhost für Entwicklung)
+     * - Die URL muss erreichbar sein und einen 2xx Status zurückgeben
+     * - Pro Event-Typ kann nur eine Subscription existieren
+     * - Bei Token-Widerruf wird auch die Subscription deaktiviert
+     *
+     * Validierung:
+     * - eventType: Erforderlich, muss ein gültiger Event-Typ sein
+     * - callbackUrl: Erforderlich, muss eine gültige HTTPS-URL sein
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Event-Subscription-Daten (eventType, callbackUrl erforderlich)
+     * @return array Erstellte Subscription-Daten mit subscriptionId
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten, 409 bei Duplikat)
+     */
+    public function createEventSubscription(User $user, array $data): array
+    {
+        return $this->post($user, '/event-subscriptions', $data);
+    }
+
+    /**
+     * Einzelne Event-Subscription abrufen
+     *
+     * Ruft eine einzelne Event-Subscription anhand ihrer ID aus der Lexware API ab.
+     * Gibt Details zur Subscription zurück, inklusive Event-Typ und Callback-URL.
+     *
+     * @see https://developers.lexoffice.io/docs/#event-subscriptions-endpoint-retrieve-an-event-subscription
+     *
+     * Beispiel-Request:
+     * GET /event-subscriptions/a2691815-4f13-48e8-a7e9-3990be5b5f1d
+     *
+     * Beispiel-Response:
+     * {
+     *   "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "eventType": "contact.changed",
+     *   "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $subscriptionId Die UUID der Event-Subscription
+     * @return array Subscription-Daten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
+     */
+    public function getEventSubscription(User $user, string $subscriptionId): array
+    {
+        return $this->get($user, "/event-subscriptions/{$subscriptionId}");
+    }
+
+    /**
+     * Alle Event-Subscriptions abrufen
+     *
+     * Ruft alle Event-Subscriptions des aktuellen Benutzers aus der Lexware API ab.
+     * Im Gegensatz zu anderen Endpunkten ist diese Liste NICHT paginiert,
+     * da typischerweise nur wenige Subscriptions existieren.
+     *
+     * @see https://developers.lexoffice.io/docs/#event-subscriptions-endpoint-retrieve-all-event-subscriptions
+     *
+     * Beispiel-Request:
+     * GET /event-subscriptions
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "subscriptionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *       "eventType": "contact.changed",
+     *       "callbackUrl": "https://example.com/webhooks/lexware/contacts"
+     *     },
+     *     {
+     *       "subscriptionId": "b3702926-5g24-59f9-b8f0-4001cf6c6g2e",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "createdDate": "2024-01-18T10:00:00.000+01:00",
+     *       "eventType": "invoice.created",
+     *       "callbackUrl": "https://example.com/webhooks/lexware/invoices"
+     *     }
+     *   ]
+     * }
+     *
+     * Hinweise:
+     * - Diese Liste enthält alle aktiven Subscriptions
+     * - Es gibt kein Paginierung - alle Subscriptions werden zurückgegeben
+     * - Gelöschte Subscriptions erscheinen nicht in der Liste
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @return array Liste aller Event-Subscriptions
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function getEventSubscriptions(User $user): array
+    {
+        return $this->get($user, '/event-subscriptions');
+    }
+
+    /**
+     * Event-Subscription löschen (Webhook abmelden)
+     *
+     * Löscht eine Event-Subscription aus der Lexware API.
+     * Nach dem Löschen werden keine weiteren Webhook-Benachrichtigungen
+     * für diesen Event-Typ gesendet.
+     *
+     * @see https://developers.lexoffice.io/docs/#event-subscriptions-endpoint-delete-an-event-subscription
+     *
+     * Beispiel-Request:
+     * DELETE /event-subscriptions/a2691815-4f13-48e8-a7e9-3990be5b5f1d
+     *
+     * Beispiel-Response bei Erfolg:
+     * HTTP 204 No Content (leerer Response-Body)
+     *
+     * Hinweise:
+     * - Nach dem Löschen werden keine weiteren Events für diesen Typ empfangen
+     * - Die Subscription kann jederzeit neu erstellt werden
+     * - Diese Operation ist unwiderruflich
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $subscriptionId Die UUID der zu löschenden Event-Subscription
+     * @return array Leeres Array bei Erfolg
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
+     */
+    public function deleteEventSubscription(User $user, string $subscriptionId): array
+    {
+        return $this->delete($user, "/event-subscriptions/{$subscriptionId}");
+    }
+
+    /**
+     * Webhook-Signatur verifizieren (HMAC-SHA256)
+     *
+     * Überprüft die Authentizität eines eingehenden Webhook-Requests.
+     * Lexware signiert alle ausgehenden Webhook-Requests mit HMAC-SHA256.
+     * Die Signatur wird im HTTP-Header 'X-Lxo-Signature' übermittelt.
+     *
+     * WICHTIG: Diese Methode sollte IMMER verwendet werden, um die Echtheit
+     * von Webhook-Benachrichtigungen zu verifizieren, bevor die Daten verarbeitet werden.
+     *
+     * Sicherheitshinweise:
+     * - Der API-Token wird als geheimer Schlüssel verwendet
+     * - Requests ohne gültige Signatur sollten mit HTTP 401 abgelehnt werden
+     * - Replay-Angriffe sollten durch Timestamp-Validierung verhindert werden
+     *
+     * Ablauf der Verifikation:
+     * 1. Signatur aus Header 'X-Lxo-Signature' extrahieren
+     * 2. HMAC-SHA256 Hash des Request-Body mit API-Token berechnen
+     * 3. Berechneten Hash mit Signatur vergleichen (timing-safe)
+     *
+     * Beispiel-Header:
+     * X-Lxo-Signature: sha256=a1b2c3d4e5f6...
+     *
+     * @param string $payload Der rohe Request-Body (JSON-String)
+     * @param string $signature Die Signatur aus dem Header 'X-Lxo-Signature'
+     * @param string $apiToken Der API-Token des Benutzers (geheimer Schlüssel)
+     * @return bool true wenn Signatur gültig, false wenn ungültig
+     */
+    public function verifyWebhookSignature(string $payload, string $signature, string $apiToken): bool
+    {
+        // Signatur-Prefix entfernen (falls vorhanden)
+        // Format: "sha256=<hex_digest>" oder nur "<hex_digest>"
+        $signatureHash = $signature;
+        if (str_starts_with($signature, 'sha256=')) {
+            $signatureHash = substr($signature, 7);
+        }
+
+        // HMAC-SHA256 Hash des Payloads mit API-Token berechnen
+        $expectedHash = hash_hmac('sha256', $payload, $apiToken);
+
+        // Timing-safe Vergleich um Timing-Angriffe zu verhindern
+        return hash_equals($expectedHash, $signatureHash);
+    }
+
+    /**
+     * Webhook-Request validieren und verarbeiten
+     *
+     * Kombiniert Signaturverifikation mit Payload-Extraktion.
+     * Diese Methode sollte als Einstiegspunkt für die Webhook-Verarbeitung verwendet werden.
+     *
+     * Webhook-Payload Struktur:
+     * {
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "eventType": "contact.changed",
+     *   "resourceId": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *   "eventDate": "2024-01-17T10:30:00.000+01:00"
+     * }
+     *
+     * Hinweise:
+     * - resourceId enthält die UUID der betroffenen Ressource
+     * - eventDate gibt den Zeitpunkt des Events an
+     * - Der Payload enthält NICHT die vollständigen Ressourcendaten
+     * - Vollständige Daten müssen separat über GET /contacts/{id} etc. abgerufen werden
+     *
+     * @param string $payload Der rohe Request-Body (JSON-String)
+     * @param string $signature Die Signatur aus dem Header 'X-Lxo-Signature'
+     * @param string $apiToken Der API-Token des Benutzers
+     * @return array{valid: bool, data: array|null, error: string|null} Validierungsergebnis
+     */
+    public function processWebhookRequest(string $payload, string $signature, string $apiToken): array
+    {
+        // Signatur verifizieren
+        if (!$this->verifyWebhookSignature($payload, $signature, $apiToken)) {
+            return [
+                'valid' => false,
+                'data' => null,
+                'error' => 'Ungültige Webhook-Signatur. Request könnte manipuliert sein.',
+            ];
+        }
+
+        // Payload parsen
+        $data = json_decode($payload, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [
+                'valid' => false,
+                'data' => null,
+                'error' => 'Ungültiges JSON im Webhook-Payload: ' . json_last_error_msg(),
+            ];
+        }
+
+        // Erforderliche Felder prüfen
+        $requiredFields = ['organizationId', 'eventType', 'resourceId', 'eventDate'];
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field])) {
+                return [
+                    'valid' => false,
+                    'data' => null,
+                    'error' => "Erforderliches Feld '{$field}' fehlt im Webhook-Payload.",
+                ];
+            }
+        }
+
+        return [
+            'valid' => true,
+            'data' => $data,
+            'error' => null,
+        ];
+    }
+
+    // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
 
