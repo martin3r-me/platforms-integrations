@@ -38,22 +38,23 @@ class SeedIntegrations extends Command
 
         $this->info('✅ Meta Integration angelegt/aktualisiert');
 
-        // Lexoffice Integration (Beispiel)
+        // Lexware/Lexoffice Integration (API-Key only, kein OAuth)
         DB::table('integrations')->updateOrInsert(
             ['key' => 'lexoffice'],
             [
-                'name' => 'Lexoffice',
+                'name' => 'Lexware / Lexoffice',
                 'is_enabled' => true,
-                'supported_auth_schemes' => json_encode(['oauth2', 'api_key'], JSON_THROW_ON_ERROR),
+                'supported_auth_schemes' => json_encode(['api_key'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
-                    'description' => 'Buchhaltung/Rechnungen (Beispiel-Integration)',
+                    'description' => 'Lexware/Lexoffice Integration für Buchhaltung, Kontakte und Rechnungen. Verbindung erfolgt über API-Token (kein OAuth).',
+                    'icon' => 'heroicon-o-calculator',
                 ], JSON_THROW_ON_ERROR),
                 'updated_at' => now(),
                 'created_at' => now(),
             ]
         );
 
-        $this->info('✅ Lexoffice Integration angelegt/aktualisiert');
+        $this->info('Lexware/Lexoffice Integration angelegt/aktualisiert');
 
         $this->info('✅ Alle Integrations wurden erfolgreich angelegt!');
 

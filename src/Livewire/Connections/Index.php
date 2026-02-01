@@ -12,11 +12,14 @@ use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
 use Platform\Integrations\Models\IntegrationsGithubRepository;
+use Platform\Integrations\Models\IntegrationsLexwareContact;
 use Platform\Integrations\Services\IntegrationAccessService;
 use Platform\Integrations\Services\IntegrationsFacebookPageService;
 use Platform\Integrations\Services\IntegrationsInstagramAccountService;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
 use Platform\Integrations\Services\IntegrationsGithubRepositoryService;
+use Platform\Integrations\Services\LexwareIntegrationService;
+use Platform\Integrations\Services\IntegrationsLexwareContactService;
 
 class Index extends Component
 {
@@ -40,6 +43,10 @@ class Index extends Component
     public bool $isSyncing = false;
     public ?string $syncMessage = null;
     public ?string $syncError = null;
+
+    // Lexware Modal
+    public bool $lexwareModalShow = false;
+    public string $lexwareApiToken = '';
 
     public function render()
     {
@@ -75,11 +82,21 @@ class Index extends Component
             ->where('owner_user_id', $user->id)
             ->first();
 
+        // Lexware-Connection prüfen
+        $lexwareConnection = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', function ($q) {
+                $q->where('key', 'lexoffice');
+            })
+            ->where('owner_user_id', $user->id)
+            ->first();
+
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
             'metaConnection' => $metaConnection,
             'githubConnection' => $githubConnection,
+            'lexwareConnection' => $lexwareConnection,
         ])->layout('platform::layouts.app');
     }
 
@@ -482,6 +499,140 @@ class Index extends Component
             ]);
         } finally {
             $this->isSyncing = false;
+        }
+    }
+
+    // ==================== LEXWARE METHODS ====================
+
+    public function openLexwareModal(): void
+    {
+        $this->resetValidation();
+        $this->lexwareApiToken = '';
+        $this->lexwareModalShow = true;
+    }
+
+    public function closeLexwareModal(): void
+    {
+        $this->lexwareModalShow = false;
+        $this->lexwareApiToken = '';
+    }
+
+    public function saveLexwareConnection(): void
+    {
+        $this->validate([
+            'lexwareApiToken' => ['required', 'string', 'min:10'],
+        ], [
+            'lexwareApiToken.required' => 'Bitte gib deinen Lexware API-Token ein.',
+            'lexwareApiToken.min' => 'Der API-Token muss mindestens 10 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(LexwareIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->lexwareApiToken);
+
+            // Verbindung testen
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->lexwareModalShow = false;
+                $this->lexwareApiToken = '';
+                session()->flash('status', 'Lexware-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('lexwareApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('lexwareApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('Lexware connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function syncLexwareContacts(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $lexwareConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'lexoffice');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$lexwareConnection) {
+                $this->syncError = 'Keine Lexware-Connection gefunden. Bitte zuerst mit Lexware verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($lexwareConnection->status !== 'active') {
+                $this->syncError = 'Lexware-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsLexwareContactService::class);
+            $result = $service->syncContactsForUser($lexwareConnection);
+
+            $count = count($result);
+            $this->syncMessage = "{$count} Lexware Kontakt(e) synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('Lexware Contacts Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function testLexwareConnection(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $lexwareConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'lexoffice');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$lexwareConnection) {
+                $this->syncError = 'Keine Lexware-Connection gefunden.';
+                return;
+            }
+
+            $service = app(LexwareIntegrationService::class);
+            $result = $service->testConnection($lexwareConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'Lexware-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
         }
     }
 

@@ -91,8 +91,23 @@ return [
                     'read:user', // Benutzerinformationen lesen
                 ],
             ],
-            // 'lexoffice' => [ ... ]
+            // Lexware/Lexoffice hat KEIN OAuth! Verwendet API-Key Authentifizierung
+            // Der API-Token wird manuell vom Benutzer eingegeben
         ],
+    ],
+
+    /**
+     * Lexware/Lexoffice API Konfiguration
+     *
+     * WICHTIG: Lexware/Lexoffice verwendet KEIN OAuth-Verfahren!
+     * Benutzer müssen ihren API-Token manuell eingeben.
+     * Der Token wird in credentials.api_key gespeichert.
+     *
+     * API-Token erhält man unter:
+     * Lexoffice → Einstellungen → Erweiterungen → Public API
+     */
+    'lexware' => [
+        'api_base_url' => env('LEXWARE_API_BASE_URL', 'https://api.lexoffice.io/v1'),
     ],
 ];
 

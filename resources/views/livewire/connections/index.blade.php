@@ -332,6 +332,148 @@
             </div>
         </div>
 
+        {{-- Lexware Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-calculator', 'w-6 h-6 text-orange-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Lexware / Lexoffice</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Verbinde dein Lexware-Konto für Buchhaltung und Kontaktverwaltung</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if($lexwareConnection && $lexwareConnection->status === 'active')
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                            <div class="flex-shrink-0">
+                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-green-900">Lexware-Konto ist verbunden</p>
+                                <p class="text-xs text-green-700 mt-1">
+                                    Verbunden am {{ $lexwareConnection->updated_at->format('d.m.Y H:i') }}
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <x-ui-button
+                                    variant="secondary"
+                                    size="sm"
+                                    wire:click="openLexwareModal"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                        <span>Token aktualisieren</span>
+                                    </span>
+                                </x-ui-button>
+                                <x-ui-button
+                                    variant="danger-outline"
+                                    size="sm"
+                                    wire:click="deleteConnection({{ $lexwareConnection->id }})"
+                                    wire:confirm="Lexware-Verbindung wirklich loschen? Alle verknupften Kontakte werden entfernt."
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-trash', 'w-4 h-4')
+                                        <span>Trennen</span>
+                                    </span>
+                                </x-ui-button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kontakte</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kunden</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['customer', 'both'])->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Lieferanten</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['vendor', 'both'])->count() }}
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Sync-Buttons --}}
+                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <x-ui-button
+                                    variant="primary"
+                                    size="sm"
+                                    wire:click="syncLexwareContacts"
+                                    :disabled="$isSyncing"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @if($isSyncing)
+                                            @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                        @else
+                                            @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                        @endif
+                                        <span>Kontakte synchronisieren</span>
+                                    </span>
+                                </x-ui-button>
+
+                                <x-ui-button
+                                    variant="secondary-outline"
+                                    size="sm"
+                                    wire:click="testLexwareConnection"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-signal', 'w-4 h-4')
+                                        <span>Verbindung testen</span>
+                                    </span>
+                                </x-ui-button>
+                            </div>
+
+                            @if($syncMessage)
+                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                                </div>
+                            @endif
+
+                            @if($syncError)
+                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <div class="flex items-start gap-2">
+                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mb-4">
+                            @svg('heroicon-o-calculator', 'w-8 h-8 text-orange-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Lexware-Konto noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein Lexware-Konto durch Eingabe deines API-Tokens</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openLexwareModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>Lexware verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Alle Connections --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -479,6 +621,14 @@
                                 </span>
                             </div>
                         @endif
+                        @if($lexwareConnection && $lexwareConnection->status === 'active')
+                            <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
+                                <span class="text-sm text-green-700">Lexware verbunden</span>
+                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                    ✓
+                                </span>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -619,6 +769,59 @@
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="save">
                     Speichern
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- Lexware Modal (API-Token Eingabe) --}}
+    <x-ui-modal wire:model="lexwareModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-calculator', 'w-5 h-5 text-orange-600')
+                </div>
+                <span>Lexware verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-amber-800">
+                        <p class="font-medium mb-1">API-Token erforderlich</p>
+                        <p>Lexware verwendet keinen OAuth-Flow. Du musst deinen API-Token manuell eingeben.</p>
+                        <p class="mt-2">Den API-Token findest du in deinem Lexoffice-Konto unter:</p>
+                        <p class="font-mono text-xs mt-1 bg-amber-100 px-2 py-1 rounded">Einstellungen → Erweiterungen → Public API</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="lexwareApiToken"
+                label="API-Token"
+                wire:model.live="lexwareApiToken"
+                type="password"
+                placeholder="Dein Lexware API-Token..."
+                :errorKey="'lexwareApiToken'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der Token wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeLexwareModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveLexwareConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
                 </x-ui-button>
             </div>
         </x-slot>
