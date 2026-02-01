@@ -3316,6 +3316,69 @@ class LexwareController extends Controller
     }
 
     // =========================================================================
+    // DRUCKVORLAGEN (PRINT LAYOUTS)
+    // =========================================================================
+
+    /**
+     * Druckvorlagen abrufen
+     *
+     * Ruft die Liste aller verfügbaren Druckvorlagen aus der Lexware API ab.
+     * Druckvorlagen (Print Layouts) definieren das Layout und Design für den Druck
+     * von Dokumenten wie Rechnungen, Angeboten, Auftragsbestätigungen, Lieferscheinen,
+     * Gutschriften, Mahnungen und Anzahlungsrechnungen.
+     *
+     * GET /api/integrations/lexware/print-layouts
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/print-layouts
+     *
+     * Beispiel-Response:
+     * [
+     *   {
+     *     "id": "28c212c4-b6dd-11ee-b80a-dbc65f4fa848",
+     *     "name": "Standard",
+     *     "default": true,
+     *     "color": "#2196f3"
+     *   },
+     *   {
+     *     "id": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f",
+     *     "name": "Modern",
+     *     "default": false,
+     *     "color": "#4caf50"
+     *   },
+     *   {
+     *     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *     "name": "Klassisch",
+     *     "default": false,
+     *     "color": "#607d8b"
+     *   }
+     * ]
+     *
+     * Hinweise:
+     * - id: Eindeutige UUID der Druckvorlage
+     * - name: Anzeigename der Druckvorlage (vom Benutzer definiert)
+     * - default: Gibt an, ob dies die Standard-Druckvorlage ist (nur eine kann true sein)
+     * - color: Akzentfarbe der Druckvorlage als Hex-Code
+     * - Die Liste enthält alle vom Benutzer angelegten Druckvorlagen
+     * - Diese Druckvorlagen können bei der PDF-Generierung von Belegen verwendet werden
+     * - Die Standard-Vorlage wird automatisch verwendet, wenn keine spezifische Vorlage angegeben wird
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Liste aller verfügbaren Druckvorlagen oder Fehlermeldung
+     */
+    public function printLayouts(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getPrintLayouts($user);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    // =========================================================================
     // EVENT-SUBSCRIPTIONS (WEBHOOKS)
     // =========================================================================
 

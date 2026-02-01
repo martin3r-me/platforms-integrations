@@ -197,6 +197,10 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/payment-conditions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'paymentConditions'])
                     ->name('integrations.lexware.payment-conditions');
 
+                // Druckvorlagen (Print Layouts) - Liste aller verfügbaren Druckvorlagen
+                Route::get('/print-layouts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'printLayouts'])
+                    ->name('integrations.lexware.print-layouts');
+
                 // Event-Subscriptions (Webhooks) - CRUD Endpunkte
                 Route::get('/event-subscriptions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'eventSubscriptions'])
                     ->name('integrations.lexware.event-subscriptions');
