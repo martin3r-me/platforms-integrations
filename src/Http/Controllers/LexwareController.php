@@ -3430,6 +3430,149 @@ class LexwareController extends Controller
     }
 
     // =========================================================================
+    // ZAHLUNGEN (PAYMENTS)
+    // =========================================================================
+
+    /**
+     * Zahlungen abrufen (paginiert)
+     *
+     * Ruft eine Liste von Zahlungsinformationen aus der Lexware API ab.
+     * Zahlungen werden automatisch mit Rechnungen, Gutschriften und anderen Belegen verknüpft.
+     * Dieser Endpunkt gibt Informationen zu erfassten Zahlungseingängen und -ausgängen zurück.
+     *
+     * GET /api/integrations/lexware/payments
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/payments?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "paymentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "voucherId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+     *       "voucherType": "invoice",
+     *       "voucherNumber": "RE-2024-001",
+     *       "paymentDate": "2024-01-20",
+     *       "amount": 1190.00,
+     *       "currency": "EUR",
+     *       "paymentType": "incoming",
+     *       "paymentMethod": "bankTransfer"
+     *     },
+     *     {
+     *       "paymentId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "voucherId": "d4e5f6a7-b8c9-0123-defg-456789012345",
+     *       "voucherType": "invoice",
+     *       "voucherNumber": "RE-2024-002",
+     *       "paymentDate": "2024-01-22",
+     *       "amount": 595.00,
+     *       "currency": "EUR",
+     *       "paymentType": "incoming",
+     *       "paymentMethod": "cash"
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "size": 25,
+     *   "number": 0,
+     *   "numberOfElements": 25
+     * }
+     *
+     * Hinweise:
+     * - paymentType kann sein: "incoming" (Zahlungseingang) oder "outgoing" (Zahlungsausgang)
+     * - paymentMethod kann sein: "bankTransfer", "cash", "creditCard", "debitCard", "paypal", "other"
+     * - voucherType bezieht sich auf den verknüpften Beleg (invoice, creditnote, etc.)
+     * - Die Zahlungen werden chronologisch nach paymentDate sortiert (neueste zuerst)
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Zahlungen oder Fehlermeldung
+     */
+    public function payments(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $page = (int) $request->get('page', 0);
+            $size = (int) $request->get('size', 25);
+
+            $result = $this->lexwareApiService->getPayments($user, $page, $size);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Einzelne Zahlung abrufen
+     *
+     * Ruft eine einzelne Zahlung anhand ihrer UUID aus der Lexware API ab.
+     * Gibt alle Details zur Zahlung zurück, inklusive verknüpftem Beleg und Zahlungsinformationen.
+     *
+     * GET /api/integrations/lexware/payments/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Zahlung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/payments/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     *
+     * Beispiel-Response:
+     * {
+     *   "paymentId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-20T10:30:00.000+01:00",
+     *   "voucherId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+     *   "voucherType": "invoice",
+     *   "voucherNumber": "RE-2024-001",
+     *   "voucherStatus": "paid",
+     *   "paymentDate": "2024-01-20",
+     *   "amount": 1190.00,
+     *   "currency": "EUR",
+     *   "paymentType": "incoming",
+     *   "paymentMethod": "bankTransfer",
+     *   "reference": "RE-2024-001 Muster GmbH",
+     *   "contact": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH"
+     *   },
+     *   "remainingAmount": 0.00,
+     *   "paidAmount": 1190.00
+     * }
+     *
+     * Hinweise:
+     * - remainingAmount zeigt den noch offenen Betrag des verknüpften Belegs
+     * - paidAmount zeigt den gesamten bereits gezahlten Betrag des Belegs
+     * - Der voucherStatus des verknüpften Belegs wird automatisch aktualisiert:
+     *   - "open": Noch offener Betrag vorhanden
+     *   - "paid": Vollständig bezahlt
+     *   - "paidoff": Überbezahlt oder ausgeglichen
+     * - reference enthält die Referenz/Verwendungszweck der Zahlung
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Zahlung
+     * @return JsonResponse Zahlungsdaten oder Fehlermeldung
+     */
+    public function payment(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getPayment($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    // =========================================================================
     // DATEIEN (FILES)
     // =========================================================================
 

@@ -167,6 +167,12 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/down-payment-invoices/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downPaymentInvoiceDeeplink'])
                     ->name('integrations.lexware.down-payment-invoices.deeplink');
 
+                // Zahlungen (Payments) - Endpunkte
+                Route::get('/payments', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'payments'])
+                    ->name('integrations.lexware.payments');
+                Route::get('/payments/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'payment'])
+                    ->name('integrations.lexware.payment');
+
                 // Artikel (Articles) - CRUD Endpunkte
                 Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])
                     ->name('integrations.lexware.articles');
