@@ -111,6 +111,10 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/countries', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'countries'])
                     ->name('integrations.lexware.countries');
 
+                // Buchungskategorien (Posting Categories) - Liste aller verfügbaren Kategorien
+                Route::get('/posting-categories', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'postingCategories'])
+                    ->name('integrations.lexware.posting-categories');
+
                 // Event-Subscriptions (Webhooks) - CRUD Endpunkte
                 Route::get('/event-subscriptions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'eventSubscriptions'])
                     ->name('integrations.lexware.event-subscriptions');

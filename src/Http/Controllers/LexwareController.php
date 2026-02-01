@@ -1170,6 +1170,92 @@ class LexwareController extends Controller
     }
 
     // =========================================================================
+    // BUCHUNGSKATEGORIEN (POSTING CATEGORIES)
+    // =========================================================================
+
+    /**
+     * Buchungskategorien abrufen
+     *
+     * Ruft die Liste aller verfügbaren Buchungskategorien aus der Lexware API ab.
+     * Buchungskategorien werden verwendet, um Einnahmen und Ausgaben in der Buchhaltung
+     * zu kategorisieren und den entsprechenden Konten zuzuordnen.
+     *
+     * GET /api/integrations/lexware/posting-categories
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/posting-categories
+     *
+     * Beispiel-Response:
+     * [
+     *   {
+     *     "id": "8f8664a1-fd86-11e1-a21f-0800200c9a66",
+     *     "name": "Erlöse 19%",
+     *     "type": "income",
+     *     "contactRequired": false,
+     *     "splitAllowed": true,
+     *     "groupName": "Erlöse"
+     *   },
+     *   {
+     *     "id": "9075a4e3-66de-4795-a016-3889feca0d20",
+     *     "name": "Erlöse 7%",
+     *     "type": "income",
+     *     "contactRequired": false,
+     *     "splitAllowed": true,
+     *     "groupName": "Erlöse"
+     *   },
+     *   {
+     *     "id": "7c112b66-0565-479c-bc18-5845e080880a",
+     *     "name": "Wareneinkauf 19%",
+     *     "type": "expense",
+     *     "contactRequired": false,
+     *     "splitAllowed": true,
+     *     "groupName": "Wareneinkauf"
+     *   },
+     *   {
+     *     "id": "cf0a3e33-4156-4e3f-8a3d-46c2a08f9a14",
+     *     "name": "Bürobedarf",
+     *     "type": "expense",
+     *     "contactRequired": false,
+     *     "splitAllowed": true,
+     *     "groupName": "Sonstige Ausgaben"
+     *   },
+     *   {
+     *     "id": "a1f9a8d5-e9c4-4b8a-8f2e-3d5c6b7a8e9f",
+     *     "name": "Privateinlage",
+     *     "type": "privatewithdrawal",
+     *     "contactRequired": false,
+     *     "splitAllowed": false,
+     *     "groupName": "Privatbuchungen"
+     *   }
+     * ]
+     *
+     * Hinweise:
+     * - Die Liste enthält alle für den Benutzer verfügbaren Buchungskategorien
+     * - type kann sein:
+     *   - "income" (Einnahmen/Erlöse)
+     *   - "expense" (Ausgaben/Aufwendungen)
+     *   - "depreciationexpense" (Abschreibungen)
+     *   - "privatewithdrawal" (Privatentnahmen/-einlagen)
+     * - contactRequired gibt an, ob ein Kontakt bei der Buchung erforderlich ist
+     * - splitAllowed gibt an, ob die Kategorie für Split-Buchungen verwendet werden kann
+     * - groupName gruppiert ähnliche Kategorien für die Anzeige in der UI
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Liste aller verfügbaren Buchungskategorien oder Fehlermeldung
+     */
+    public function postingCategories(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getPostingCategories($user);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    // =========================================================================
     // EVENT-SUBSCRIPTIONS (WEBHOOKS)
     // =========================================================================
 
