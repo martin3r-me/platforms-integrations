@@ -280,7 +280,43 @@ class LexwareApiService
     /**
      * Artikel abrufen (paginiert)
      *
-     * @throws LexwareApiException
+     * Ruft eine Liste von Artikeln aus der Lexware API ab.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     *
+     * @see https://developers.lexoffice.io/docs/#articles-endpoint-retrieve-a-list-of-articles
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "eb46d328-e1dc-11ee-8e52-2fadfc15a567",
+     *       "articleNumber": "ART-001",
+     *       "title": "Beispielartikel",
+     *       "description": "Beschreibung des Artikels",
+     *       "type": "PRODUCT",
+     *       "unitName": "Stück",
+     *       "price": {
+     *         "netPrice": 100.00,
+     *         "grossPrice": 119.00,
+     *         "taxRate": 19.0
+     *       },
+     *       "version": 1
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 100,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Artikeln
+     * @throws LexwareApiException Bei API-Fehlern
      */
     public function getArticles(User $user, int $page = 0, int $size = 25): array
     {
@@ -293,11 +329,146 @@ class LexwareApiService
     /**
      * Einzelnen Artikel abrufen
      *
-     * @throws LexwareApiException
+     * Ruft einen einzelnen Artikel anhand seiner ID aus der Lexware API ab.
+     *
+     * @see https://developers.lexoffice.io/docs/#articles-endpoint-retrieve-an-article
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "eb46d328-e1dc-11ee-8e52-2fadfc15a567",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-16T14:20:00.000+01:00",
+     *   "archived": false,
+     *   "articleNumber": "ART-001",
+     *   "title": "Beispielartikel",
+     *   "description": "Detaillierte Beschreibung des Artikels",
+     *   "type": "PRODUCT",
+     *   "unitName": "Stück",
+     *   "price": {
+     *     "netPrice": 100.00,
+     *     "grossPrice": 119.00,
+     *     "leadingPrice": "NET",
+     *     "taxRate": 19.0
+     *   },
+     *   "version": 1
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $articleId Die UUID des Artikels
+     * @return array Artikeldaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
      */
     public function getArticle(User $user, string $articleId): array
     {
         return $this->get($user, "/articles/{$articleId}");
+    }
+
+    /**
+     * Artikel erstellen
+     *
+     * Erstellt einen neuen Artikel in der Lexware API.
+     * Der Typ (type) bestimmt, ob es sich um ein Produkt oder eine Dienstleistung handelt.
+     *
+     * @see https://developers.lexoffice.io/docs/#articles-endpoint-create-an-article
+     *
+     * Beispiel-Request:
+     * {
+     *   "title": "Neuer Artikel",
+     *   "description": "Beschreibung des neuen Artikels",
+     *   "type": "PRODUCT",
+     *   "articleNumber": "ART-002",
+     *   "unitName": "Stück",
+     *   "price": {
+     *     "netPrice": 50.00,
+     *     "grossPrice": 59.50,
+     *     "leadingPrice": "NET",
+     *     "taxRate": 19.0
+     *   }
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "resourceUri": "https://api.lexoffice.io/v1/articles/66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *   "createdDate": "2024-01-17T09:00:00.000+01:00",
+     *   "updatedDate": "2024-01-17T09:00:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Artikeldaten (title, type erforderlich)
+     * @return array Erstellte Artikel-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createArticle(User $user, array $data): array
+    {
+        return $this->post($user, '/articles', $data);
+    }
+
+    /**
+     * Artikel aktualisieren
+     *
+     * Aktualisiert einen bestehenden Artikel in der Lexware API.
+     * Die Version muss im Request-Body mitgegeben werden (Optimistic Locking).
+     *
+     * @see https://developers.lexoffice.io/docs/#articles-endpoint-update-an-article
+     *
+     * Beispiel-Request:
+     * {
+     *   "title": "Aktualisierter Artikel",
+     *   "description": "Neue Beschreibung",
+     *   "type": "PRODUCT",
+     *   "articleNumber": "ART-001",
+     *   "unitName": "Stück",
+     *   "price": {
+     *     "netPrice": 120.00,
+     *     "grossPrice": 142.80,
+     *     "leadingPrice": "NET",
+     *     "taxRate": 19.0
+     *   },
+     *   "version": 1
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "eb46d328-e1dc-11ee-8e52-2fadfc15a567",
+     *   "resourceUri": "https://api.lexoffice.io/v1/articles/eb46d328-e1dc-11ee-8e52-2fadfc15a567",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-18T11:45:00.000+01:00",
+     *   "version": 2
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $articleId Die UUID des zu aktualisierenden Artikels
+     * @param array $data Aktualisierte Artikeldaten (version erforderlich)
+     * @return array Aktualisierte Artikel-Metadaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 409 bei Versionskonflikt)
+     */
+    public function updateArticle(User $user, string $articleId, array $data): array
+    {
+        return $this->put($user, "/articles/{$articleId}", $data);
+    }
+
+    /**
+     * Artikel löschen
+     *
+     * Löscht einen Artikel aus der Lexware API.
+     * Hinweis: Artikel können nur gelöscht werden, wenn sie nicht in Belegen verwendet werden.
+     *
+     * @see https://developers.lexoffice.io/docs/#articles-endpoint-delete-an-article
+     *
+     * Beispiel-Response bei Erfolg:
+     * HTTP 204 No Content (leerer Response-Body)
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $articleId Die UUID des zu löschenden Artikels
+     * @return array Leeres Array bei Erfolg
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden, 409 wenn in Verwendung)
+     */
+    public function deleteArticle(User $user, string $articleId): array
+    {
+        return $this->delete($user, "/articles/{$articleId}");
     }
 
     // =========================================================================

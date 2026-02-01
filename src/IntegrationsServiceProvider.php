@@ -76,6 +76,18 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.order-confirmations');
                 Route::get('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotes'])
                     ->name('integrations.lexware.credit-notes');
+
+                // Artikel (Articles) - CRUD Endpunkte
+                Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])
+                    ->name('integrations.lexware.articles');
+                Route::get('/articles/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'article'])
+                    ->name('integrations.lexware.article');
+                Route::post('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createArticle'])
+                    ->name('integrations.lexware.articles.create');
+                Route::put('/articles/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'updateArticle'])
+                    ->name('integrations.lexware.articles.update');
+                Route::delete('/articles/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteArticle'])
+                    ->name('integrations.lexware.articles.delete');
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
