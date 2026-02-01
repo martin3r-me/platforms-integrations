@@ -3106,6 +3106,246 @@ class LexwareController extends Controller
         }
     }
 
+    // =========================================================================
+    // DATEIEN (FILES)
+    // =========================================================================
+
+    /**
+     * Datei hochladen
+     *
+     * Lädt eine Datei in die Lexware API hoch.
+     * Die hochgeladene Datei kann dann mit Belegen (Vouchers) verknüpft werden.
+     *
+     * POST /api/integrations/lexware/files
+     *
+     * Request-Body: multipart/form-data
+     * - file (required): Die hochzuladende Datei (max. 5 MB)
+     * - type (optional): Der Dateityp, Standard "voucher"
+     *
+     * Unterstützte Dateiformate:
+     * - PDF (.pdf) - application/pdf
+     * - PNG (.png) - image/png
+     * - JPEG (.jpg, .jpeg) - image/jpeg
+     *
+     * Beispiel-Request:
+     * POST /api/integrations/lexware/files
+     * Content-Type: multipart/form-data
+     * - file: rechnung.pdf
+     * - type: voucher
+     *
+     * Beispiel-Response (HTTP 201):
+     * {
+     *   "id": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Mögliche Fehler:
+     * - 400: Keine Datei hochgeladen oder Datei zu groß (max. 5 MB)
+     * - 401: Nicht autorisiert (ungültiger Token)
+     * - 415: Nicht unterstützter Dateityp
+     *
+     * Hinweise zur Dateigröße (Large File Handling):
+     * - Die maximale Dateigröße beträgt 5 MB (Lexware API Limit)
+     * - Die Validierung erfolgt serverseitig vor dem Upload
+     * - Bei Überschreitung wird ein 400 Bad Request zurückgegeben
+     *
+     * Hinweise zum Content-Type:
+     * - Der Content-Type wird automatisch aus der Datei erkannt
+     * - Bei nicht unterstütztem Typ wird ein 415 Unsupported Media Type zurückgegeben
+     *
+     * @param Request $request HTTP-Request mit der hochzuladenden Datei
+     * @return JsonResponse File-ID oder Fehlermeldung
+     */
+    public function uploadFile(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            // Validierung: Datei vorhanden?
+            if (!$request->hasFile('file')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'no_file_uploaded',
+                        'message' => 'Keine Datei hochgeladen. Bitte senden Sie eine Datei im "file"-Feld.',
+                        'http_status' => 400,
+                    ],
+                ], 400);
+            }
+
+            $file = $request->file('file');
+
+            // Validierung: Datei gültig?
+            if (!$file->isValid()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'invalid_file',
+                        'message' => 'Die hochgeladene Datei ist ungültig: ' . $file->getErrorMessage(),
+                        'http_status' => 400,
+                    ],
+                ], 400);
+            }
+
+            // Validierung: Dateigröße (max. 5 MB = 5 * 1024 * 1024 Bytes)
+            $maxFileSize = 5 * 1024 * 1024; // 5 MB
+            if ($file->getSize() > $maxFileSize) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'file_too_large',
+                        'message' => 'Die Datei ist zu groß. Maximale Dateigröße: 5 MB. Aktuelle Größe: ' . round($file->getSize() / 1024 / 1024, 2) . ' MB.',
+                        'http_status' => 400,
+                    ],
+                ], 400);
+            }
+
+            // Validierung: Erlaubte Dateitypen
+            $allowedMimeTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+            $mimeType = $file->getMimeType();
+            if (!in_array($mimeType, $allowedMimeTypes)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'unsupported_file_type',
+                        'message' => 'Nicht unterstützter Dateityp: ' . $mimeType . '. Erlaubt sind: PDF, PNG, JPEG.',
+                        'http_status' => 415,
+                    ],
+                ], 415);
+            }
+
+            // Typ aus Request holen (Standard: "voucher")
+            $type = $request->get('type', 'voucher');
+
+            // Datei hochladen
+            $result = $this->lexwareApiService->uploadFile(
+                $user,
+                $file->getPathname(),
+                $file->getClientOriginalName(),
+                $type,
+                $mimeType
+            );
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Datei herunterladen
+     *
+     * Lädt eine Datei anhand ihrer ID aus der Lexware API herunter.
+     * Gibt den binären Datei-Inhalt direkt zum Download zurück.
+     *
+     * GET /api/integrations/lexware/files/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Datei
+     *
+     * Query-Parameter:
+     * - accept (string, optional): Der erwartete Content-Type (Standard: application/pdf)
+     *   Mögliche Werte: application/pdf, image/png, image/jpeg
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/files/7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf (oder entsprechender MIME-Type)
+     * Content-Disposition: attachment; filename="file-{id}.pdf"
+     * (Binäre Datei-Daten)
+     *
+     * Mögliche Fehler:
+     * - 404: Datei nicht gefunden
+     * - 401: Nicht autorisiert (ungültiger Token)
+     *
+     * Hinweise zum Content-Type:
+     * - Der Response-Content-Type entspricht dem der ursprünglich hochgeladenen Datei
+     * - Der Accept-Header kann über den Query-Parameter "accept" gesteuert werden
+     *
+     * Hinweise zur Dateigröße (Large File Handling):
+     * - Die Datei wird vollständig in den Speicher geladen
+     * - Die maximale Dateigröße beträgt 5 MB (Lexware API Limit)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Datei
+     * @return \Illuminate\Http\Response Datei-Download oder JsonResponse bei Fehler
+     */
+    public function downloadFile(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Accept-Header aus Query-Parameter oder Standard
+            $acceptHeader = $request->get('accept', 'application/pdf');
+
+            // Erlaubte Accept-Header
+            $allowedAcceptHeaders = ['application/pdf', 'image/png', 'image/jpeg'];
+            if (!in_array($acceptHeader, $allowedAcceptHeaders)) {
+                $acceptHeader = 'application/pdf'; // Fallback
+            }
+
+            // Datei herunterladen
+            $fileContent = $this->lexwareApiService->getFile($user, $id, $acceptHeader);
+
+            // Dateiendung basierend auf Accept-Header
+            $extensionMap = [
+                'application/pdf' => 'pdf',
+                'image/png' => 'png',
+                'image/jpeg' => 'jpg',
+            ];
+            $extension = $extensionMap[$acceptHeader] ?? 'bin';
+
+            // Datei als Download zurückgeben
+            return response($fileContent, 200)
+                ->header('Content-Type', $acceptHeader)
+                ->header('Content-Disposition', "attachment; filename=\"file-{$id}.{$extension}\"")
+                ->header('Content-Length', strlen($fileContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zu einer Datei abrufen
+     *
+     * Gibt Informationen zum Deep-Link einer Datei zurück.
+     * Da Dateien in Lexoffice immer mit Belegen verknüpft sind, gibt es keinen
+     * direkten Deeplink für einzelne Dateien.
+     *
+     * GET /api/integrations/lexware/files/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Datei
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/files/7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "info": "Dateien in Lexoffice sind mit Belegen verknüpft.",
+     *   "hint": "Verwenden Sie den Deeplink des verknüpften Belegs, um die Datei anzuzeigen.",
+     *   "fileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Hinweise:
+     * - Einzelne Dateien sind in Lexoffice nicht direkt über einen Deeplink abrufbar
+     * - Die Datei ist über den verknüpften Beleg (Invoice, Quotation, etc.) zugänglich
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Datei
+     * @return JsonResponse Deeplink-Information
+     */
+    public function fileDeeplink(Request $request, string $id): JsonResponse
+    {
+        try {
+            $result = $this->lexwareApiService->getFileDeeplink($id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
     /**
      * Behandelt Lexware API Exceptions und gibt passende HTTP-Responses zurück
      */

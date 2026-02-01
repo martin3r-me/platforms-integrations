@@ -805,6 +805,326 @@ class LexwareApiService
         }
     }
 
+    // =========================================================================
+    // DATEIEN (FILES)
+    // =========================================================================
+
+    /**
+     * Datei hochladen
+     *
+     * Lädt eine Datei in die Lexware/Lexoffice API hoch.
+     * Die hochgeladene Datei kann dann mit Belegen (Vouchers) verknüpft werden.
+     *
+     * WICHTIG: Diese Methode sendet die Datei als multipart/form-data.
+     * Die maximale Dateigröße beträgt 5 MB (Lexware API Limit).
+     *
+     * Unterstützte Content-Types:
+     * - application/pdf (PDF-Dokumente)
+     * - image/png (PNG-Bilder)
+     * - image/jpeg (JPEG-Bilder)
+     *
+     * @see https://developers.lexoffice.io/docs/#files-endpoint-upload-a-file
+     *
+     * Beispiel-Request:
+     * POST /files
+     * Content-Type: multipart/form-data
+     * - file: Die hochzuladende Datei (max. 5 MB)
+     * - type: Der Dateityp ("voucher" für Belegbilder)
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Hinweise:
+     * - Die zurückgegebene File-ID kann verwendet werden, um die Datei mit einem Beleg zu verknüpfen
+     * - Hochgeladene Dateien sind nur temporär verfügbar bis sie mit einem Beleg verknüpft werden
+     * - Bei Überschreitung der Dateigröße wird ein 400 Bad Request zurückgegeben
+     * - Bei nicht unterstütztem Content-Type wird ein 415 Unsupported Media Type zurückgegeben
+     *
+     * Content-Type Handling:
+     * - Der Content-Type wird automatisch aus der Datei-Extension erkannt
+     * - Alternativ kann der Content-Type explizit übergeben werden
+     * - Bei unbekannter Extension wird 'application/octet-stream' verwendet
+     *
+     * Large File Handling:
+     * - Dateien größer als 5 MB werden von der Lexware API abgelehnt
+     * - Diese Methode prüft die Dateigröße NICHT vorab - die Validierung sollte im Controller erfolgen
+     * - Für große Dateien empfiehlt sich eine Vorverarbeitung (z.B. Bildkomprimierung)
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $filePath Der vollständige Pfad zur Datei auf dem Server
+     * @param string $fileName Der Dateiname für die hochgeladene Datei
+     * @param string $type Der Dateityp (Standard: "voucher" für Belegbilder)
+     * @param string|null $contentType Der Content-Type der Datei (optional, wird automatisch erkannt)
+     * @return array Array mit der File-ID der hochgeladenen Datei
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 Dateigröße, 415 falscher Content-Type)
+     */
+    public function uploadFile(
+        User $user,
+        string $filePath,
+        string $fileName,
+        string $type = 'voucher',
+        ?string $contentType = null
+    ): array {
+        // Token aus der IntegrationConnection Tabelle holen
+        $connection = $this->integrationService->getConnectionForUser($user);
+
+        if (!$connection) {
+            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
+            throw LexwareApiException::noConnection();
+        }
+
+        $apiToken = $this->integrationService->getApiToken($connection);
+
+        if (!$apiToken) {
+            Log::warning('Lexware API: Kein Token für User', ['user_id' => $user->id]);
+            throw LexwareApiException::unauthorized();
+        }
+
+        // Prüfen ob Datei existiert
+        if (!file_exists($filePath)) {
+            Log::warning('Lexware API: Datei nicht gefunden', [
+                'user_id' => $user->id,
+                'file_path' => $filePath,
+            ]);
+            throw LexwareApiException::fromResponse(400, [
+                'message' => 'Die angegebene Datei wurde nicht gefunden.',
+            ]);
+        }
+
+        // Content-Type automatisch erkennen wenn nicht angegeben
+        if ($contentType === null) {
+            $contentType = $this->detectContentType($filePath, $fileName);
+        }
+
+        $url = self::BASE_URL . '/files';
+
+        try {
+            // Multipart-Request für Datei-Upload erstellen
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Accept' => 'application/json',
+            ])->attach(
+                'file',
+                file_get_contents($filePath),
+                $fileName,
+                ['Content-Type' => $contentType]
+            )->post($url, [
+                'type' => $type,
+            ]);
+
+            if (!$response->successful()) {
+                $this->updateConnectionStatus(
+                    $connection,
+                    $response->status() === 401 ? 'error' : 'active',
+                    $response->json()['message'] ?? null
+                );
+
+                Log::warning('Lexware API: Fehler beim Datei-Upload', [
+                    'user_id' => $user->id,
+                    'file_name' => $fileName,
+                    'status_code' => $response->status(),
+                    'response' => $response->json(),
+                ]);
+
+                throw LexwareApiException::fromResponse($response->status(), $response->json() ?? []);
+            }
+
+            $this->updateConnectionStatus($connection, 'active');
+
+            Log::info('Lexware API: Datei erfolgreich hochgeladen', [
+                'user_id' => $user->id,
+                'file_name' => $fileName,
+                'file_id' => $response->json()['id'] ?? null,
+            ]);
+
+            return $response->json();
+        } catch (LexwareApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Lexware API: Verbindungsfehler beim Upload', [
+                'user_id' => $user->id,
+                'file_name' => $fileName,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+            throw LexwareApiException::connectionError($e->getMessage());
+        }
+    }
+
+    /**
+     * Datei herunterladen
+     *
+     * Lädt eine Datei anhand ihrer ID aus der Lexware API herunter.
+     * Diese Methode ist ein Alias für downloadFile() und dient der Konsistenz
+     * mit dem neuen /files Endpoint.
+     *
+     * WICHTIG: Diese Methode gibt den binären Datei-Inhalt zurück, nicht JSON!
+     * Der Content-Type der Response entspricht dem Typ der ursprünglich hochgeladenen Datei.
+     *
+     * @see https://developers.lexoffice.io/docs/#files-endpoint-download-a-file
+     *
+     * Beispiel-Request:
+     * GET /files/{id}
+     *
+     * Beispiel-Response:
+     * Binäre Datei-Daten (Content-Type entspricht Dateiformat: application/pdf, image/png, etc.)
+     *
+     * Hinweise:
+     * - Die File-ID erhält man beim Upload oder über renderPdf()-Methoden der Dokumente
+     * - Die File-ID kann temporär sein und nach einiger Zeit ablaufen
+     * - Diese Methode unterstützt verschiedene Content-Types (nicht nur PDF)
+     *
+     * Content-Type Handling:
+     * - Der Response-Content-Type entspricht dem der hochgeladenen Datei
+     * - Für PDF-Dokumente: application/pdf
+     * - Für Bilder: image/png, image/jpeg
+     * - Der Accept-Header wird automatisch auf den erwarteten Content-Type gesetzt
+     *
+     * Large File Handling:
+     * - Die Methode liest die gesamte Datei in den Speicher
+     * - Für sehr große Dateien sollte Streaming in Betracht gezogen werden
+     * - Die maximale Dateigröße beträgt 5 MB (Lexware API Limit)
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $fileId Die UUID der Datei
+     * @param string $acceptHeader Der erwartete Content-Type (Standard: application/pdf)
+     * @return string Binärer Datei-Inhalt
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden)
+     */
+    public function getFile(User $user, string $fileId, string $acceptHeader = 'application/pdf'): string
+    {
+        // Token aus der IntegrationConnection Tabelle holen
+        $connection = $this->integrationService->getConnectionForUser($user);
+
+        if (!$connection) {
+            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
+            throw LexwareApiException::noConnection();
+        }
+
+        $apiToken = $this->integrationService->getApiToken($connection);
+
+        if (!$apiToken) {
+            Log::warning('Lexware API: Kein Token für User', ['user_id' => $user->id]);
+            throw LexwareApiException::unauthorized();
+        }
+
+        $url = self::BASE_URL . "/files/{$fileId}";
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Accept' => $acceptHeader,
+            ])->get($url);
+
+            if (!$response->successful()) {
+                $this->updateConnectionStatus(
+                    $connection,
+                    $response->status() === 401 ? 'error' : 'active',
+                    $response->json()['message'] ?? null
+                );
+
+                throw LexwareApiException::fromResponse($response->status(), $response->json() ?? []);
+            }
+
+            $this->updateConnectionStatus($connection, 'active');
+            return $response->body();
+        } catch (LexwareApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Lexware API: Verbindungsfehler beim Download', [
+                'user_id' => $user->id,
+                'file_id' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+            throw LexwareApiException::connectionError($e->getMessage());
+        }
+    }
+
+    /**
+     * Content-Type einer Datei automatisch erkennen
+     *
+     * Ermittelt den MIME-Type einer Datei basierend auf:
+     * 1. Der Datei-Extension
+     * 2. Der PHP-Funktion mime_content_type() als Fallback
+     *
+     * Unterstützte Dateitypen für Lexware:
+     * - PDF (.pdf) -> application/pdf
+     * - PNG (.png) -> image/png
+     * - JPEG (.jpg, .jpeg) -> image/jpeg
+     *
+     * @param string $filePath Der vollständige Pfad zur Datei
+     * @param string $fileName Der Dateiname (für Extension-Erkennung)
+     * @return string Der erkannte Content-Type
+     */
+    protected function detectContentType(string $filePath, string $fileName): string
+    {
+        // Unterstützte Content-Types für Lexware
+        $extensionMap = [
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+        ];
+
+        // Extension aus Dateinamen extrahieren
+        $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        if (isset($extensionMap[$extension])) {
+            return $extensionMap[$extension];
+        }
+
+        // Fallback: PHP MIME-Type Erkennung
+        $mimeType = mime_content_type($filePath);
+
+        if ($mimeType && $mimeType !== 'application/octet-stream') {
+            return $mimeType;
+        }
+
+        // Standard-Fallback
+        return 'application/octet-stream';
+    }
+
+    /**
+     * Deeplink zu einer hochgeladenen Datei generieren
+     *
+     * Generiert einen Deep-Link, der direkt zur Datei-Ansicht in der Lexoffice
+     * Web-Oberfläche führt. Dieser Link kann verwendet werden, um Benutzer
+     * direkt zur Datei in Lexoffice weiterzuleiten.
+     *
+     * HINWEIS: Lexoffice bietet keinen direkten öffentlichen Deeplink für einzelne Dateien.
+     * Dateien sind immer mit einem Beleg (Voucher) verknüpft und werden über den
+     * Beleg-Deeplink aufgerufen. Diese Methode gibt daher eine Empfehlung zurück,
+     * wie man zur verknüpften Ressource navigiert.
+     *
+     * @param string $fileId Die UUID der Datei
+     * @return array Array mit Deeplink-Information und Hinweis
+     *
+     * Beispiel-Response:
+     * {
+     *   "info": "Dateien in Lexoffice sind mit Belegen verknüpft.",
+     *   "hint": "Verwenden Sie den Deeplink des verknüpften Belegs, um die Datei anzuzeigen.",
+     *   "fileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein
+     * - Die Datei muss mit einem Beleg verknüpft sein, um sie anzuzeigen
+     * - Einzelne Dateien ohne Beleg-Verknüpfung sind nicht direkt abrufbar
+     */
+    public function getFileDeeplink(string $fileId): array
+    {
+        return [
+            'info' => 'Dateien in Lexoffice sind mit Belegen verknüpft.',
+            'hint' => 'Verwenden Sie den Deeplink des verknüpften Belegs, um die Datei anzuzeigen.',
+            'fileId' => $fileId,
+        ];
+    }
+
     /**
      * Deeplink zur Rechnung in Lexoffice abrufen
      *

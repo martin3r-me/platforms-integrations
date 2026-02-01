@@ -184,6 +184,14 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.event-subscriptions.create');
                 Route::delete('/event-subscriptions/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deleteEventSubscription'])
                     ->name('integrations.lexware.event-subscriptions.delete');
+
+                // Dateien (Files) - Upload und Download Endpunkte
+                Route::post('/files', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'uploadFile'])
+                    ->name('integrations.lexware.files.upload');
+                Route::get('/files/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadFile'])
+                    ->name('integrations.lexware.files.download');
+                Route::get('/files/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'fileDeeplink'])
+                    ->name('integrations.lexware.files.deeplink');
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
