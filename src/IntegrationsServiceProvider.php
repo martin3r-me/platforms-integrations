@@ -52,6 +52,32 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.oauth2.callback');
             });
 
+        // Lexware API Routes
+        Route::prefix('api/integrations/lexware')
+            ->middleware(['web', 'auth'])
+            ->group(function () {
+                Route::get('/profile', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'profile'])
+                    ->name('integrations.lexware.profile');
+                Route::get('/test', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'test'])
+                    ->name('integrations.lexware.test');
+                Route::get('/contacts', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contacts'])
+                    ->name('integrations.lexware.contacts');
+                Route::get('/contacts/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'contact'])
+                    ->name('integrations.lexware.contact');
+                Route::get('/invoices', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoices'])
+                    ->name('integrations.lexware.invoices');
+                Route::get('/invoices/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoice'])
+                    ->name('integrations.lexware.invoice');
+                Route::get('/quotations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotations'])
+                    ->name('integrations.lexware.quotations');
+                Route::get('/quotations/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotation'])
+                    ->name('integrations.lexware.quotation');
+                Route::get('/order-confirmations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmations'])
+                    ->name('integrations.lexware.order-confirmations');
+                Route::get('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotes'])
+                    ->name('integrations.lexware.credit-notes');
+            });
+
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
         if (PlatformCore::getModule('integrations')) {
             $routesPath = __DIR__ . '/../routes/web.php';
