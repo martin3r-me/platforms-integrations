@@ -1722,6 +1722,321 @@ class LexwareApiService
     }
 
     // =========================================================================
+    // MAHNUNGEN (DUNNINGS)
+    // =========================================================================
+
+    /**
+     * Mahnungen abrufen (paginiert)
+     *
+     * Ruft eine Liste von Mahnungen aus der Lexware API ab.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     * Mahnungen werden erstellt, um offene Forderungen einzutreiben.
+     *
+     * @see https://developers.lexoffice.io/docs/#dunnings-endpoint
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *       "voucherType": "dunning",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "MA-2024-001",
+     *       "voucherDate": "2024-01-25",
+     *       "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 3,
+     *   "totalElements": 75,
+     *   "size": 25,
+     *   "number": 0,
+     *   "numberOfElements": 25
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Mahnungen
+     * @throws LexwareApiException Bei API-Fehlern
+     */
+    public function getDunnings(User $user, int $page = 0, int $size = 25): array
+    {
+        return $this->get($user, '/voucherlist', [
+            'voucherType' => 'dunning',
+            'page' => $page,
+            'size' => min($size, 250),
+        ]);
+    }
+
+    /**
+     * Einzelne Mahnung abrufen
+     *
+     * Ruft eine einzelne Mahnung anhand ihrer ID aus der Lexware API ab.
+     * Gibt alle Details der Mahnung zurück, inklusive Positionen, Adressen und Zahlungsinformationen.
+     *
+     * @see https://developers.lexoffice.io/docs/#dunnings-endpoint-retrieve-a-dunning
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *   "version": 1,
+     *   "language": "de",
+     *   "archived": false,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "MA-2024-001",
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+     *       "type": "custom",
+     *       "name": "Offener Rechnungsbetrag RE-2024-001",
+     *       "description": "Zahlungserinnerung für Rechnung vom 15.12.2023",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 1000.00,
+     *         "grossAmount": 1190.00,
+     *         "taxRatePercentage": 19
+     *       },
+     *       "lineItemAmount": 1190.00
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "paymentConditions": {
+     *     "paymentTermLabel": "Sofort fällig",
+     *     "paymentTermDuration": 0
+     *   },
+     *   "relatedVouchers": [
+     *     {
+     *       "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+     *       "voucherNumber": "RE-2024-001",
+     *       "voucherType": "invoice"
+     *     }
+     *   ],
+     *   "title": "1. Mahnung",
+     *   "introduction": "Leider konnten wir für folgende Rechnung noch keinen Zahlungseingang feststellen.",
+     *   "remark": "Bitte überweisen Sie den offenen Betrag innerhalb von 7 Tagen."
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $dunningId Die UUID der Mahnung
+     * @return array Mahnungsdaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
+     */
+    public function getDunning(User $user, string $dunningId): array
+    {
+        return $this->get($user, "/dunnings/{$dunningId}");
+    }
+
+    /**
+     * Mahnung erstellen
+     *
+     * Erstellt eine neue Mahnung in der Lexware API.
+     * Mahnungen werden verwendet, um Kunden an offene Forderungen zu erinnern.
+     * Eine Mahnung bezieht sich typischerweise auf eine oder mehrere unbezahlte Rechnungen.
+     *
+     * @see https://developers.lexoffice.io/docs/#dunnings-endpoint-create-a-dunning
+     *
+     * Beispiel-Request (Mahnung an bestehenden Kontakt mit Bezug auf Rechnung):
+     * {
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Offener Rechnungsbetrag RE-2024-001",
+     *       "description": "Zahlungserinnerung für Rechnung vom 15.12.2023",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 1000.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "paymentConditions": {
+     *     "paymentTermLabel": "Sofort fällig",
+     *     "paymentTermDuration": 0
+     *   },
+     *   "title": "1. Mahnung",
+     *   "introduction": "Leider konnten wir für folgende Rechnung noch keinen Zahlungseingang feststellen.",
+     *   "remark": "Bitte überweisen Sie den offenen Betrag innerhalb von 7 Tagen."
+     * }
+     *
+     * Beispiel-Request (Mahnung mit Mahngebühren):
+     * {
+     *   "voucherDate": "2024-02-05",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Offener Rechnungsbetrag RE-2024-001",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 1000.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     },
+     *     {
+     *       "type": "custom",
+     *       "name": "Mahngebühr",
+     *       "quantity": 1,
+     *       "unitName": "pauschal",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 5.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "2. Mahnung",
+     *   "introduction": "Trotz unserer Zahlungserinnerung ist der Betrag noch offen.",
+     *   "remark": "Bei weiterem Zahlungsverzug behalten wir uns rechtliche Schritte vor."
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "resourceUri": "https://api.lexoffice.io/v1/dunnings/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - address kann entweder eine contactId oder manuelle Adressdaten enthalten
+     * - lineItems müssen Preisangaben enthalten (im Gegensatz zu Lieferscheinen)
+     * - taxType kann 'net' (Netto) oder 'gross' (Brutto) sein
+     * - paymentConditions definieren die Zahlungsfrist
+     * - relatedVouchers können verknüpfte Rechnungen referenzieren
+     * - finalize=true finalisiert die Mahnung direkt (dann nicht mehr bearbeitbar)
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Mahnungsdaten (address, lineItems, totalPrice erforderlich)
+     * @param bool $finalize Wenn true, wird die Mahnung direkt finalisiert (Standard: false)
+     * @return array Erstellte Mahnungs-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createDunning(User $user, array $data, bool $finalize = false): array
+    {
+        $query = $finalize ? ['finalize' => 'true'] : [];
+        return $this->post($user, '/dunnings', $data, $query);
+    }
+
+    /**
+     * Mahnung als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Mahnung.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * WICHTIG: Diese Methode erstellt das PDF, lädt es aber nicht herunter.
+     * Für den Download verwende downloadFile() mit der documentFileId.
+     *
+     * @see https://developers.lexoffice.io/docs/#dunnings-endpoint-render-a-document
+     *
+     * Beispiel-Request:
+     * GET /dunnings/{id}/document
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Mahnung muss finalisiert sein (voucherStatus != 'draft')
+     * - Bei Entwürfen wird ein Fehler zurückgegeben
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann ablaufen
+     * - Das PDF wird bei jedem Aufruf neu generiert
+     * - Für den Download muss downloadFile() separat aufgerufen werden
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $dunningId Die UUID der Mahnung
+     * @return array Array mit documentFileId
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden, 406 wenn Entwurf)
+     */
+    public function renderDunningPdf(User $user, string $dunningId): array
+    {
+        return $this->get($user, "/dunnings/{$dunningId}/document");
+    }
+
+    /**
+     * Deeplink zur Mahnung in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Mahnung in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Mahnung in Lexoffice weiterzuleiten.
+     *
+     * HINWEIS: Dies ist ein konstruierter Link basierend auf der Lexoffice-URL-Struktur.
+     * Die Lexware API bietet keinen direkten Deeplink-Endpunkt, daher wird der Link
+     * anhand der bekannten URL-Struktur von Lexoffice konstruiert.
+     *
+     * @param string $dunningId Die UUID der Mahnung
+     * @return array Array mit dem Deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/dunning/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Mahnung existiert und der Benutzer Zugriff hat
+     */
+    public function getDunningDeeplink(string $dunningId): array
+    {
+        return [
+            'deeplink' => "https://app.lexoffice.de/vouchers#!/view/dunning/{$dunningId}",
+        ];
+    }
+
+    // =========================================================================
     // PROFIL & VERBINDUNG
     // =========================================================================
 

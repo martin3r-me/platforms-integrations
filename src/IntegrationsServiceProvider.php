@@ -129,6 +129,20 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/delivery-notes/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deliveryNoteDeeplink'])
                     ->name('integrations.lexware.delivery-notes.deeplink');
 
+                // Mahnungen (Dunnings) - CRUD Endpunkte
+                Route::get('/dunnings', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'dunnings'])
+                    ->name('integrations.lexware.dunnings');
+                Route::post('/dunnings', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createDunning'])
+                    ->name('integrations.lexware.dunnings.create');
+                Route::get('/dunnings/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'dunning'])
+                    ->name('integrations.lexware.dunning');
+                Route::get('/dunnings/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'dunningPdf'])
+                    ->name('integrations.lexware.dunnings.pdf');
+                Route::get('/dunnings/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadDunning'])
+                    ->name('integrations.lexware.dunnings.download');
+                Route::get('/dunnings/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'dunningDeeplink'])
+                    ->name('integrations.lexware.dunnings.deeplink');
+
                 // Artikel (Articles) - CRUD Endpunkte
                 Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])
                     ->name('integrations.lexware.articles');
