@@ -3236,6 +3236,86 @@ class LexwareController extends Controller
     }
 
     // =========================================================================
+    // ZAHLUNGSBEDINGUNGEN (PAYMENT CONDITIONS)
+    // =========================================================================
+
+    /**
+     * Zahlungsbedingungen abrufen
+     *
+     * Ruft die Liste aller Zahlungsbedingungen aus der Lexware API ab.
+     * Zahlungsbedingungen definieren Zahlungsfristen und -konditionen, die auf Belegen
+     * (Rechnungen, Angebote, Auftragsbestätigungen etc.) verwendet werden können.
+     * Sie bestehen aus einem Label-Template und einer Zahlungsfrist in Tagen,
+     * optional mit Skonto-Konditionen.
+     *
+     * GET /api/integrations/lexware/payment-conditions
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/payment-conditions
+     *
+     * Beispiel-Response:
+     * [
+     *   {
+     *     "id": "e9066f04-8cc7-4616-93f8-ac9571ec5f71",
+     *     "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *     "paymentTermLabelTemplate": "Zahlbar innerhalb von {paymentTermDuration} Tagen.",
+     *     "paymentTermDuration": 30,
+     *     "paymentDiscountConditions": null
+     *   },
+     *   {
+     *     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *     "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *     "paymentTermLabelTemplate": "Zahlbar sofort ohne Abzug.",
+     *     "paymentTermDuration": 0,
+     *     "paymentDiscountConditions": null
+     *   },
+     *   {
+     *     "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+     *     "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *     "paymentTermLabelTemplate": "Zahlbar innerhalb von {paymentTermDuration} Tagen. Bei Zahlung innerhalb von {paymentDiscountDuration} Tagen gewähren wir {paymentDiscountPercent}% Skonto.",
+     *     "paymentTermDuration": 30,
+     *     "paymentDiscountConditions": {
+     *       "discountPercentage": 2.00,
+     *       "discountRange": 14
+     *     }
+     *   },
+     *   {
+     *     "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+     *     "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *     "paymentTermLabelTemplate": "Zahlbar innerhalb von {paymentTermDuration} Tagen netto.",
+     *     "paymentTermDuration": 14,
+     *     "paymentDiscountConditions": null
+     *   }
+     * ]
+     *
+     * Hinweise:
+     * - paymentTermLabelTemplate enthält Platzhalter, die bei der Belegstellung ersetzt werden:
+     *   - {paymentTermDuration}: Zahlungsfrist in Tagen
+     *   - {paymentDiscountDuration}: Skontofrist in Tagen (wenn Skonto definiert)
+     *   - {paymentDiscountPercent}: Skontosatz in Prozent (wenn Skonto definiert)
+     * - paymentTermDuration gibt die Zahlungsfrist in Tagen an (0 = sofort fällig)
+     * - paymentDiscountConditions enthält optionale Skonto-Konditionen:
+     *   - discountPercentage: Skontosatz in Prozent (z.B. 2.00 für 2%)
+     *   - discountRange: Anzahl Tage für Skontogewährung
+     * - Wenn paymentDiscountConditions null ist, gibt es keinen Skonto
+     * - Die Zahlungsbedingungen können bei der Erstellung von Belegen referenziert werden
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Liste aller verfügbaren Zahlungsbedingungen oder Fehlermeldung
+     */
+    public function paymentConditions(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getPaymentConditions($user);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    // =========================================================================
     // EVENT-SUBSCRIPTIONS (WEBHOOKS)
     // =========================================================================
 

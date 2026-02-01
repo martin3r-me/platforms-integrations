@@ -193,6 +193,10 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/posting-categories', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'postingCategories'])
                     ->name('integrations.lexware.posting-categories');
 
+                // Zahlungsbedingungen (Payment Conditions) - Liste aller verfügbaren Zahlungsbedingungen
+                Route::get('/payment-conditions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'paymentConditions'])
+                    ->name('integrations.lexware.payment-conditions');
+
                 // Event-Subscriptions (Webhooks) - CRUD Endpunkte
                 Route::get('/event-subscriptions', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'eventSubscriptions'])
                     ->name('integrations.lexware.event-subscriptions');
