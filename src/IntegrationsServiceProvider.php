@@ -101,8 +101,19 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.quotations.deeplink');
                 Route::get('/order-confirmations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmations'])
                     ->name('integrations.lexware.order-confirmations');
+                // Gutschriften (Credit Notes) - CRUD Endpunkte
                 Route::get('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotes'])
                     ->name('integrations.lexware.credit-notes');
+                Route::post('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createCreditNote'])
+                    ->name('integrations.lexware.credit-notes.create');
+                Route::get('/credit-notes/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNote'])
+                    ->name('integrations.lexware.credit-note');
+                Route::get('/credit-notes/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotePdf'])
+                    ->name('integrations.lexware.credit-notes.pdf');
+                Route::get('/credit-notes/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadCreditNote'])
+                    ->name('integrations.lexware.credit-notes.download');
+                Route::get('/credit-notes/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNoteDeeplink'])
+                    ->name('integrations.lexware.credit-notes.deeplink');
 
                 // Artikel (Articles) - CRUD Endpunkte
                 Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])

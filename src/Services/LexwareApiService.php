@@ -1170,7 +1170,44 @@ class LexwareApiService
     /**
      * Gutschriften abrufen (paginiert)
      *
-     * @throws LexwareApiException
+     * Ruft eine Liste von Gutschriften aus der Lexware API ab.
+     * Die Ergebnisse werden über den Voucherlist-Endpunkt abgerufen, gefiltert nach Typ 'creditnote'.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     *
+     * @see https://developers.lexoffice.io/docs/#voucherlist-endpoint-retrieve-a-voucherlist
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+     *       "voucherType": "creditnote",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "GS-2024-001",
+     *       "voucherDate": "2024-01-20",
+     *       "createdDate": "2024-01-20T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-20T10:30:00.000+01:00",
+     *       "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 119.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 2,
+     *   "totalElements": 30,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Gutschriften
+     * @throws LexwareApiException Bei API-Fehlern
      */
     public function getCreditNotes(User $user, int $page = 0, int $size = 25): array
     {
@@ -1184,11 +1221,242 @@ class LexwareApiService
     /**
      * Einzelne Gutschrift abrufen
      *
-     * @throws LexwareApiException
+     * Ruft eine einzelne Gutschrift anhand ihrer ID aus der Lexware API ab.
+     * Gibt alle Details der Gutschrift zurück, inklusive Positionen, Adressen und Summen.
+     *
+     * @see https://developers.lexoffice.io/docs/#credit-notes-endpoint-retrieve-a-credit-note
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-20T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-20T10:30:00.000+01:00",
+     *   "version": 1,
+     *   "language": "de",
+     *   "archived": false,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "GS-2024-001",
+     *   "voucherDate": "2024-01-20",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+     *       "type": "custom",
+     *       "name": "Rückerstattung Beratungsleistung",
+     *       "description": "Gutschrift für Januar 2024",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "grossAmount": 119.00,
+     *         "taxRatePercentage": 19
+     *       },
+     *       "lineItemAmount": 119.00
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 100.00,
+     *     "totalGrossAmount": 119.00,
+     *     "totalTaxAmount": 19.00
+     *   },
+     *   "taxAmounts": [
+     *     {
+     *       "taxRatePercentage": 19,
+     *       "taxAmount": 19.00,
+     *       "netAmount": 100.00
+     *     }
+     *   ],
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Gutschrift",
+     *   "introduction": "Hiermit erhalten Sie folgende Gutschrift.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $creditNoteId Die UUID der Gutschrift
+     * @return array Gutschriftdaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
      */
     public function getCreditNote(User $user, string $creditNoteId): array
     {
         return $this->get($user, "/credit-notes/{$creditNoteId}");
+    }
+
+    /**
+     * Gutschrift erstellen
+     *
+     * Erstellt eine neue Gutschrift in der Lexware API.
+     * Die Gutschrift kann entweder als Entwurf oder direkt als finalisierte Gutschrift erstellt werden.
+     * Finalisierte Gutschriften erhalten eine Gutschriftsnummer und können nicht mehr bearbeitet werden.
+     *
+     * @see https://developers.lexoffice.io/docs/#credit-notes-endpoint-create-a-credit-note
+     *
+     * Beispiel-Request (Gutschrift an bestehenden Kontakt):
+     * {
+     *   "voucherDate": "2024-01-20",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Rückerstattung Beratungsleistung",
+     *       "description": "Gutschrift für Januar 2024",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Gutschrift",
+     *   "introduction": "Hiermit erhalten Sie folgende Gutschrift.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+     * }
+     *
+     * Beispiel-Request (Gutschrift mit neuer Adresse ohne Kontakt):
+     * {
+     *   "voucherDate": "2024-01-20",
+     *   "address": {
+     *     "name": "Neue Firma GmbH",
+     *     "street": "Beispielstraße 123",
+     *     "zip": "54321",
+     *     "city": "Beispielstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Rückerstattung Produkt A",
+     *       "quantity": 2,
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 50.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   }
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+     *   "resourceUri": "https://api.lexoffice.io/v1/credit-notes/c1d2e3f4-a5b6-7890-cdef-123456789abc",
+     *   "createdDate": "2024-01-20T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-20T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - Entwürfe (finalize=false) können nachträglich bearbeitet werden
+     * - Finalisierte Gutschriften (finalize=true) erhalten eine Gutschriftsnummer
+     * - Die address kann entweder eine contactId oder manuelle Adressdaten enthalten
+     * - lineItems können vom Typ 'custom' (freier Text) oder 'material' (Artikel) sein
+     * - taxType kann 'net', 'gross' oder 'vatfree' sein
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Gutschriftdaten (address, lineItems, taxConditions erforderlich)
+     * @param bool $finalize Wenn true, wird die Gutschrift direkt finalisiert (Standard: false)
+     * @return array Erstellte Gutschrift-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createCreditNote(User $user, array $data, bool $finalize = false): array
+    {
+        $query = $finalize ? ['finalize' => 'true'] : [];
+        return $this->post($user, '/credit-notes', $data, $query);
+    }
+
+    /**
+     * Gutschrift als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Gutschrift.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * WICHTIG: Diese Methode erstellt das PDF, lädt es aber nicht herunter.
+     * Für den Download verwende downloadFile() mit der documentFileId.
+     *
+     * @see https://developers.lexoffice.io/docs/#credit-notes-endpoint-render-a-document
+     *
+     * Beispiel-Request:
+     * GET /credit-notes/{id}/document
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Gutschrift muss finalisiert sein (voucherStatus != 'draft')
+     * - Bei Entwürfen wird ein Fehler zurückgegeben
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann ablaufen
+     * - Das PDF wird bei jedem Aufruf neu generiert
+     * - Für den Download muss downloadFile() separat aufgerufen werden
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $creditNoteId Die UUID der Gutschrift
+     * @return array Array mit documentFileId
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden, 406 wenn Entwurf)
+     */
+    public function renderCreditNotePdf(User $user, string $creditNoteId): array
+    {
+        return $this->get($user, "/credit-notes/{$creditNoteId}/document");
+    }
+
+    /**
+     * Deeplink zur Gutschrift in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Gutschrift in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Gutschrift in Lexoffice weiterzuleiten.
+     *
+     * HINWEIS: Dies ist ein konstruierter Link basierend auf der Lexoffice-URL-Struktur.
+     * Die Lexware API bietet keinen direkten Deeplink-Endpunkt, daher wird der Link
+     * anhand der bekannten URL-Struktur von Lexoffice konstruiert.
+     *
+     * @param string $creditNoteId Die UUID der Gutschrift
+     * @return array Array mit dem Deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/creditnote/c1d2e3f4-a5b6-7890-cdef-123456789abc"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Gutschrift existiert und der Benutzer Zugriff hat
+     */
+    public function getCreditNoteDeeplink(string $creditNoteId): array
+    {
+        return [
+            'deeplink' => "https://app.lexoffice.de/vouchers#!/view/creditnote/{$creditNoteId}",
+        ];
     }
 
     // =========================================================================
