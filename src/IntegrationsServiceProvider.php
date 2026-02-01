@@ -218,6 +218,14 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.files.download');
                 Route::get('/files/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'fileDeeplink'])
                     ->name('integrations.lexware.files.deeplink');
+
+                // Wiederkehrende Vorlagen (Recurring Templates) - Endpunkte
+                Route::get('/recurring-templates', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'recurringTemplates'])
+                    ->name('integrations.lexware.recurring-templates');
+                Route::get('/recurring-templates/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'recurringTemplate'])
+                    ->name('integrations.lexware.recurring-template');
+                Route::get('/recurring-templates/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'recurringTemplateDeeplink'])
+                    ->name('integrations.lexware.recurring-templates.deeplink');
             });
 
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)

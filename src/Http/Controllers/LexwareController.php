@@ -3955,6 +3955,214 @@ class LexwareController extends Controller
         }
     }
 
+    // =========================================================================
+    // WIEDERKEHRENDE VORLAGEN (RECURRING TEMPLATES)
+    // =========================================================================
+
+    /**
+     * Wiederkehrende Vorlagen abrufen (paginiert)
+     *
+     * Ruft eine Liste von wiederkehrenden Vorlagen (Recurring Templates) aus der Lexware API ab.
+     * Wiederkehrende Vorlagen sind Vorlagen für automatisch erstellte Rechnungen,
+     * die in regelmäßigen Abständen generiert werden (z.B. monatliche Abonnements).
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
+     *
+     * GET /api/integrations/lexware/recurring-templates
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/recurring-templates?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "f4b5e3d2-c1a0-9876-fedc-ba0987654321",
+     *       "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *       "version": 1,
+     *       "templateName": "Monatliches Hosting",
+     *       "nextExecutionDate": "2024-02-01",
+     *       "executionInterval": "MONTHLY",
+     *       "executionStatus": "ACTIVE",
+     *       "lastExecutionDate": "2024-01-01",
+     *       "address": {
+     *         "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *         "name": "Muster GmbH"
+     *       },
+     *       "totalPrice": {
+     *         "currency": "EUR",
+     *         "totalNetAmount": 100.00,
+     *         "totalGrossAmount": 119.00,
+     *         "totalTaxAmount": 19.00
+     *       }
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "size": 25,
+     *   "number": 0,
+     *   "numberOfElements": 25
+     * }
+     *
+     * Hinweise:
+     * - executionInterval kann sein: WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, BIANNUALLY, ANNUALLY
+     * - executionStatus kann sein: ACTIVE, PAUSED, ENDED
+     * - Die maximale Seitengröße beträgt 250 Einträge
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Paginierte Liste von wiederkehrenden Vorlagen
+     */
+    public function recurringTemplates(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $page = (int) $request->get('page', 0);
+            $size = (int) $request->get('size', 25);
+
+            $result = $this->lexwareApiService->getRecurringTemplates($user, $page, $size);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Einzelne wiederkehrende Vorlage abrufen
+     *
+     * Ruft eine einzelne wiederkehrende Vorlage anhand ihrer UUID aus der Lexware API ab.
+     * Gibt alle Details der Vorlage zurück, inklusive Positionen, Adressen, Intervall und Summen.
+     *
+     * GET /api/integrations/lexware/recurring-templates/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der wiederkehrenden Vorlage
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/recurring-templates/f4b5e3d2-c1a0-9876-fedc-ba0987654321
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "f4b5e3d2-c1a0-9876-fedc-ba0987654321",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 1,
+     *   "templateName": "Monatliches Hosting",
+     *   "nextExecutionDate": "2024-02-01",
+     *   "executionInterval": "MONTHLY",
+     *   "executionStatus": "ACTIVE",
+     *   "lastExecutionDate": "2024-01-01",
+     *   "lastCreatedInvoiceId": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+     *       "type": "custom",
+     *       "name": "Webhosting Premium",
+     *       "description": "Monatliches Webhosting-Paket",
+     *       "quantity": 1,
+     *       "unitName": "Monat",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "grossAmount": 119.00,
+     *         "taxRatePercentage": 19
+     *       },
+     *       "lineItemAmount": 119.00
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 100.00,
+     *     "totalGrossAmount": 119.00,
+     *     "totalTaxAmount": 19.00
+     *   },
+     *   "taxAmounts": [
+     *     {
+     *       "taxRatePercentage": 19,
+     *       "taxAmount": 19.00,
+     *       "netAmount": 100.00
+     *     }
+     *   ],
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "paymentConditions": {
+     *     "paymentTermLabel": "Zahlbar innerhalb von 14 Tagen",
+     *     "paymentTermDuration": 14
+     *   }
+     * }
+     *
+     * Hinweise:
+     * - lastCreatedInvoiceId enthält die ID der zuletzt aus dieser Vorlage erstellten Rechnung
+     * - executionStatus zeigt den aktuellen Status: ACTIVE, PAUSED oder ENDED
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der wiederkehrenden Vorlage
+     * @return JsonResponse Detaillierte Vorlagendaten oder Fehlermeldung
+     */
+    public function recurringTemplate(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getRecurringTemplate($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zu einer wiederkehrenden Vorlage abrufen
+     *
+     * Gibt einen Deeplink zurück, der direkt zur wiederkehrenden Vorlage in der
+     * Lexoffice Web-App führt. Der Deeplink öffnet die Detailansicht der Vorlage.
+     *
+     * GET /api/integrations/lexware/recurring-templates/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der wiederkehrenden Vorlage
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/recurring-templates/f4b5e3d2-c1a0-9876-fedc-ba0987654321/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/recurring-templates#!/view/f4b5e3d2-c1a0-9876-fedc-ba0987654321"
+     * }
+     *
+     * Hinweise:
+     * - Der Deeplink ist ein direkter Link zur Lexoffice Web-App
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um die Vorlage zu sehen
+     * - Dieser Endpunkt macht keinen API-Aufruf zur Lexware API
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der wiederkehrenden Vorlage
+     * @return JsonResponse Array mit dem Deeplink zur Vorlage
+     */
+    public function recurringTemplateDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getRecurringTemplateDeeplink($id);
+
+        return response()->json($result);
+    }
+
     /**
      * Behandelt Lexware API Exceptions und gibt passende HTTP-Responses zurück
      */
