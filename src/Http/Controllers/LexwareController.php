@@ -739,10 +739,51 @@ class LexwareController extends Controller
         return response()->json($result);
     }
 
+    // =========================================================================
+    // ANGEBOTE (QUOTATIONS)
+    // =========================================================================
+
     /**
-     * Angebote abrufen
+     * Angebote abrufen (paginiert)
+     *
+     * Ruft eine Liste von Angeboten aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
      *
      * GET /api/integrations/lexware/quotations
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/quotations?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *       "voucherType": "quotation",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "AG-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "expirationDate": "2024-02-14",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 5,
+     *   "totalElements": 120,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Angebote oder Fehlermeldung
      */
     public function quotations(Request $request): JsonResponse
     {
@@ -762,7 +803,61 @@ class LexwareController extends Controller
     /**
      * Einzelnes Angebot abrufen
      *
+     * Ruft ein einzelnes Angebot anhand seiner UUID aus der Lexware API ab.
+     * Gibt alle Details des Angebots zurück, inklusive Positionen, Adressen und Summen.
+     *
      * GET /api/integrations/lexware/quotations/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Angebots
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/quotations/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "AG-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "expirationDate": "2024-02-14",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   },
+     *   "title": "Angebot",
+     *   "introduction": "Gerne unterbreiten wir Ihnen folgendes Angebot.",
+     *   "remark": "Dieses Angebot ist 30 Tage gültig."
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Angebots
+     * @return JsonResponse Angebotsdaten oder Fehlermeldung
      */
     public function quotation(Request $request, string $id): JsonResponse
     {
@@ -774,6 +869,228 @@ class LexwareController extends Controller
         } catch (LexwareApiException $e) {
             return $this->handleLexwareException($e);
         }
+    }
+
+    /**
+     * Angebot erstellen
+     *
+     * Erstellt ein neues Angebot in der Lexware API.
+     * Das Angebot kann entweder als Entwurf (Standard) oder direkt finalisiert erstellt werden.
+     * Finalisierte Angebote erhalten sofort eine Angebotsnummer.
+     *
+     * POST /api/integrations/lexware/quotations
+     *
+     * Query-Parameter:
+     * - finalize (bool): Wenn true, wird das Angebot direkt finalisiert (Standard: false)
+     *
+     * Request-Body (JSON) - Beispiel Angebot an Kontakt:
+     * {
+     *   "voucherDate": "2024-01-15",
+     *   "expirationDate": "2024-02-14",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "description": "Projektberatung Januar 2024",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Angebot",
+     *   "introduction": "Gerne unterbreiten wir Ihnen folgendes Angebot.",
+     *   "remark": "Dieses Angebot ist 30 Tage gültig."
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "resourceUri": "https://api.lexoffice.io/v1/quotations/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - address kann entweder contactId (bestehender Kontakt) oder manuelle Adressdaten enthalten
+     * - lineItems.type kann 'custom' (freier Text) oder 'material' (Artikel) sein
+     * - taxConditions.taxType kann 'net', 'gross' oder 'vatfree' sein
+     * - Bei finalize=true wird das Angebot sofort abgeschlossen und erhält eine Nummer
+     * - expirationDate gibt das Gültigkeitsdatum des Angebots an
+     *
+     * @param Request $request HTTP-Request mit Angebotsdaten im Body
+     * @return JsonResponse Erstellte Angebots-Metadaten oder Fehlermeldung
+     */
+    public function createQuotation(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+            $finalize = filter_var($request->get('finalize', false), FILTER_VALIDATE_BOOLEAN);
+
+            $result = $this->lexwareApiService->createQuotation($user, $data, $finalize);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Angebot als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für ein finalisiertes Angebot.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * GET /api/integrations/lexware/quotations/{id}/pdf
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Angebots
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/quotations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/pdf
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Das Angebot muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann nach einiger Zeit ablaufen
+     * - Für den Download verwende GET /api/integrations/lexware/quotations/{id}/download
+     *   oder GET /api/integrations/lexware/files/{documentFileId}
+     *
+     * Mögliche Fehler:
+     * - 404: Angebot nicht gefunden
+     * - 406: Angebot ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Angebots
+     * @return JsonResponse documentFileId oder Fehlermeldung
+     */
+    public function quotationPdf(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->renderQuotationPdf($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Angebot als PDF herunterladen
+     *
+     * Rendert das Angebot als PDF und gibt das Dokument direkt zum Download zurück.
+     * Dies ist eine Kombination aus renderQuotationPdf() und downloadFile() in einem Request.
+     *
+     * GET /api/integrations/lexware/quotations/{id}/download
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Angebots
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/quotations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/download
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf
+     * Content-Disposition: attachment; filename="quotation-{id}.pdf"
+     * (Binäre PDF-Daten)
+     *
+     * Voraussetzungen:
+     * - Das Angebot muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Mögliche Fehler:
+     * - 404: Angebot nicht gefunden
+     * - 406: Angebot ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Angebots
+     * @return \Illuminate\Http\Response PDF-Download oder JsonResponse bei Fehler
+     */
+    public function downloadQuotation(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Zuerst PDF rendern und documentFileId abrufen
+            $renderResult = $this->lexwareApiService->renderQuotationPdf($user, $id);
+
+            if (!isset($renderResult['documentFileId'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'pdf_render_failed',
+                        'message' => 'PDF konnte nicht gerendert werden.',
+                        'http_status' => 500,
+                    ],
+                ], 500);
+            }
+
+            // PDF herunterladen
+            $pdfContent = $this->lexwareApiService->downloadFile($user, $renderResult['documentFileId']);
+
+            // PDF als Download zurückgeben
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"quotation-{$id}.pdf\"")
+                ->header('Content-Length', strlen($pdfContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zum Angebot in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zum Angebot in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zum Angebot in Lexoffice weiterzuleiten.
+     *
+     * GET /api/integrations/lexware/quotations/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Angebots
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/quotations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/quotation/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn das Angebot existiert und der Benutzer Zugriff hat
+     * - Dieser Endpunkt validiert NICHT, ob das Angebot existiert (für schnelle Response)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Angebots
+     * @return JsonResponse Array mit dem Deeplink
+     */
+    public function quotationDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getQuotationDeeplink($id);
+
+        return response()->json($result);
     }
 
     /**

@@ -86,10 +86,19 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.invoices.download');
                 Route::get('/invoices/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoiceDeeplink'])
                     ->name('integrations.lexware.invoices.deeplink');
+                // Angebote (Quotations) - CRUD Endpunkte
                 Route::get('/quotations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotations'])
                     ->name('integrations.lexware.quotations');
+                Route::post('/quotations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createQuotation'])
+                    ->name('integrations.lexware.quotations.create');
                 Route::get('/quotations/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotation'])
                     ->name('integrations.lexware.quotation');
+                Route::get('/quotations/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotationPdf'])
+                    ->name('integrations.lexware.quotations.pdf');
+                Route::get('/quotations/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadQuotation'])
+                    ->name('integrations.lexware.quotations.download');
+                Route::get('/quotations/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotationDeeplink'])
+                    ->name('integrations.lexware.quotations.deeplink');
                 Route::get('/order-confirmations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmations'])
                     ->name('integrations.lexware.order-confirmations');
                 Route::get('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotes'])
