@@ -1466,7 +1466,42 @@ class LexwareApiService
     /**
      * Lieferscheine abrufen (paginiert)
      *
-     * @throws LexwareApiException
+     * Ruft eine Liste von Lieferscheinen aus der Lexware API ab.
+     * Die Ergebnisse werden über den Voucherlist-Endpunkt abgerufen, gefiltert nach Typ 'deliverynote'.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     *
+     * @see https://developers.lexoffice.io/docs/#voucherlist-endpoint-retrieve-a-voucherlist
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *       "voucherType": "deliverynote",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "LS-2024-001",
+     *       "voucherDate": "2024-01-25",
+     *       "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *       "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "contactName": "Muster GmbH",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 2,
+     *   "totalElements": 30,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Lieferscheinen
+     * @throws LexwareApiException Bei API-Fehlern
      */
     public function getDeliveryNotes(User $user, int $page = 0, int $size = 25): array
     {
@@ -1475,6 +1510,215 @@ class LexwareApiService
             'page' => $page,
             'size' => min($size, 250),
         ]);
+    }
+
+    /**
+     * Einzelnen Lieferschein abrufen
+     *
+     * Ruft einen einzelnen Lieferschein anhand seiner ID aus der Lexware API ab.
+     * Gibt alle Details des Lieferscheins zurück, inklusive Positionen, Adressen und Lieferinformationen.
+     *
+     * @see https://developers.lexoffice.io/docs/#delivery-notes-endpoint-retrieve-a-delivery-note
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *   "version": 1,
+     *   "language": "de",
+     *   "archived": false,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "LS-2024-001",
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "shippingConditions": {
+     *     "shippingDate": "2024-01-26",
+     *     "shippingType": "delivery"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+     *       "type": "custom",
+     *       "name": "Produkt A",
+     *       "description": "Beschreibung des Produkts",
+     *       "quantity": 5,
+     *       "unitName": "Stück"
+     *     }
+     *   ],
+     *   "title": "Lieferschein",
+     *   "introduction": "Hiermit liefern wir Ihnen folgende Artikel.",
+     *   "remark": "Bitte prüfen Sie die Lieferung auf Vollständigkeit."
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $deliveryNoteId Die UUID des Lieferscheins
+     * @return array Lieferscheindaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
+     */
+    public function getDeliveryNote(User $user, string $deliveryNoteId): array
+    {
+        return $this->get($user, "/delivery-notes/{$deliveryNoteId}");
+    }
+
+    /**
+     * Lieferschein erstellen
+     *
+     * Erstellt einen neuen Lieferschein in der Lexware API.
+     * Lieferscheine dokumentieren die Lieferung von Waren an einen Kunden.
+     * Im Gegensatz zu Rechnungen enthalten Lieferscheine keine Preisangaben.
+     *
+     * @see https://developers.lexoffice.io/docs/#delivery-notes-endpoint-create-a-delivery-note
+     *
+     * Beispiel-Request (Lieferschein an bestehenden Kontakt):
+     * {
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "shippingConditions": {
+     *     "shippingDate": "2024-01-26",
+     *     "shippingType": "delivery"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Produkt A",
+     *       "description": "Beschreibung des Produkts",
+     *       "quantity": 5,
+     *       "unitName": "Stück"
+     *     }
+     *   ],
+     *   "title": "Lieferschein",
+     *   "introduction": "Hiermit liefern wir Ihnen folgende Artikel.",
+     *   "remark": "Bitte prüfen Sie die Lieferung auf Vollständigkeit."
+     * }
+     *
+     * Beispiel-Request (Lieferschein mit neuer Adresse ohne Kontakt):
+     * {
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "name": "Neue Firma GmbH",
+     *     "street": "Beispielstraße 123",
+     *     "zip": "54321",
+     *     "city": "Beispielstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "shippingConditions": {
+     *     "shippingDate": "2024-01-26",
+     *     "shippingType": "pickup"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Produkt B",
+     *       "quantity": 10,
+     *       "unitName": "Karton"
+     *     }
+     *   ]
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "resourceUri": "https://api.lexoffice.io/v1/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - Die address kann entweder eine contactId oder manuelle Adressdaten enthalten
+     * - lineItems enthalten nur Mengenangaben, keine Preise
+     * - shippingType kann 'delivery', 'pickup', 'express' oder ähnlich sein
+     * - shippingDate gibt das geplante Lieferdatum an
+     * - Lieferscheine haben keinen finalize-Parameter, da sie keine Preise enthalten
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Lieferscheindaten (address, lineItems erforderlich)
+     * @param bool $finalize Wenn true, wird der Lieferschein direkt finalisiert (Standard: false)
+     * @return array Erstellte Lieferschein-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createDeliveryNote(User $user, array $data, bool $finalize = false): array
+    {
+        $query = $finalize ? ['finalize' => 'true'] : [];
+        return $this->post($user, '/delivery-notes', $data, $query);
+    }
+
+    /**
+     * Lieferschein als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für einen finalisierten Lieferschein.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * WICHTIG: Diese Methode erstellt das PDF, lädt es aber nicht herunter.
+     * Für den Download verwende downloadFile() mit der documentFileId.
+     *
+     * @see https://developers.lexoffice.io/docs/#delivery-notes-endpoint-render-a-document
+     *
+     * Beispiel-Request:
+     * GET /delivery-notes/{id}/document
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Der Lieferschein muss finalisiert sein (voucherStatus != 'draft')
+     * - Bei Entwürfen wird ein Fehler zurückgegeben
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann ablaufen
+     * - Das PDF wird bei jedem Aufruf neu generiert
+     * - Für den Download muss downloadFile() separat aufgerufen werden
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $deliveryNoteId Die UUID des Lieferscheins
+     * @return array Array mit documentFileId
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden, 406 wenn Entwurf)
+     */
+    public function renderDeliveryNotePdf(User $user, string $deliveryNoteId): array
+    {
+        return $this->get($user, "/delivery-notes/{$deliveryNoteId}/document");
+    }
+
+    /**
+     * Deeplink zum Lieferschein in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zum Lieferschein in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zum Lieferschein in Lexoffice weiterzuleiten.
+     *
+     * HINWEIS: Dies ist ein konstruierter Link basierend auf der Lexoffice-URL-Struktur.
+     * Die Lexware API bietet keinen direkten Deeplink-Endpunkt, daher wird der Link
+     * anhand der bekannten URL-Struktur von Lexoffice konstruiert.
+     *
+     * @param string $deliveryNoteId Die UUID des Lieferscheins
+     * @return array Array mit dem Deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/delivery-note/d1e2f3a4-b5c6-7890-defg-123456789hij"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn der Lieferschein existiert und der Benutzer Zugriff hat
+     */
+    public function getDeliveryNoteDeeplink(string $deliveryNoteId): array
+    {
+        return [
+            'deeplink' => "https://app.lexoffice.de/vouchers#!/view/delivery-note/{$deliveryNoteId}",
+        ];
     }
 
     // =========================================================================

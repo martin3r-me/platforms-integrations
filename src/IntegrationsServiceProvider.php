@@ -115,6 +115,20 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/credit-notes/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNoteDeeplink'])
                     ->name('integrations.lexware.credit-notes.deeplink');
 
+                // Lieferscheine (Delivery Notes) - CRUD Endpunkte
+                Route::get('/delivery-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deliveryNotes'])
+                    ->name('integrations.lexware.delivery-notes');
+                Route::post('/delivery-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createDeliveryNote'])
+                    ->name('integrations.lexware.delivery-notes.create');
+                Route::get('/delivery-notes/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deliveryNote'])
+                    ->name('integrations.lexware.delivery-note');
+                Route::get('/delivery-notes/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deliveryNotePdf'])
+                    ->name('integrations.lexware.delivery-notes.pdf');
+                Route::get('/delivery-notes/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadDeliveryNote'])
+                    ->name('integrations.lexware.delivery-notes.download');
+                Route::get('/delivery-notes/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'deliveryNoteDeeplink'])
+                    ->name('integrations.lexware.delivery-notes.deeplink');
+
                 // Artikel (Articles) - CRUD Endpunkte
                 Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])
                     ->name('integrations.lexware.articles');

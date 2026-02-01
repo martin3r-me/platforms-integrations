@@ -1456,6 +1456,340 @@ class LexwareController extends Controller
         return response()->json($result);
     }
 
+    // =========================================================================
+    // LIEFERSCHEINE (DELIVERY NOTES)
+    // =========================================================================
+
+    /**
+     * Lieferscheine abrufen (paginiert)
+     *
+     * Ruft eine Liste von Lieferscheinen aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
+     *
+     * GET /api/integrations/lexware/delivery-notes
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/delivery-notes?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *       "voucherType": "deliverynote",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "LS-2024-001",
+     *       "voucherDate": "2024-01-25",
+     *       "contactName": "Muster GmbH",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 2,
+     *   "totalElements": 30,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Lieferscheine oder Fehlermeldung
+     */
+    public function deliveryNotes(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $page = (int) $request->get('page', 0);
+            $size = (int) $request->get('size', 25);
+
+            $result = $this->lexwareApiService->getDeliveryNotes($user, $page, $size);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Einzelnen Lieferschein abrufen
+     *
+     * Ruft einen einzelnen Lieferschein anhand seiner UUID aus der Lexware API ab.
+     * Gibt alle Details des Lieferscheins zurück, inklusive Positionen und Lieferinformationen.
+     *
+     * GET /api/integrations/lexware/delivery-notes/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Lieferscheins
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "LS-2024-001",
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "shippingConditions": {
+     *     "shippingDate": "2024-01-26",
+     *     "shippingType": "delivery"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Produkt A",
+     *       "quantity": 5,
+     *       "unitName": "Stück"
+     *     }
+     *   ],
+     *   "title": "Lieferschein",
+     *   "introduction": "Hiermit liefern wir Ihnen folgende Artikel.",
+     *   "remark": "Bitte prüfen Sie die Lieferung auf Vollständigkeit."
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Lieferscheins
+     * @return JsonResponse Lieferscheindaten oder Fehlermeldung
+     */
+    public function deliveryNote(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getDeliveryNote($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Lieferschein erstellen
+     *
+     * Erstellt einen neuen Lieferschein in der Lexware API.
+     * Der Lieferschein kann entweder als Entwurf (Standard) oder direkt finalisiert erstellt werden.
+     * Lieferscheine dokumentieren Warenlieferungen ohne Preisangaben.
+     *
+     * POST /api/integrations/lexware/delivery-notes
+     *
+     * Query-Parameter:
+     * - finalize (bool): Wenn true, wird der Lieferschein direkt finalisiert (Standard: false)
+     *
+     * Request-Body (JSON) - Beispiel Lieferschein an Kontakt:
+     * {
+     *   "voucherDate": "2024-01-25",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "shippingConditions": {
+     *     "shippingDate": "2024-01-26",
+     *     "shippingType": "delivery"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Produkt A",
+     *       "description": "Beschreibung des Produkts",
+     *       "quantity": 5,
+     *       "unitName": "Stück"
+     *     }
+     *   ],
+     *   "title": "Lieferschein",
+     *   "introduction": "Hiermit liefern wir Ihnen folgende Artikel.",
+     *   "remark": "Bitte prüfen Sie die Lieferung auf Vollständigkeit."
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "resourceUri": "https://api.lexoffice.io/v1/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij",
+     *   "createdDate": "2024-01-25T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-25T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - address kann entweder contactId (bestehender Kontakt) oder manuelle Adressdaten enthalten
+     * - lineItems enthalten Mengen, aber keine Preise (Lieferschein-typisch)
+     * - shippingConditions.shippingType kann 'delivery', 'pickup', etc. sein
+     * - Bei finalize=true wird der Lieferschein sofort abgeschlossen und erhält eine Nummer
+     *
+     * @param Request $request HTTP-Request mit Lieferscheindaten im Body
+     * @return JsonResponse Erstellte Lieferschein-Metadaten oder Fehlermeldung
+     */
+    public function createDeliveryNote(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+            $finalize = filter_var($request->get('finalize', false), FILTER_VALIDATE_BOOLEAN);
+
+            $result = $this->lexwareApiService->createDeliveryNote($user, $data, $finalize);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Lieferschein als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für einen finalisierten Lieferschein.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * GET /api/integrations/lexware/delivery-notes/{id}/pdf
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Lieferscheins
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij/pdf
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Der Lieferschein muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann nach einiger Zeit ablaufen
+     * - Für den Download verwende GET /api/integrations/lexware/delivery-notes/{id}/download
+     *   oder GET /api/integrations/lexware/files/{documentFileId}
+     *
+     * Mögliche Fehler:
+     * - 404: Lieferschein nicht gefunden
+     * - 406: Lieferschein ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Lieferscheins
+     * @return JsonResponse documentFileId oder Fehlermeldung
+     */
+    public function deliveryNotePdf(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->renderDeliveryNotePdf($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Lieferschein als PDF herunterladen
+     *
+     * Rendert den Lieferschein als PDF und gibt das Dokument direkt zum Download zurück.
+     * Dies ist eine Kombination aus renderDeliveryNotePdf() und downloadFile() in einem Request.
+     *
+     * GET /api/integrations/lexware/delivery-notes/{id}/download
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Lieferscheins
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij/download
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf
+     * Content-Disposition: attachment; filename="delivery-note-{id}.pdf"
+     * (Binäre PDF-Daten)
+     *
+     * Voraussetzungen:
+     * - Der Lieferschein muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Mögliche Fehler:
+     * - 404: Lieferschein nicht gefunden
+     * - 406: Lieferschein ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Lieferscheins
+     * @return \Illuminate\Http\Response PDF-Download oder JsonResponse bei Fehler
+     */
+    public function downloadDeliveryNote(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Zuerst PDF rendern und documentFileId abrufen
+            $renderResult = $this->lexwareApiService->renderDeliveryNotePdf($user, $id);
+
+            if (!isset($renderResult['documentFileId'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'pdf_render_failed',
+                        'message' => 'PDF konnte nicht gerendert werden.',
+                        'http_status' => 500,
+                    ],
+                ], 500);
+            }
+
+            // PDF herunterladen
+            $pdfContent = $this->lexwareApiService->downloadFile($user, $renderResult['documentFileId']);
+
+            // PDF als Download zurückgeben
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"delivery-note-{$id}.pdf\"")
+                ->header('Content-Length', strlen($pdfContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zum Lieferschein in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zum Lieferschein in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zum Lieferschein in Lexoffice weiterzuleiten.
+     *
+     * GET /api/integrations/lexware/delivery-notes/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID des Lieferscheins
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/delivery-notes/d1e2f3a4-b5c6-7890-defg-123456789hij/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/delivery-note/d1e2f3a4-b5c6-7890-defg-123456789hij"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn der Lieferschein existiert und der Benutzer Zugriff hat
+     * - Dieser Endpunkt validiert NICHT, ob der Lieferschein existiert (für schnelle Response)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID des Lieferscheins
+     * @return JsonResponse Array mit dem Deeplink
+     */
+    public function deliveryNoteDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getDeliveryNoteDeeplink($id);
+
+        return response()->json($result);
+    }
+
     /**
      * Profil abrufen
      *
