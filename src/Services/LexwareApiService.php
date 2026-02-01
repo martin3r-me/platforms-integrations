@@ -1462,7 +1462,44 @@ class LexwareApiService
     /**
      * Auftragsbestätigungen abrufen (paginiert)
      *
-     * @throws LexwareApiException
+     * Ruft eine Liste von Auftragsbestätigungen aus der Lexware API ab.
+     * Die Ergebnisse werden über den Voucherlist-Endpunkt abgerufen, gefiltert nach Typ 'orderconfirmation'.
+     * Die Ergebnisse sind paginiert mit einer maximalen Seitengröße von 250.
+     *
+     * @see https://developers.lexoffice.io/docs/#voucherlist-endpoint-retrieve-a-voucherlist
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *       "voucherType": "orderconfirmation",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "AB-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *       "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *       "contactId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 2,
+     *   "totalElements": 30,
+     *   "numberOfElements": 25,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param int $page Seitennummer (0-basiert)
+     * @param int $size Anzahl Elemente pro Seite (max. 250)
+     * @return array Paginierte Liste von Auftragsbestätigungen
+     * @throws LexwareApiException Bei API-Fehlern
      */
     public function getOrderConfirmations(User $user, int $page = 0, int $size = 25): array
     {
@@ -1476,11 +1513,244 @@ class LexwareApiService
     /**
      * Einzelne Auftragsbestätigung abrufen
      *
-     * @throws LexwareApiException
+     * Ruft eine einzelne Auftragsbestätigung anhand ihrer ID aus der Lexware API ab.
+     * Gibt alle Details der Auftragsbestätigung zurück, inklusive Positionen, Adressen und Summen.
+     *
+     * @see https://developers.lexoffice.io/docs/#order-confirmations-endpoint-retrieve-an-order-confirmation
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 1,
+     *   "language": "de",
+     *   "archived": false,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "AB-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "description": "IT-Beratung Januar 2024",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "grossAmount": 119.00,
+     *         "taxRatePercentage": 19
+     *       },
+     *       "lineItemAmount": 1190.00
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   },
+     *   "taxAmounts": [
+     *     {
+     *       "taxRatePercentage": 19,
+     *       "taxAmount": 190.00,
+     *       "netAmount": 1000.00
+     *     }
+     *   ],
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Auftragsbestätigung",
+     *   "introduction": "Vielen Dank für Ihren Auftrag.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung.",
+     *   "deliveryTerms": "Lieferung innerhalb von 2 Wochen"
+     * }
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $orderId Die UUID der Auftragsbestätigung
+     * @return array Auftragsbestätigungsdaten
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 wenn nicht gefunden)
      */
     public function getOrderConfirmation(User $user, string $orderId): array
     {
         return $this->get($user, "/order-confirmations/{$orderId}");
+    }
+
+    /**
+     * Auftragsbestätigung erstellen
+     *
+     * Erstellt eine neue Auftragsbestätigung in der Lexware API.
+     * Die Auftragsbestätigung kann entweder als Entwurf oder direkt als finalisierte Bestätigung erstellt werden.
+     * Finalisierte Auftragsbestätigungen erhalten eine Auftragsnummer und können nicht mehr bearbeitet werden.
+     *
+     * @see https://developers.lexoffice.io/docs/#order-confirmations-endpoint-create-an-order-confirmation
+     *
+     * Beispiel-Request (Auftragsbestätigung an bestehenden Kontakt):
+     * {
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "description": "IT-Beratung Januar 2024",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Auftragsbestätigung",
+     *   "introduction": "Vielen Dank für Ihren Auftrag.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung.",
+     *   "deliveryTerms": "Lieferung innerhalb von 2 Wochen"
+     * }
+     *
+     * Beispiel-Request (Auftragsbestätigung mit neuer Adresse ohne Kontakt):
+     * {
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "name": "Neue Firma GmbH",
+     *     "street": "Beispielstraße 123",
+     *     "zip": "54321",
+     *     "city": "Beispielstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Softwarelizenz",
+     *       "quantity": 5,
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 200.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   }
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "resourceUri": "https://api.lexoffice.io/v1/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - Entwürfe (finalize=false) können nachträglich bearbeitet werden
+     * - Finalisierte Auftragsbestätigungen (finalize=true) erhalten eine Auftragsnummer
+     * - Die address kann entweder eine contactId oder manuelle Adressdaten enthalten
+     * - lineItems können vom Typ 'custom' (freier Text) oder 'material' (Artikel) sein
+     * - taxType kann 'net', 'gross' oder 'vatfree' sein
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param array $data Auftragsbestätigungsdaten (address, lineItems, taxConditions erforderlich)
+     * @param bool $finalize Wenn true, wird die Auftragsbestätigung direkt finalisiert (Standard: false)
+     * @return array Erstellte Auftragsbestätigung-Metadaten mit ID
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 bei ungültigen Daten)
+     */
+    public function createOrderConfirmation(User $user, array $data, bool $finalize = false): array
+    {
+        $query = $finalize ? ['finalize' => 'true'] : [];
+        return $this->post($user, '/order-confirmations', $data, $query);
+    }
+
+    /**
+     * Auftragsbestätigung als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Auftragsbestätigung.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * WICHTIG: Diese Methode erstellt das PDF, lädt es aber nicht herunter.
+     * Für den Download verwende downloadFile() mit der documentFileId.
+     *
+     * @see https://developers.lexoffice.io/docs/#order-confirmations-endpoint-render-a-document
+     *
+     * Beispiel-Request:
+     * GET /order-confirmations/{id}/document
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Auftragsbestätigung muss finalisiert sein (voucherStatus != 'draft')
+     * - Bei Entwürfen wird ein Fehler zurückgegeben
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann ablaufen
+     * - Das PDF wird bei jedem Aufruf neu generiert
+     * - Für den Download muss downloadFile() separat aufgerufen werden
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @param string $orderId Die UUID der Auftragsbestätigung
+     * @return array Array mit documentFileId
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 404 nicht gefunden, 406 wenn Entwurf)
+     */
+    public function renderOrderConfirmationPdf(User $user, string $orderId): array
+    {
+        return $this->get($user, "/order-confirmations/{$orderId}/document");
+    }
+
+    /**
+     * Deeplink zur Auftragsbestätigung in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Auftragsbestätigung in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Auftragsbestätigung in Lexoffice weiterzuleiten.
+     *
+     * HINWEIS: Dies ist ein konstruierter Link basierend auf der Lexoffice-URL-Struktur.
+     * Die Lexware API bietet keinen direkten Deeplink-Endpunkt, daher wird der Link
+     * anhand der bekannten URL-Struktur von Lexoffice konstruiert.
+     *
+     * @param string $orderId Die UUID der Auftragsbestätigung
+     * @return array Array mit dem Deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/orderconfirmation/a1b2c3d4-e5f6-7890-abcd-123456789xyz"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Auftragsbestätigung existiert und der Benutzer Zugriff hat
+     */
+    public function getOrderConfirmationDeeplink(string $orderId): array
+    {
+        return [
+            'deeplink' => "https://app.lexoffice.de/vouchers#!/view/orderconfirmation/{$orderId}",
+        ];
     }
 
     // =========================================================================

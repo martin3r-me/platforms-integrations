@@ -99,8 +99,20 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.quotations.download');
                 Route::get('/quotations/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'quotationDeeplink'])
                     ->name('integrations.lexware.quotations.deeplink');
+                // Auftragsbestätigungen (Order Confirmations) - CRUD Endpunkte
                 Route::get('/order-confirmations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmations'])
                     ->name('integrations.lexware.order-confirmations');
+                Route::post('/order-confirmations', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'createOrderConfirmation'])
+                    ->name('integrations.lexware.order-confirmations.create');
+                Route::get('/order-confirmations/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmation'])
+                    ->name('integrations.lexware.order-confirmation');
+                Route::get('/order-confirmations/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmationPdf'])
+                    ->name('integrations.lexware.order-confirmations.pdf');
+                Route::get('/order-confirmations/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadOrderConfirmation'])
+                    ->name('integrations.lexware.order-confirmations.download');
+                Route::get('/order-confirmations/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'orderConfirmationDeeplink'])
+                    ->name('integrations.lexware.order-confirmations.deeplink');
+
                 // Gutschriften (Credit Notes) - CRUD Endpunkte
                 Route::get('/credit-notes', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'creditNotes'])
                     ->name('integrations.lexware.credit-notes');

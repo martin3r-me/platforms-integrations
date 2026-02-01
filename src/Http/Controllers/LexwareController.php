@@ -1094,9 +1094,45 @@ class LexwareController extends Controller
     }
 
     /**
-     * Bestellungen abrufen
+     * Auftragsbestätigungen abrufen (paginiert)
+     *
+     * Ruft eine Liste von Auftragsbestätigungen aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
      *
      * GET /api/integrations/lexware/order-confirmations
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/order-confirmations?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *       "voucherType": "orderconfirmation",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "AB-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 2,
+     *   "totalElements": 30,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Auftragsbestätigungen oder Fehlermeldung
      */
     public function orderConfirmations(Request $request): JsonResponse
     {
@@ -1111,6 +1147,293 @@ class LexwareController extends Controller
         } catch (LexwareApiException $e) {
             return $this->handleLexwareException($e);
         }
+    }
+
+    /**
+     * Einzelne Auftragsbestätigung abrufen
+     *
+     * Ruft eine einzelne Auftragsbestätigung anhand ihrer UUID aus der Lexware API ab.
+     * Gibt alle Details der Auftragsbestätigung zurück, inklusive Positionen, Adressen und Summen.
+     *
+     * GET /api/integrations/lexware/order-confirmations/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Auftragsbestätigung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "AB-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   }
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Auftragsbestätigung
+     * @return JsonResponse Auftragsbestätigungsdaten oder Fehlermeldung
+     */
+    public function orderConfirmation(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getOrderConfirmation($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Auftragsbestätigung erstellen
+     *
+     * Erstellt eine neue Auftragsbestätigung in der Lexware API.
+     * Die Auftragsbestätigung kann entweder als Entwurf (Standard) oder direkt finalisiert erstellt werden.
+     * Finalisierte Auftragsbestätigungen erhalten sofort eine Auftragsnummer.
+     *
+     * POST /api/integrations/lexware/order-confirmations
+     *
+     * Query-Parameter:
+     * - finalize (bool): Wenn true, wird die Auftragsbestätigung direkt finalisiert (Standard: false)
+     *
+     * Request-Body (JSON) - Beispiel Auftragsbestätigung an Kontakt:
+     * {
+     *   "voucherDate": "2024-01-15",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Beratungsleistung",
+     *       "description": "IT-Beratung Januar 2024",
+     *       "quantity": 10,
+     *       "unitName": "Stunden",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 100.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR"
+     *   },
+     *   "taxConditions": {
+     *     "taxType": "net"
+     *   },
+     *   "title": "Auftragsbestätigung",
+     *   "introduction": "Vielen Dank für Ihren Auftrag.",
+     *   "remark": "Bei Fragen stehen wir Ihnen gerne zur Verfügung."
+     * }
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "resourceUri": "https://api.lexoffice.io/v1/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz",
+     *   "createdDate": "2024-01-15T10:30:00.000+01:00",
+     *   "updatedDate": "2024-01-15T10:30:00.000+01:00",
+     *   "version": 0
+     * }
+     *
+     * Hinweise:
+     * - address kann entweder contactId (bestehender Kontakt) oder manuelle Adressdaten enthalten
+     * - lineItems.type kann 'custom' (freier Text) oder 'material' (Artikel) sein
+     * - taxConditions.taxType kann 'net', 'gross' oder 'vatfree' sein
+     * - Bei finalize=true wird die Auftragsbestätigung sofort abgeschlossen und erhält eine Nummer
+     *
+     * @param Request $request HTTP-Request mit Auftragsbestätigungsdaten im Body
+     * @return JsonResponse Erstellte Auftragsbestätigung-Metadaten oder Fehlermeldung
+     */
+    public function createOrderConfirmation(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $data = $request->all();
+            $finalize = filter_var($request->get('finalize', false), FILTER_VALIDATE_BOOLEAN);
+
+            $result = $this->lexwareApiService->createOrderConfirmation($user, $data, $finalize);
+
+            return response()->json($result, 201);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Auftragsbestätigung als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Auftragsbestätigung.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * GET /api/integrations/lexware/order-confirmations/{id}/pdf
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Auftragsbestätigung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz/pdf
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Auftragsbestätigung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann nach einiger Zeit ablaufen
+     * - Für den Download verwende GET /api/integrations/lexware/order-confirmations/{id}/download
+     *   oder GET /api/integrations/lexware/files/{documentFileId}
+     *
+     * Mögliche Fehler:
+     * - 404: Auftragsbestätigung nicht gefunden
+     * - 406: Auftragsbestätigung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Auftragsbestätigung
+     * @return JsonResponse documentFileId oder Fehlermeldung
+     */
+    public function orderConfirmationPdf(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->renderOrderConfirmationPdf($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Auftragsbestätigung als PDF herunterladen
+     *
+     * Rendert die Auftragsbestätigung als PDF und gibt das Dokument direkt zum Download zurück.
+     * Dies ist eine Kombination aus renderOrderConfirmationPdf() und downloadFile() in einem Request.
+     *
+     * GET /api/integrations/lexware/order-confirmations/{id}/download
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Auftragsbestätigung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz/download
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf
+     * Content-Disposition: attachment; filename="order-confirmation-{id}.pdf"
+     * (Binäre PDF-Daten)
+     *
+     * Voraussetzungen:
+     * - Die Auftragsbestätigung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Mögliche Fehler:
+     * - 404: Auftragsbestätigung nicht gefunden
+     * - 406: Auftragsbestätigung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Auftragsbestätigung
+     * @return \Illuminate\Http\Response PDF-Download oder JsonResponse bei Fehler
+     */
+    public function downloadOrderConfirmation(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Zuerst PDF rendern und documentFileId abrufen
+            $renderResult = $this->lexwareApiService->renderOrderConfirmationPdf($user, $id);
+
+            if (!isset($renderResult['documentFileId'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'pdf_render_failed',
+                        'message' => 'PDF konnte nicht gerendert werden.',
+                        'http_status' => 500,
+                    ],
+                ], 500);
+            }
+
+            // PDF herunterladen
+            $pdfContent = $this->lexwareApiService->downloadFile($user, $renderResult['documentFileId']);
+
+            // PDF als Download zurückgeben
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"order-confirmation-{$id}.pdf\"")
+                ->header('Content-Length', strlen($pdfContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zur Auftragsbestätigung in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Auftragsbestätigung in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Auftragsbestätigung in Lexoffice weiterzuleiten.
+     *
+     * GET /api/integrations/lexware/order-confirmations/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Auftragsbestätigung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/order-confirmations/a1b2c3d4-e5f6-7890-abcd-123456789xyz/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/orderconfirmation/a1b2c3d4-e5f6-7890-abcd-123456789xyz"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Auftragsbestätigung existiert und der Benutzer Zugriff hat
+     * - Dieser Endpunkt validiert NICHT, ob die Auftragsbestätigung existiert (für schnelle Response)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Auftragsbestätigung
+     * @return JsonResponse Array mit dem Deeplink
+     */
+    public function orderConfirmationDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getOrderConfirmationDeeplink($id);
+
+        return response()->json($result);
     }
 
     /**
