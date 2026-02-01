@@ -951,9 +951,54 @@ class LexwareApiService
     // =========================================================================
 
     /**
-     * Profil des aktuellen Benutzers abrufen
+     * Profil abrufen
      *
-     * @throws LexwareApiException
+     * Ruft das Profil des verbundenen Lexoffice-Kontos aus der Lexware API ab.
+     * Der Profile-Endpunkt gibt Informationen über die Organisation zurück,
+     * die mit dem verwendeten API-Token verknüpft ist.
+     *
+     * @see https://developers.lexoffice.io/docs/#profile-endpoint
+     *
+     * Beispiel-Request:
+     * GET /profile
+     *
+     * Beispiel-Response:
+     * {
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "companyName": "Muster GmbH",
+     *   "created": {
+     *     "date": "2020-06-15",
+     *     "userId": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *     "userName": "Max Mustermann"
+     *   },
+     *   "connectionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "taxType": "net",
+     *   "smallBusiness": false,
+     *   "subscriptionStatus": "active"
+     * }
+     *
+     * Response-Felder:
+     * - organizationId (string): Die eindeutige UUID der Organisation in Lexoffice
+     * - companyName (string): Der Name des Unternehmens/der Organisation
+     * - created (object): Informationen zur Erstellung des Kontos
+     *   - date (string): Datum der Kontoerstellung im Format YYYY-MM-DD
+     *   - userId (string): UUID des Benutzers, der das Konto erstellt hat
+     *   - userName (string): Name des Benutzers
+     * - connectionId (string): UUID der API-Verbindung
+     * - taxType (string): Standard-Steuertyp ("net" oder "gross")
+     * - smallBusiness (bool): true wenn Kleinunternehmerregelung nach §19 UStG gilt
+     * - subscriptionStatus (string): Status des Lexoffice-Abonnements
+     *
+     * Hinweise:
+     * - Dieser Endpunkt erfordert keine speziellen Berechtigungen
+     * - Kann verwendet werden, um die Gültigkeit des API-Tokens zu prüfen
+     * - Gibt Informationen über das verbundene Konto zurück, nicht über den API-Benutzer
+     * - Die subscriptionStatus kann sein: "active", "trial", "cancelled", etc.
+     * - smallBusiness=true bedeutet, dass keine Umsatzsteuer ausgewiesen wird
+     *
+     * @param User $user Der authentifizierte Benutzer
+     * @return array Profildaten der verbundenen Organisation
+     * @throws LexwareApiException Bei API-Fehlern (z.B. 401 bei ungültigem Token)
      */
     public function getProfile(User $user): array
     {

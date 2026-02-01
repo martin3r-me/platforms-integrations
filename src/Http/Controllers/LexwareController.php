@@ -819,7 +819,56 @@ class LexwareController extends Controller
     /**
      * Profil abrufen
      *
+     * Ruft das Profil des verbundenen Lexoffice-Kontos aus der Lexware API ab.
+     * Gibt Informationen über die Organisation zurück, die mit dem API-Token verknüpft ist.
+     * Dieser Endpunkt ist nützlich, um die Verbindung zu validieren und Kontoinformationen abzurufen.
+     *
      * GET /api/integrations/lexware/profile
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/profile
+     *
+     * Beispiel-Response:
+     * {
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "companyName": "Muster GmbH",
+     *   "created": {
+     *     "date": "2020-06-15",
+     *     "userId": "e9066f04-8cc7-4616-93f8-ac9c10e55bc9",
+     *     "userName": "Max Mustermann"
+     *   },
+     *   "connectionId": "a2691815-4f13-48e8-a7e9-3990be5b5f1d",
+     *   "taxType": "net",
+     *   "smallBusiness": false,
+     *   "subscriptionStatus": "active"
+     * }
+     *
+     * Response-Felder:
+     * - organizationId (string): Die eindeutige UUID der Organisation in Lexoffice
+     * - companyName (string): Der Name des Unternehmens/der Organisation
+     * - created (object): Informationen zur Erstellung des Kontos
+     *   - date (string): Datum der Kontoerstellung im Format YYYY-MM-DD
+     *   - userId (string): UUID des Benutzers, der das Konto erstellt hat
+     *   - userName (string): Name des Benutzers
+     * - connectionId (string): UUID der API-Verbindung
+     * - taxType (string): Standard-Steuertyp ("net" = Netto, "gross" = Brutto)
+     * - smallBusiness (bool): true wenn Kleinunternehmerregelung nach §19 UStG gilt
+     * - subscriptionStatus (string): Status des Lexoffice-Abonnements ("active", "trial", etc.)
+     *
+     * Hinweise:
+     * - Dieser Endpunkt erfordert keine speziellen Berechtigungen
+     * - Kann verwendet werden, um die Gültigkeit des API-Tokens zu prüfen
+     * - Bei smallBusiness=true wird keine Umsatzsteuer auf Rechnungen ausgewiesen
+     * - Die subscriptionStatus gibt Auskunft über den Abrechnungsstatus des Lexoffice-Kontos
+     *
+     * Mögliche Fehler:
+     * - 401: Unauthorized - API-Token ungültig oder abgelaufen
+     * - 500: Internal Server Error - Keine Verbindung zu Lexoffice konfiguriert
+     *
+     * @see https://developers.lexoffice.io/docs/#profile-endpoint
+     *
+     * @param Request $request HTTP-Request
+     * @return JsonResponse Profildaten der verbundenen Organisation oder Fehlermeldung
      */
     public function profile(Request $request): JsonResponse
     {
