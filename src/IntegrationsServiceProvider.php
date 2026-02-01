@@ -143,6 +143,18 @@ class IntegrationsServiceProvider extends ServiceProvider
                 Route::get('/dunnings/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'dunningDeeplink'])
                     ->name('integrations.lexware.dunnings.deeplink');
 
+                // Anzahlungsrechnungen (Down Payment Invoices) - Endpunkte
+                Route::get('/down-payment-invoices', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downPaymentInvoices'])
+                    ->name('integrations.lexware.down-payment-invoices');
+                Route::get('/down-payment-invoices/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downPaymentInvoice'])
+                    ->name('integrations.lexware.down-payment-invoice');
+                Route::get('/down-payment-invoices/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downPaymentInvoicePdf'])
+                    ->name('integrations.lexware.down-payment-invoices.pdf');
+                Route::get('/down-payment-invoices/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadDownPaymentInvoice'])
+                    ->name('integrations.lexware.down-payment-invoices.download');
+                Route::get('/down-payment-invoices/{id}/deeplink', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downPaymentInvoiceDeeplink'])
+                    ->name('integrations.lexware.down-payment-invoices.deeplink');
+
                 // Artikel (Articles) - CRUD Endpunkte
                 Route::get('/articles', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'articles'])
                     ->name('integrations.lexware.articles');

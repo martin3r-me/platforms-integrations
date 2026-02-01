@@ -2146,6 +2146,284 @@ class LexwareController extends Controller
         return response()->json($result);
     }
 
+    // =========================================================================
+    // ANZAHLUNGSRECHNUNGEN (DOWN PAYMENT INVOICES)
+    // =========================================================================
+
+    /**
+     * Alle Anzahlungsrechnungen abrufen (Listenansicht)
+     *
+     * Ruft eine Liste von Anzahlungsrechnungen aus der Lexware API ab.
+     * Unterstützt Paginierung über die Query-Parameter 'page' und 'size'.
+     * Anzahlungsrechnungen werden verwendet, um Teilzahlungen vor der Leistungserbringung abzurechnen.
+     *
+     * GET /api/integrations/lexware/down-payment-invoices
+     *
+     * Query-Parameter:
+     * - page (int): Seitennummer, 0-basiert (Standard: 0)
+     * - size (int): Anzahl Elemente pro Seite, max. 250 (Standard: 25)
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/down-payment-invoices?page=0&size=25
+     *
+     * Beispiel-Response:
+     * {
+     *   "content": [
+     *     {
+     *       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *       "voucherType": "downpaymentinvoice",
+     *       "voucherStatus": "open",
+     *       "voucherNumber": "AR-2024-001",
+     *       "voucherDate": "2024-01-15",
+     *       "contactName": "Muster GmbH",
+     *       "totalAmount": 1190.00,
+     *       "currency": "EUR",
+     *       "archived": false
+     *     }
+     *   ],
+     *   "first": true,
+     *   "last": false,
+     *   "totalPages": 3,
+     *   "totalElements": 75,
+     *   "size": 25,
+     *   "number": 0
+     * }
+     *
+     * @param Request $request HTTP-Request mit optionalen Paginierungsparametern
+     * @return JsonResponse Liste der Anzahlungsrechnungen oder Fehlermeldung
+     */
+    public function downPaymentInvoices(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $page = (int) $request->get('page', 0);
+            $size = (int) $request->get('size', 25);
+
+            $result = $this->lexwareApiService->getDownPaymentInvoices($user, $page, $size);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Einzelne Anzahlungsrechnung abrufen
+     *
+     * Ruft eine einzelne Anzahlungsrechnung anhand ihrer UUID aus der Lexware API ab.
+     * Gibt alle Details der Anzahlungsrechnung zurück, inklusive Positionen, Adressen und Zahlungsinformationen.
+     *
+     * GET /api/integrations/lexware/down-payment-invoices/{id}
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Anzahlungsrechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/down-payment-invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     *
+     * Beispiel-Response:
+     * {
+     *   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     *   "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+     *   "version": 1,
+     *   "voucherStatus": "open",
+     *   "voucherNumber": "AR-2024-001",
+     *   "voucherDate": "2024-01-15",
+     *   "dueDate": "2024-01-29",
+     *   "address": {
+     *     "contactId": "66196c43-baf0-4c4a-8c7f-612ce856ad5a",
+     *     "name": "Muster GmbH",
+     *     "street": "Musterstraße 1",
+     *     "zip": "12345",
+     *     "city": "Musterstadt",
+     *     "countryCode": "DE"
+     *   },
+     *   "lineItems": [
+     *     {
+     *       "type": "custom",
+     *       "name": "Anzahlung für Projekt X",
+     *       "description": "Erste Anzahlung (30%)",
+     *       "quantity": 1,
+     *       "unitName": "Stück",
+     *       "unitPrice": {
+     *         "currency": "EUR",
+     *         "netAmount": 1000.00,
+     *         "grossAmount": 1190.00,
+     *         "taxRatePercentage": 19
+     *       }
+     *     }
+     *   ],
+     *   "totalPrice": {
+     *     "currency": "EUR",
+     *     "totalNetAmount": 1000.00,
+     *     "totalGrossAmount": 1190.00,
+     *     "totalTaxAmount": 190.00
+     *   },
+     *   "title": "Anzahlungsrechnung",
+     *   "introduction": "Wie vereinbart stellen wir Ihnen folgende Anzahlung in Rechnung.",
+     *   "remark": "Vielen Dank für Ihren Auftrag!"
+     * }
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Anzahlungsrechnung
+     * @return JsonResponse Anzahlungsrechnungsdaten oder Fehlermeldung
+     */
+    public function downPaymentInvoice(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->getDownPaymentInvoice($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Anzahlungsrechnung als PDF rendern (Document-ID abrufen)
+     *
+     * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Anzahlungsrechnung.
+     * Gibt die documentFileId zurück, die für den Download verwendet werden kann.
+     *
+     * GET /api/integrations/lexware/down-payment-invoices/{id}/pdf
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Anzahlungsrechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/down-payment-invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890/pdf
+     *
+     * Beispiel-Response:
+     * {
+     *   "documentFileId": "7f9b5e4a-3c8d-4e2a-9f6b-1d8c7a5e3b2f"
+     * }
+     *
+     * Voraussetzungen:
+     * - Die Anzahlungsrechnung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Hinweise:
+     * - Die documentFileId ist temporär und kann nach einiger Zeit ablaufen
+     * - Für den Download verwende GET /api/integrations/lexware/down-payment-invoices/{id}/download
+     *   oder GET /api/integrations/lexware/files/{documentFileId}
+     *
+     * Mögliche Fehler:
+     * - 404: Anzahlungsrechnung nicht gefunden
+     * - 406: Anzahlungsrechnung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Anzahlungsrechnung
+     * @return JsonResponse documentFileId oder Fehlermeldung
+     */
+    public function downPaymentInvoicePdf(Request $request, string $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->lexwareApiService->renderDownPaymentInvoicePdf($user, $id);
+
+            return response()->json($result);
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Anzahlungsrechnung als PDF herunterladen
+     *
+     * Rendert die Anzahlungsrechnung als PDF und gibt das Dokument direkt zum Download zurück.
+     * Dies ist eine Kombination aus renderDownPaymentInvoicePdf() und downloadFile() in einem Request.
+     *
+     * GET /api/integrations/lexware/down-payment-invoices/{id}/download
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Anzahlungsrechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/down-payment-invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890/download
+     *
+     * Beispiel-Response:
+     * Content-Type: application/pdf
+     * Content-Disposition: attachment; filename="down-payment-invoice-{id}.pdf"
+     * (Binäre PDF-Daten)
+     *
+     * Voraussetzungen:
+     * - Die Anzahlungsrechnung muss finalisiert sein (voucherStatus != 'draft')
+     *
+     * Mögliche Fehler:
+     * - 404: Anzahlungsrechnung nicht gefunden
+     * - 406: Anzahlungsrechnung ist noch ein Entwurf (nicht finalisiert)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Anzahlungsrechnung
+     * @return \Illuminate\Http\Response PDF-Download oder JsonResponse bei Fehler
+     */
+    public function downloadDownPaymentInvoice(Request $request, string $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Zuerst PDF rendern und documentFileId abrufen
+            $renderResult = $this->lexwareApiService->renderDownPaymentInvoicePdf($user, $id);
+
+            if (!isset($renderResult['documentFileId'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'pdf_render_failed',
+                        'message' => 'PDF konnte nicht gerendert werden.',
+                        'http_status' => 500,
+                    ],
+                ], 500);
+            }
+
+            // PDF herunterladen
+            $pdfContent = $this->lexwareApiService->downloadFile($user, $renderResult['documentFileId']);
+
+            // PDF als Download zurückgeben
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', "attachment; filename=\"down-payment-invoice-{$id}.pdf\"")
+                ->header('Content-Length', strlen($pdfContent));
+        } catch (LexwareApiException $e) {
+            return $this->handleLexwareException($e);
+        }
+    }
+
+    /**
+     * Deeplink zur Anzahlungsrechnung in Lexoffice abrufen
+     *
+     * Gibt einen Deep-Link zurück, der direkt zur Anzahlungsrechnung in der Lexoffice Web-Oberfläche führt.
+     * Dieser Link kann verwendet werden, um Benutzer direkt zur Anzahlungsrechnung in Lexoffice weiterzuleiten.
+     *
+     * GET /api/integrations/lexware/down-payment-invoices/{id}/deeplink
+     *
+     * URL-Parameter:
+     * - id (string): Die UUID der Anzahlungsrechnung
+     *
+     * Beispiel-Request:
+     * GET /api/integrations/lexware/down-payment-invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890/deeplink
+     *
+     * Beispiel-Response:
+     * {
+     *   "deeplink": "https://app.lexoffice.de/vouchers#!/view/downpaymentinvoice/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+     * }
+     *
+     * Hinweise:
+     * - Der Benutzer muss in Lexoffice eingeloggt sein, um den Link nutzen zu können
+     * - Der Link funktioniert nur, wenn die Anzahlungsrechnung existiert und der Benutzer Zugriff hat
+     * - Dieser Endpunkt validiert NICHT, ob die Anzahlungsrechnung existiert (für schnelle Response)
+     *
+     * @param Request $request HTTP-Request
+     * @param string $id Die UUID der Anzahlungsrechnung
+     * @return JsonResponse Array mit dem Deeplink
+     */
+    public function downPaymentInvoiceDeeplink(Request $request, string $id): JsonResponse
+    {
+        $result = $this->lexwareApiService->getDownPaymentInvoiceDeeplink($id);
+
+        return response()->json($result);
+    }
+
     /**
      * Profil abrufen
      *
