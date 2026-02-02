@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Tabelle löschen falls sie bereits existiert (wegen fehlgeschlagener Migration)
+        Schema::dropIfExists('integrations_sipgate_webhook_events');
+        Schema::dropIfExists('integrations_sipgate_webhooks');
+        
         // Webhook-Registrierungen
         Schema::create('integrations_sipgate_webhooks', function (Blueprint $table) {
             $table->id();
@@ -71,10 +75,11 @@ return new class extends Migration
                 ->nullOnDelete();
 
             // Verbindung zur Integration (redundant, für schnelle Abfragen)
-            $table->foreignId('integration_connection_id')
-                ->nullable()
-                ->constrained('integration_connections')
-                ->nullOnDelete();
+            $table->unsignedBigInteger('integration_connection_id')->nullable();
+            $table->foreign('integration_connection_id', 'sipgate_whe_conn_fk')
+                ->references('id')
+                ->on('integration_connections')
+                ->onDelete('set null');
 
             // Event-Identifikation (für Idempotency)
             $table->string('event_id', 128)->unique(); // Von Sipgate oder selbst generiert
