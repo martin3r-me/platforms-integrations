@@ -112,7 +112,8 @@ class SyncSipgateAccounts extends Command
         // 1. User-Info abrufen
         try {
             $userInfo = $this->apiService->getUserInfo($user);
-            $this->line("  User-Info abgerufen: {$userInfo['sub'] ?? 'N/A'}");
+            $sub = $userInfo['sub'] ?? 'N/A';
+            $this->line("  User-Info abgerufen: {$sub}");
         } catch (SipgateApiException $e) {
             throw $e;
         }
@@ -120,7 +121,8 @@ class SyncSipgateAccounts extends Command
         // 2. Account-Info abrufen
         try {
             $accountInfo = $this->apiService->getAccount($user);
-            $this->line("  Account-Info abgerufen: {$accountInfo['company'] ?? 'N/A'}");
+            $company = $accountInfo['company'] ?? 'N/A';
+            $this->line("  Account-Info abgerufen: {$company}");
         } catch (SipgateApiException $e) {
             $this->warn("  Account-Info konnte nicht abgerufen werden: {$e->getMessage()}");
             $accountInfo = [];
@@ -129,7 +131,9 @@ class SyncSipgateAccounts extends Command
         // 3. Guthaben abrufen
         try {
             $balance = $this->apiService->getBalance($user);
-            $this->line("  Guthaben abgerufen: {$balance['amount'] ?? 0} {$balance['currency'] ?? 'EUR'}");
+            $amount = $balance['amount'] ?? 0;
+            $currency = $balance['currency'] ?? 'EUR';
+            $this->line("  Guthaben abgerufen: {$amount} {$currency}");
         } catch (SipgateApiException $e) {
             $this->warn("  Guthaben konnte nicht abgerufen werden: {$e->getMessage()}");
             $balance = [];
