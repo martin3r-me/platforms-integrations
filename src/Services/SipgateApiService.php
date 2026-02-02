@@ -339,7 +339,7 @@ class SipgateApiService
      *
      * @throws SipgateApiException
      */
-    public function getVoicemailRecording(User $user, string visibleId): array
+    public function getVoicemailRecording(User $user, string $visibleId): array
     {
         return $this->makeRequest($user, 'GET', "/voicemails/{$visibleId}/recording");
     }
