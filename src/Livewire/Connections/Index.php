@@ -20,6 +20,7 @@ use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
 use Platform\Integrations\Services\IntegrationsGithubRepositoryService;
 use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
+use Platform\Integrations\Services\SipgateIntegrationService;
 
 class Index extends Component
 {
@@ -91,12 +92,22 @@ class Index extends Component
             ->where('owner_user_id', $user->id)
             ->first();
 
+        // Sipgate-Connection prüfen
+        $sipgateConnection = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', function ($q) {
+                $q->where('key', 'sipgate');
+            })
+            ->where('owner_user_id', $user->id)
+            ->first();
+
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
             'metaConnection' => $metaConnection,
             'githubConnection' => $githubConnection,
             'lexwareConnection' => $lexwareConnection,
+            'sipgateConnection' => $sipgateConnection,
         ])->layout('platform::layouts.app');
     }
 
@@ -627,6 +638,44 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'Lexware-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== SIPGATE METHODS ====================
+
+    public function testSipgateConnection(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $sipgateConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'sipgate');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$sipgateConnection) {
+                $this->syncError = 'Keine Sipgate-Connection gefunden.';
+                return;
+            }
+
+            $service = app(SipgateIntegrationService::class);
+            $result = $service->testConnection($sipgateConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'Sipgate-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
