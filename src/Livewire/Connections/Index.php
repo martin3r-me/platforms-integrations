@@ -19,6 +19,7 @@ use Platform\Integrations\Services\IntegrationsFacebookPageService;
 use Platform\Integrations\Services\IntegrationsInstagramAccountService;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
 use Platform\Integrations\Services\IntegrationsGithubRepositoryService;
+use Platform\Integrations\Events\WhatsAppAccountsSynced;
 use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
 use Platform\Integrations\Services\SipgateIntegrationService;
@@ -363,10 +364,13 @@ class Index extends Component
 
             $service = app(IntegrationsWhatsAppAccountService::class);
             $result = $service->syncWhatsAppAccountsForUser($metaConnection);
-            
+
             $count = count($result);
             $this->syncMessage = "✅ {$count} WhatsApp Account(s) synchronisiert.";
             session()->flash('status', $this->syncMessage);
+
+            // Event feuern für Comms Channel Sync
+            WhatsAppAccountsSynced::dispatch($metaConnection, collect($result));
         } catch (\Exception $e) {
             $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
             \Log::error('WhatsApp Accounts Sync Error', [
@@ -484,6 +488,9 @@ class Index extends Component
                 $waService = app(IntegrationsWhatsAppAccountService::class);
                 $waResult = $waService->syncWhatsAppAccountsForUser($metaConnection);
                 $results['whatsapp'] = count($waResult);
+
+                // Event feuern für Comms Channel Sync
+                WhatsAppAccountsSynced::dispatch($metaConnection, collect($waResult));
             } catch (\Exception $e) {
                 \Log::error('WhatsApp Accounts Sync Error in syncAll', ['error' => $e->getMessage()]);
                 $results['whatsapp'] = 'error';

@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Platform\Integrations\Models\IntegrationConnection;
 use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
+use Platform\Integrations\Events\WhatsAppAccountsSynced;
 
 class SyncWhatsAppAccounts extends Command
 {
@@ -72,6 +73,9 @@ class SyncWhatsAppAccounts extends Command
                 $accountsCount = count($result);
                 $this->info("     ✅ {$accountsCount} WhatsApp Business Account(s) synchronisiert");
                 $syncedCount++;
+
+                // Event feuern für Comms Channel Sync
+                WhatsAppAccountsSynced::dispatch($connection, collect($result));
             } catch (\Exception $e) {
                 $this->error("     ❌ Fehler: {$e->getMessage()}");
                 $skippedCount++;

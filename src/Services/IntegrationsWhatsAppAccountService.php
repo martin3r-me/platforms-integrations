@@ -256,8 +256,7 @@ class IntegrationsWhatsAppAccountService
      */
     public function syncWhatsAppTemplatesForAccount(IntegrationsWhatsAppAccount $whatsappAccount, IntegrationConnection $connection): array
     {
-        // Per-Account Token bevorzugen (wie im glowkit-master), Fallback auf Connection-Token
-        $accessToken = $whatsappAccount->access_token ?: $this->metaService->getValidAccessToken($connection);
+        $accessToken = $this->metaService->getValidAccessToken($connection);
 
         if (!$accessToken) {
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
@@ -275,7 +274,6 @@ class IntegrationsWhatsAppAccountService
             'whatsapp_account_id' => $whatsappAccount->id,
             'waba_id' => $wabaId,
             'user_id' => $userId,
-            'token_source' => $whatsappAccount->access_token ? 'account' : 'connection',
         ]);
 
         $url = "https://graph.facebook.com/v{$apiVersion}/{$wabaId}/message_templates";
@@ -287,6 +285,14 @@ class IntegrationsWhatsAppAccountService
             $response = Http::withHeaders([
                 'Authorization' => "Bearer {$accessToken}",
             ])->get($url);
+
+            Log::info('WhatsApp templates API response', [
+                'waba_id' => $wabaId,
+                'http_status' => $response->status(),
+                'data_count' => count($response->json()['data'] ?? []),
+                'has_error' => isset($response->json()['error']),
+                'response_keys' => array_keys($response->json() ?? []),
+            ]);
 
             if ($response->failed()) {
                 $error = $response->json()['error'] ?? [];
@@ -371,6 +377,13 @@ class IntegrationsWhatsAppAccountService
             ->whereNotNull('external_id')
             ->get();
 
+        Log::info('WhatsApp template sync - accounts query result', [
+            'user_id' => $userId,
+            'connection_id' => $connection->id,
+            'accounts_found' => $whatsappAccounts->count(),
+            'account_ids' => $whatsappAccounts->pluck('external_id')->toArray(),
+        ]);
+
         if ($whatsappAccounts->isEmpty()) {
             Log::warning('No WhatsApp accounts found for template sync', [
                 'user_id' => $userId,
@@ -390,6 +403,7 @@ class IntegrationsWhatsAppAccountService
                     'whatsapp_account_id' => $whatsappAccount->id,
                     'waba_id' => $whatsappAccount->external_id,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
