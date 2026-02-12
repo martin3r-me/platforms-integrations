@@ -276,15 +276,52 @@ class IntegrationsWhatsAppAccountService
             'user_id' => $userId,
         ]);
 
+        // Prüfe Token-Scopes via debug_token
+        try {
+            $debugResponse = Http::get("https://graph.facebook.com/debug_token", [
+                'input_token' => $accessToken,
+                'access_token' => $accessToken,
+            ]);
+
+            if ($debugResponse->successful()) {
+                $debugData = $debugResponse->json()['data'] ?? [];
+                $grantedScopes = $debugData['scopes'] ?? [];
+
+                Log::info('WhatsApp template sync - token scopes', [
+                    'waba_id' => $wabaId,
+                    'granted_scopes' => $grantedScopes,
+                    'has_whatsapp_business_management' => in_array('whatsapp_business_management', $grantedScopes),
+                    'app_id' => $debugData['app_id'] ?? null,
+                    'is_valid' => $debugData['is_valid'] ?? false,
+                ]);
+
+                if (!in_array('whatsapp_business_management', $grantedScopes)) {
+                    throw new \Exception(
+                        'Token hat keine whatsapp_business_management Permission. ' .
+                        'Bitte Meta-Verbindung trennen und neu verbinden, damit die aktuellen Scopes gewährt werden.'
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            // Wenn es unsere eigene Permission-Exception ist, weiterwerfen
+            if (str_contains($e->getMessage(), 'whatsapp_business_management')) {
+                throw $e;
+            }
+            // debug_token-Fehler nur loggen, nicht blockierend
+            Log::warning('Could not verify token scopes via debug_token', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $url = "https://graph.facebook.com/v{$apiVersion}/{$wabaId}/message_templates";
 
         $syncedTemplates = [];
 
         // Pagination
         do {
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$accessToken}",
-            ])->get($url);
+            $response = Http::get($url, [
+                'access_token' => $accessToken,
+            ]);
 
             Log::info('WhatsApp templates API response', [
                 'waba_id' => $wabaId,
@@ -405,6 +442,11 @@ class IntegrationsWhatsAppAccountService
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
+
+                // Permission-Fehler nicht verschlucken — nach oben werfen
+                if (str_contains($e->getMessage(), 'whatsapp_business_management')) {
+                    throw $e;
+                }
             }
         }
 
