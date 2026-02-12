@@ -50,8 +50,18 @@
                                 </p>
                             </div>
                             <div class="flex gap-2">
-                                <x-ui-button 
-                                    variant="secondary" 
+                                <x-ui-button
+                                    variant="secondary"
+                                    size="sm"
+                                    :href="route('integrations.connections.grants', $metaConnection)"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-user-group', 'w-4 h-4')
+                                        <span>Freigaben</span>
+                                    </span>
+                                </x-ui-button>
+                                <x-ui-button
+                                    variant="secondary"
                                     size="sm"
                                     :href="route('integrations.oauth2.start', ['integrationKey' => 'meta'])"
                                 >
@@ -60,8 +70,8 @@
                                         <span>Erneut verbinden</span>
                                     </span>
                                 </x-ui-button>
-                                <x-ui-button 
-                                    variant="danger-outline" 
+                                <x-ui-button
+                                    variant="danger-outline"
                                     size="sm"
                                     wire:click="deleteConnection({{ $metaConnection->id }})"
                                     wire:confirm="Meta-Verbindung wirklich löschen? Alle verknüpften Facebook Pages, Instagram Accounts und WhatsApp Accounts werden entfernt."
@@ -662,24 +672,32 @@
                                         >
                                             {{ $conn->status }}
                                         </x-ui-badge>
-                                        <x-ui-button 
-                                            variant="secondary-outline" 
-                                            size="xs" 
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="xs"
+                                            :href="route('integrations.connections.grants', $conn)"
+                                            title="Freigaben verwalten"
+                                        >
+                                            @svg('heroicon-o-user-group', 'w-3.5 h-3.5')
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="xs"
                                             wire:click="openEditModal({{ $conn->id }})"
                                         >
                                             @svg('heroicon-o-pencil', 'w-3.5 h-3.5')
                                         </x-ui-button>
                                         @if($conn->auth_scheme === 'oauth2')
-                                            <x-ui-button 
-                                                variant="secondary-outline" 
+                                            <x-ui-button
+                                                variant="secondary-outline"
                                                 size="xs"
                                                 :href="route('integrations.oauth2.start', ['integrationKey' => $conn->integration->key ?? ''])"
                                             >
                                                 @svg('heroicon-o-arrow-path', 'w-3.5 h-3.5')
                                             </x-ui-button>
                                         @endif
-                                        <x-ui-button 
-                                            variant="danger-outline" 
+                                        <x-ui-button
+                                            variant="danger-outline"
                                             size="xs"
                                             wire:click="deleteConnection({{ $conn->id }})"
                                             wire:confirm="Connection wirklich löschen?"
