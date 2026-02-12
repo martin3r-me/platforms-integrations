@@ -313,7 +313,7 @@ class IntegrationsWhatsAppAccountService
             ]);
         }
 
-        $url = "https://graph.facebook.com/v{$apiVersion}/{$wabaId}/message_templates";
+        $url = "https://graph.facebook.com/{$apiVersion}/{$wabaId}/message_templates";
 
         $syncedTemplates = [];
 
