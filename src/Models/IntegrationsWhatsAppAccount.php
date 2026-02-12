@@ -4,6 +4,7 @@ namespace Platform\Integrations\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Symfony\Component\Uid\UuidV7;
 use Platform\Core\Models\User;
@@ -59,6 +60,14 @@ class IntegrationsWhatsAppAccount extends Model implements HasDisplayName
     public function metaBusinessAccount(): BelongsTo
     {
         return $this->belongsTo(IntegrationsMetaBusinessAccount::class, 'meta_business_account_id');
+    }
+
+    /**
+     * WhatsApp Message Templates, die zu diesem Account gehören
+     */
+    public function templates(): HasMany
+    {
+        return $this->hasMany(IntegrationsWhatsAppTemplate::class, 'whatsapp_account_id');
     }
 
     public function getDisplayName(): ?string

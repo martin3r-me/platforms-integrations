@@ -11,6 +11,7 @@ use Platform\Integrations\Models\IntegrationConnection;
 use Platform\Integrations\Models\IntegrationsFacebookPage;
 use Platform\Integrations\Models\IntegrationsInstagramAccount;
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
+use Platform\Integrations\Models\IntegrationsWhatsAppTemplate;
 use Platform\Integrations\Models\IntegrationsGithubRepository;
 use Platform\Integrations\Models\IntegrationsLexwareContact;
 use Platform\Integrations\Services\IntegrationAccessService;
@@ -378,6 +379,54 @@ class Index extends Component
         }
     }
 
+    public function syncWhatsAppTemplates(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $metaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'meta');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$metaConnection) {
+                $this->syncError = 'Keine Meta-Connection gefunden. Bitte zuerst mit Meta verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($metaConnection->status !== 'active') {
+                $this->syncError = 'Meta-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(IntegrationsWhatsAppAccountService::class);
+            $result = $service->syncAllWhatsAppTemplates($metaConnection);
+
+            $count = count($result);
+            $this->syncMessage = "{$count} WhatsApp Template(s) synchronisiert.";
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('WhatsApp Templates Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
     public function syncAll(): void
     {
         $this->syncError = null;
@@ -440,7 +489,17 @@ class Index extends Component
                 $results['whatsapp'] = 'error';
             }
 
-            $message = "✅ Synchronisation abgeschlossen: ";
+            // WhatsApp Templates
+            try {
+                $waService = $waService ?? app(IntegrationsWhatsAppAccountService::class);
+                $templateResult = $waService->syncAllWhatsAppTemplates($metaConnection);
+                $results['whatsapp_templates'] = count($templateResult);
+            } catch (\Exception $e) {
+                \Log::error('WhatsApp Templates Sync Error in syncAll', ['error' => $e->getMessage()]);
+                $results['whatsapp_templates'] = 'error';
+            }
+
+            $message = "Synchronisation abgeschlossen: ";
             $parts = [];
             if (isset($results['facebook'])) {
                 $parts[] = "Facebook: {$results['facebook']}";
@@ -450,6 +509,9 @@ class Index extends Component
             }
             if (isset($results['whatsapp'])) {
                 $parts[] = "WhatsApp: {$results['whatsapp']}";
+            }
+            if (isset($results['whatsapp_templates'])) {
+                $parts[] = "WA Templates: {$results['whatsapp_templates']}";
             }
             $this->syncMessage = $message . implode(', ', $parts);
             session()->flash('status', $this->syncMessage);

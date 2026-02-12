@@ -3,6 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
+use Platform\Integrations\Models\IntegrationsWhatsAppTemplate;
 use Platform\Integrations\Models\IntegrationConnection;
 use Platform\Integrations\Models\IntegrationsMetaBusinessAccount;
 use Illuminate\Support\Facades\Http;
@@ -241,6 +242,161 @@ class IntegrationsWhatsAppAccountService
         ]);
 
         return $syncedAccounts;
+    }
+
+    /**
+     * Synchronisiert alle WhatsApp Message Templates für einen WhatsApp Business Account
+     *
+     * Verwendet den Meta Graph API Endpoint:
+     * GET /v{version}/{waba_id}/message_templates
+     *
+     * @param IntegrationsWhatsAppAccount $whatsappAccount
+     * @param IntegrationConnection $connection
+     * @return array
+     */
+    public function syncWhatsAppTemplatesForAccount(IntegrationsWhatsAppAccount $whatsappAccount, IntegrationConnection $connection): array
+    {
+        $accessToken = $this->metaService->getValidAccessToken($connection);
+
+        if (!$accessToken) {
+            throw new \Exception('Access Token konnte nicht abgerufen werden.');
+        }
+
+        $apiVersion = config('integrations.oauth2.providers.meta.api_version', '21.0');
+        $wabaId = $whatsappAccount->external_id;
+        $userId = $whatsappAccount->user_id;
+
+        if (!$wabaId) {
+            throw new \Exception("WhatsApp Account hat keine external_id (WABA ID).");
+        }
+
+        Log::info('Starting WhatsApp template sync', [
+            'whatsapp_account_id' => $whatsappAccount->id,
+            'waba_id' => $wabaId,
+            'user_id' => $userId,
+        ]);
+
+        $url = "https://graph.facebook.com/v{$apiVersion}/{$wabaId}/message_templates";
+        $params = [
+            'access_token' => $accessToken,
+            'limit' => 100,
+            'fields' => 'id,name,language,status,category,components',
+        ];
+
+        $syncedTemplates = [];
+
+        // Pagination
+        do {
+            $response = Http::get($url, $params);
+
+            if ($response->failed()) {
+                $error = $response->json()['error'] ?? [];
+                Log::error('Failed to fetch WhatsApp templates', [
+                    'waba_id' => $wabaId,
+                    'user_id' => $userId,
+                    'error' => $error,
+                ]);
+                throw new \Exception('Fehler beim Abrufen der WhatsApp Templates: ' . ($error['message'] ?? 'Unbekannter Fehler'));
+            }
+
+            $data = $response->json();
+            $templates = $data['data'] ?? [];
+
+            foreach ($templates as $templateData) {
+                $templateId = $templateData['id'] ?? null;
+
+                if (!$templateId) {
+                    continue;
+                }
+
+                try {
+                    $template = IntegrationsWhatsAppTemplate::updateOrCreate(
+                        [
+                            'external_id' => $templateId,
+                            'language' => $templateData['language'] ?? 'de',
+                            'whatsapp_account_id' => $whatsappAccount->id,
+                        ],
+                        [
+                            'name' => $templateData['name'] ?? 'Unnamed Template',
+                            'status' => $templateData['status'] ?? 'PENDING',
+                            'category' => $templateData['category'] ?? null,
+                            'components' => $templateData['components'] ?? null,
+                            'metadata' => $templateData,
+                            'user_id' => $userId,
+                        ]
+                    );
+
+                    $syncedTemplates[] = $template;
+
+                    Log::info('WhatsApp Template synced', [
+                        'template_id' => $template->id,
+                        'external_id' => $templateId,
+                        'name' => $template->name,
+                        'status' => $template->status,
+                        'language' => $template->language,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to save WhatsApp Template', [
+                        'template_external_id' => $templateId,
+                        'waba_id' => $wabaId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Nächste Seite
+            $url = $data['paging']['next'] ?? null;
+            $params = [];
+        } while ($url);
+
+        Log::info('WhatsApp template sync completed', [
+            'whatsapp_account_id' => $whatsappAccount->id,
+            'waba_id' => $wabaId,
+            'templates_synced' => count($syncedTemplates),
+        ]);
+
+        return $syncedTemplates;
+    }
+
+    /**
+     * Synchronisiert Templates für alle WhatsApp Accounts einer Connection
+     *
+     * @param IntegrationConnection $connection
+     * @return array
+     */
+    public function syncAllWhatsAppTemplates(IntegrationConnection $connection): array
+    {
+        $userId = $connection->owner_user_id;
+
+        $whatsappAccounts = IntegrationsWhatsAppAccount::where('user_id', $userId)
+            ->where('integration_connection_id', $connection->id)
+            ->whereNotNull('external_id')
+            ->get();
+
+        if ($whatsappAccounts->isEmpty()) {
+            Log::warning('No WhatsApp accounts found for template sync', [
+                'user_id' => $userId,
+                'connection_id' => $connection->id,
+            ]);
+            return [];
+        }
+
+        $allTemplates = [];
+
+        foreach ($whatsappAccounts as $whatsappAccount) {
+            try {
+                $templates = $this->syncWhatsAppTemplatesForAccount($whatsappAccount, $connection);
+                $allTemplates = array_merge($allTemplates, $templates);
+            } catch (\Exception $e) {
+                Log::error('Failed to sync templates for WhatsApp account (continuing to next)', [
+                    'whatsapp_account_id' => $whatsappAccount->id,
+                    'waba_id' => $whatsappAccount->external_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $allTemplates;
     }
 
 }

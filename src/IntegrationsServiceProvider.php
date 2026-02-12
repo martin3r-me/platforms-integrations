@@ -356,6 +356,7 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncFacebookPages::class,
                 \Platform\Integrations\Console\Commands\SyncInstagramAccounts::class,
                 \Platform\Integrations\Console\Commands\SyncWhatsAppAccounts::class,
+                \Platform\Integrations\Console\Commands\SyncWhatsAppTemplates::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepositories::class,
                 \Platform\Integrations\Console\Commands\SyncLexwareContacts::class,
                 \Platform\Integrations\Console\Commands\SeedIntegrations::class,

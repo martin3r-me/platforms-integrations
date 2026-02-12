@@ -74,7 +74,7 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
                                 <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Facebook Pages</div>
                                 <div class="text-2xl font-bold text-[var(--ui-secondary)]">
@@ -91,6 +91,12 @@
                                 <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WhatsApp Accounts</div>
                                 <div class="text-2xl font-bold text-[var(--ui-secondary)]">
                                     {{ \Platform\Integrations\Models\IntegrationsWhatsAppAccount::where('user_id', auth()->id())->count() }}
+                                </div>
+                            </div>
+                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
+                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WA Templates</div>
+                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                    {{ \Platform\Integrations\Models\IntegrationsWhatsAppTemplate::where('user_id', auth()->id())->count() }}
                                 </div>
                             </div>
                         </div>
@@ -147,8 +153,8 @@
                                         </span>
                                     </x-ui-button>
                                     
-                                    <x-ui-button 
-                                        variant="secondary-outline" 
+                                    <x-ui-button
+                                        variant="secondary-outline"
                                         size="sm"
                                         wire:click="syncWhatsAppAccounts"
                                         :disabled="$isSyncing"
@@ -160,6 +166,22 @@
                                                 @svg('heroicon-o-chat-bubble-left-right', 'w-4 h-4')
                                             @endif
                                             <span>WhatsApp</span>
+                                        </span>
+                                    </x-ui-button>
+
+                                    <x-ui-button
+                                        variant="secondary-outline"
+                                        size="sm"
+                                        wire:click="syncWhatsAppTemplates"
+                                        :disabled="$isSyncing"
+                                    >
+                                        <span class="inline-flex items-center gap-2">
+                                            @if($isSyncing)
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                            @else
+                                                @svg('heroicon-o-document-text', 'w-4 h-4')
+                                            @endif
+                                            <span>WA Templates</span>
                                         </span>
                                     </x-ui-button>
                                 </div>
