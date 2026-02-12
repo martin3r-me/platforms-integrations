@@ -256,7 +256,8 @@ class IntegrationsWhatsAppAccountService
      */
     public function syncWhatsAppTemplatesForAccount(IntegrationsWhatsAppAccount $whatsappAccount, IntegrationConnection $connection): array
     {
-        $accessToken = $this->metaService->getValidAccessToken($connection);
+        // Per-Account Token bevorzugen (wie im glowkit-master), Fallback auf Connection-Token
+        $accessToken = $whatsappAccount->access_token ?: $this->metaService->getValidAccessToken($connection);
 
         if (!$accessToken) {
             throw new \Exception('Access Token konnte nicht abgerufen werden.');
@@ -274,20 +275,18 @@ class IntegrationsWhatsAppAccountService
             'whatsapp_account_id' => $whatsappAccount->id,
             'waba_id' => $wabaId,
             'user_id' => $userId,
+            'token_source' => $whatsappAccount->access_token ? 'account' : 'connection',
         ]);
 
         $url = "https://graph.facebook.com/v{$apiVersion}/{$wabaId}/message_templates";
-        $params = [
-            'access_token' => $accessToken,
-            'limit' => 100,
-            'fields' => 'id,name,language,status,category,components',
-        ];
 
         $syncedTemplates = [];
 
         // Pagination
         do {
-            $response = Http::get($url, $params);
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$accessToken}",
+            ])->get($url);
 
             if ($response->failed()) {
                 $error = $response->json()['error'] ?? [];
@@ -344,9 +343,8 @@ class IntegrationsWhatsAppAccountService
                 }
             }
 
-            // Nächste Seite
+            // Nächste Seite (URL enthält bereits alle Query-Parameter)
             $url = $data['paging']['next'] ?? null;
-            $params = [];
         } while ($url);
 
         Log::info('WhatsApp template sync completed', [
