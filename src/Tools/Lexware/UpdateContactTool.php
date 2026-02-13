@@ -13,7 +13,7 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.contacts.PUT';
+        return 'integrations.lexware.contacts.PUT';
     }
 
     public function getDescription(): string

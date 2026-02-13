@@ -13,7 +13,7 @@ class ListVoucherlistTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.voucherlist.GET';
+        return 'integrations.lexware.voucherlist.GET';
     }
 
     public function getDescription(): string

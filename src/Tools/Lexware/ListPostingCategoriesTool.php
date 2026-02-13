@@ -13,7 +13,7 @@ class ListPostingCategoriesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.posting_categories.GET';
+        return 'integrations.lexware.posting_categories.GET';
     }
 
     public function getDescription(): string

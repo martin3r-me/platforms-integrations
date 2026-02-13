@@ -13,7 +13,7 @@ class CreateInvoiceTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.invoices.POST';
+        return 'integrations.lexware.invoices.POST';
     }
 
     public function getDescription(): string

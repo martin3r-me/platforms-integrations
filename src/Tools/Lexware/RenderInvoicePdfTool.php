@@ -13,7 +13,7 @@ class RenderInvoicePdfTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.invoices.pdf.GET';
+        return 'integrations.lexware.invoices.pdf.GET';
     }
 
     public function getDescription(): string

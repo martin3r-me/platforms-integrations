@@ -13,7 +13,7 @@ class FinalizeInvoiceTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.invoices.finalize.POST';
+        return 'integrations.lexware.invoices.finalize.POST';
     }
 
     public function getDescription(): string

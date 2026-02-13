@@ -13,7 +13,7 @@ class CreateArticleTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.articles.POST';
+        return 'integrations.lexware.articles.POST';
     }
 
     public function getDescription(): string

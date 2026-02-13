@@ -13,7 +13,7 @@ class ListCreditNotesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.credit_notes.GET';
+        return 'integrations.lexware.credit_notes.GET';
     }
 
     public function getDescription(): string

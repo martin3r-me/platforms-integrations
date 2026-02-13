@@ -13,7 +13,7 @@ class UpdateArticleTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.articles.PUT';
+        return 'integrations.lexware.articles.PUT';
     }
 
     public function getDescription(): string

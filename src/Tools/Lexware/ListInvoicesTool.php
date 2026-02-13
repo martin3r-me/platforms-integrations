@@ -13,7 +13,7 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.invoices.GET';
+        return 'integrations.lexware.invoices.GET';
     }
 
     public function getDescription(): string

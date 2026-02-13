@@ -13,7 +13,7 @@ class CreateDunningTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.dunnings.POST';
+        return 'integrations.lexware.dunnings.POST';
     }
 
     public function getDescription(): string

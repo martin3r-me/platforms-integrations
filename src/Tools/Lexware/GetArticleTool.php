@@ -13,7 +13,7 @@ class GetArticleTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.article.GET';
+        return 'integrations.lexware.article.GET';
     }
 
     public function getDescription(): string

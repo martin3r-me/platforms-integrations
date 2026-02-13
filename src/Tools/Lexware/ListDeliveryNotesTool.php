@@ -13,7 +13,7 @@ class ListDeliveryNotesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.delivery_notes.GET';
+        return 'integrations.lexware.delivery_notes.GET';
     }
 
     public function getDescription(): string

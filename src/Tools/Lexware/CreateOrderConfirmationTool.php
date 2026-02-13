@@ -13,7 +13,7 @@ class CreateOrderConfirmationTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.order_confirmations.POST';
+        return 'integrations.lexware.order_confirmations.POST';
     }
 
     public function getDescription(): string

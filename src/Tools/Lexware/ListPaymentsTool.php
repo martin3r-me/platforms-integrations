@@ -13,7 +13,7 @@ class ListPaymentsTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.payments.GET';
+        return 'integrations.lexware.payments.GET';
     }
 
     public function getDescription(): string

@@ -13,7 +13,7 @@ class ListPaymentConditionsTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.payment_conditions.GET';
+        return 'integrations.lexware.payment_conditions.GET';
     }
 
     public function getDescription(): string

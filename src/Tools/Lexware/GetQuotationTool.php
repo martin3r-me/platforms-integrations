@@ -13,7 +13,7 @@ class GetQuotationTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.quotation.GET';
+        return 'integrations.lexware.quotation.GET';
     }
 
     public function getDescription(): string

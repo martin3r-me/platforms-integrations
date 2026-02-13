@@ -13,7 +13,7 @@ class ListRecurringTemplatesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.recurring_templates.GET';
+        return 'integrations.lexware.recurring_templates.GET';
     }
 
     public function getDescription(): string

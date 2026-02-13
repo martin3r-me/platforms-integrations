@@ -13,7 +13,7 @@ class CreateDeliveryNoteTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.delivery_notes.POST';
+        return 'integrations.lexware.delivery_notes.POST';
     }
 
     public function getDescription(): string

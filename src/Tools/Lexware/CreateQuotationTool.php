@@ -13,7 +13,7 @@ class CreateQuotationTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.quotations.POST';
+        return 'integrations.lexware.quotations.POST';
     }
 
     public function getDescription(): string

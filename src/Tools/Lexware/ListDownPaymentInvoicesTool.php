@@ -13,7 +13,7 @@ class ListDownPaymentInvoicesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.down_payment_invoices.GET';
+        return 'integrations.lexware.down_payment_invoices.GET';
     }
 
     public function getDescription(): string

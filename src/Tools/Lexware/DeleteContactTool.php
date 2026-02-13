@@ -13,7 +13,7 @@ class DeleteContactTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.contacts.DELETE';
+        return 'integrations.lexware.contacts.DELETE';
     }
 
     public function getDescription(): string

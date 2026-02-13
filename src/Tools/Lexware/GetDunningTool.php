@@ -13,7 +13,7 @@ class GetDunningTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.dunning.GET';
+        return 'integrations.lexware.dunning.GET';
     }
 
     public function getDescription(): string

@@ -13,7 +13,7 @@ class CreateCreditNoteTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.credit_notes.POST';
+        return 'integrations.lexware.credit_notes.POST';
     }
 
     public function getDescription(): string

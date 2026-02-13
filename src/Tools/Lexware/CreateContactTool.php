@@ -13,7 +13,7 @@ class CreateContactTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.contacts.POST';
+        return 'integrations.lexware.contacts.POST';
     }
 
     public function getDescription(): string

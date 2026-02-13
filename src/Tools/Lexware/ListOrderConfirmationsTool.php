@@ -13,7 +13,7 @@ class ListOrderConfirmationsTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.order_confirmations.GET';
+        return 'integrations.lexware.order_confirmations.GET';
     }
 
     public function getDescription(): string

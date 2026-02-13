@@ -13,7 +13,7 @@ class GetProfileTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.profile.GET';
+        return 'integrations.lexware.profile.GET';
     }
 
     public function getDescription(): string

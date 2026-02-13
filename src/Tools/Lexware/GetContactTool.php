@@ -13,7 +13,7 @@ class GetContactTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.contact.GET';
+        return 'integrations.lexware.contact.GET';
     }
 
     public function getDescription(): string

@@ -13,7 +13,7 @@ class ListCountriesTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'lexware.countries.GET';
+        return 'integrations.lexware.countries.GET';
     }
 
     public function getDescription(): string
