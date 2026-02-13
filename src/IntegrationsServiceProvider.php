@@ -366,10 +366,92 @@ class IntegrationsServiceProvider extends ServiceProvider
             ]);
         }
 
-        // Schritt 5: Config publish
+        // Schritt 5: LLM Tools registrieren
+        $this->registerTools();
+
+        // Schritt 6: Config publish
         $this->publishes([
             __DIR__ . '/../config/integrations.php' => config_path('integrations.php'),
         ], 'integrations-config');
+    }
+
+    protected function registerTools(): void
+    {
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Overview
+            $registry->register(new \Platform\Integrations\Tools\Lexware\LexwareOverviewTool());
+
+            // Profile
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetProfileTool());
+
+            // Voucherlist
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListVoucherlistTool());
+
+            // Contacts (CRUD)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListContactsTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\UpdateContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\DeleteContactTool());
+
+            // Invoices
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListInvoicesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetInvoiceTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateInvoiceTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\FinalizeInvoiceTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\RenderInvoicePdfTool());
+
+            // Quotations
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListQuotationsTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetQuotationTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateQuotationTool());
+
+            // Order Confirmations
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListOrderConfirmationsTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetOrderConfirmationTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateOrderConfirmationTool());
+
+            // Credit Notes
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListCreditNotesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetCreditNoteTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateCreditNoteTool());
+
+            // Delivery Notes
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListDeliveryNotesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetDeliveryNoteTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateDeliveryNoteTool());
+
+            // Dunnings
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListDunningsTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetDunningTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateDunningTool());
+
+            // Articles (CRUD)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListArticlesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetArticleTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\CreateArticleTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\UpdateArticleTool());
+
+            // Payments (Read-Only)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListPaymentsTool());
+
+            // Reference Data (Read-Only)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListCountriesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListPostingCategoriesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListPaymentConditionsTool());
+
+            // Down Payment Invoices (Read-Only)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListDownPaymentInvoicesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetDownPaymentInvoiceTool());
+
+            // Recurring Templates (Read-Only)
+            $registry->register(new \Platform\Integrations\Tools\Lexware\ListRecurringTemplatesTool());
+            $registry->register(new \Platform\Integrations\Tools\Lexware\GetRecurringTemplateTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Lexware Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
     }
 
     protected function registerLivewireComponents(): void
