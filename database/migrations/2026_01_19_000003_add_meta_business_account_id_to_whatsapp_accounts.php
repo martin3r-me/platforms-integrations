@@ -46,8 +46,18 @@ return new class extends Migration
 
         if (Schema::hasTable($tableName)) {
             Schema::table($tableName, function (Blueprint $table) use ($databaseName, $tableName) {
+                $columnExists = DB::select(
+                    "SELECT COUNT(*) as count FROM information_schema.columns
+                     WHERE table_schema = ? AND table_name = ? AND column_name = ?",
+                    [$databaseName, $tableName, 'meta_business_account_id']
+                );
+
+                if ($columnExists[0]->count > 0) {
+                    $table->dropForeign('iwa_mba_id_fk');
+                }
+
                 $indexExists = DB::select(
-                    "SELECT COUNT(*) as count FROM information_schema.statistics 
+                    "SELECT COUNT(*) as count FROM information_schema.statistics
                      WHERE table_schema = ? AND table_name = ? AND index_name = ?",
                     [$databaseName, $tableName, 'iwa_business_account_id_idx']
                 );
@@ -56,14 +66,7 @@ return new class extends Migration
                     $table->dropIndex('iwa_business_account_id_idx');
                 }
 
-                $columnExists = DB::select(
-                    "SELECT COUNT(*) as count FROM information_schema.columns 
-                     WHERE table_schema = ? AND table_name = ? AND column_name = ?",
-                    [$databaseName, $tableName, 'meta_business_account_id']
-                );
-
                 if ($columnExists[0]->count > 0) {
-                    $table->dropForeign('iwa_mba_id_fk');
                     $table->dropColumn('meta_business_account_id');
                 }
             });
