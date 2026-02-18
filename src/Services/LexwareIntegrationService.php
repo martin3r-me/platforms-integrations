@@ -83,12 +83,16 @@ class LexwareIntegrationService
     {
         $integration = Integration::where('key', 'lexoffice')->firstOrFail();
 
-        $connection = IntegrationConnection::query()
+        $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $user->id)
             ->first();
 
-        if (!$connection) {
+        if ($connection && $connection->trashed()) {
+            $connection->restore();
+            $connection->auth_scheme = 'api_key';
+            $connection->status = 'active';
+        } elseif (!$connection) {
             $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $user->id,

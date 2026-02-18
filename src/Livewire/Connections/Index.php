@@ -185,12 +185,15 @@ class Index extends Component
             return; // error already set
         }
 
-        $connection = IntegrationConnection::query()
+        $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $ownerUserId)
             ->first() ?? new IntegrationConnection();
 
         if ($connection->exists) {
+            if ($connection->trashed()) {
+                $connection->restore();
+            }
             $this->assertCanManage($connection);
         }
 

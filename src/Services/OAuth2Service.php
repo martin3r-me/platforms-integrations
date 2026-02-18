@@ -262,12 +262,14 @@ class OAuth2Service
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
         $expiresAt = $expiresIn ? now()->addSeconds($expiresIn)->timestamp : null;
 
-        $connection = IntegrationConnection::query()
+        $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $ownerUserId)
             ->first();
 
-        if (!$connection) {
+        if ($connection && $connection->trashed()) {
+            $connection->restore();
+        } elseif (!$connection) {
             $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $ownerUserId,
