@@ -160,6 +160,37 @@ return [
     ],
 
     /**
+     * DataForSEO API Konfiguration
+     *
+     * DataForSEO Keywords Data API v3 für SEO-Keyword-Daten.
+     * Verwendet Basic Auth (Login + Password).
+     *
+     * API-Credentials erhält man unter:
+     * https://app.dataforseo.com/api-access
+     *
+     * ENV-Variablen:
+     * - DATAFORSEO_API_BASE_URL: Base URL für API-Aufrufe (Standard: https://api.dataforseo.com)
+     * - DATAFORSEO_DEFAULT_LOCATION_CODE: Standard-Location (Standard: 2276 = Germany)
+     * - DATAFORSEO_DEFAULT_LANGUAGE_CODE: Standard-Sprache (Standard: 1001 = German)
+     *
+     * Dokumentation:
+     * @see https://docs.dataforseo.com/v3/keywords_data/google_ads/
+     */
+    'dataforseo' => [
+        'api_base_url' => env('DATAFORSEO_API_BASE_URL', 'https://api.dataforseo.com'),
+
+        // Default Location & Language
+        'default_location_code' => (int) env('DATAFORSEO_DEFAULT_LOCATION_CODE', 2276), // Germany
+        'default_language_code' => (int) env('DATAFORSEO_DEFAULT_LANGUAGE_CODE', 1001), // German
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('DATAFORSEO_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('DATAFORSEO_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
      * Sipgate API Konfiguration
      *
      * Sipgate VoIP & Telefonie Integration für:

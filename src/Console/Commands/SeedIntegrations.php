@@ -56,6 +56,24 @@ class SeedIntegrations extends Command
 
         $this->info('Lexware/Lexoffice Integration angelegt/aktualisiert');
 
+        // DataForSEO Integration (Basic Auth: Login + Password)
+        DB::table('integrations')->updateOrInsert(
+            ['key' => 'dataforseo'],
+            [
+                'name' => 'DataForSEO',
+                'is_enabled' => true,
+                'supported_auth_schemes' => json_encode(['basic'], JSON_THROW_ON_ERROR),
+                'meta' => json_encode([
+                    'description' => 'DataForSEO Integration für SEO-Keyword-Daten (Suchvolumen, verwandte Keywords, Keyword-Vorschläge). Verbindung erfolgt über API-Credentials (Login/Password).',
+                    'icon' => 'heroicon-o-magnifying-glass',
+                ], JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        $this->info('DataForSEO Integration angelegt/aktualisiert');
+
         $this->info('✅ Alle Integrations wurden erfolgreich angelegt!');
 
         return Command::SUCCESS;

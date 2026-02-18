@@ -630,6 +630,109 @@
             </div>
         </div>
 
+        {{-- DataForSEO Integration --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-magnifying-glass', 'w-6 h-6 text-indigo-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">DataForSEO</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">SEO-Keyword-Daten: Suchvolumen, verwandte Keywords und Keyword-Vorschläge</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if($dataforseoConnection && $dataforseoConnection->status === 'active')
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                            <div class="flex-shrink-0">
+                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-green-900">DataForSEO ist verbunden</p>
+                                <p class="text-xs text-green-700 mt-1">
+                                    Verbunden am {{ $dataforseoConnection->updated_at->format('d.m.Y H:i') }}
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <x-ui-button
+                                    variant="secondary"
+                                    size="sm"
+                                    wire:click="openDataforseoModal"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                        <span>Credentials aktualisieren</span>
+                                    </span>
+                                </x-ui-button>
+                                <x-ui-button
+                                    variant="danger-outline"
+                                    size="sm"
+                                    wire:click="deleteConnection({{ $dataforseoConnection->id }})"
+                                    wire:confirm="DataForSEO-Verbindung wirklich löschen?"
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        @svg('heroicon-o-trash', 'w-4 h-4')
+                                        <span>Trennen</span>
+                                    </span>
+                                </x-ui-button>
+                            </div>
+                        </div>
+
+                        {{-- Test-Button --}}
+                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
+                            <x-ui-button
+                                variant="secondary-outline"
+                                size="sm"
+                                wire:click="testDataforseoConnection"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-signal', 'w-4 h-4')
+                                    <span>Verbindung testen</span>
+                                </span>
+                            </x-ui-button>
+
+                            @if($syncMessage)
+                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                                </div>
+                            @endif
+
+                            @if($syncError)
+                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <div class="flex items-start gap-2">
+                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-4">
+                            @svg('heroicon-o-magnifying-glass', 'w-8 h-8 text-indigo-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">DataForSEO noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein DataForSEO-Konto durch Eingabe deiner API-Credentials (Login/Password)</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openDataforseoModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>DataForSEO verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Alle Connections --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -796,6 +899,14 @@
                         @if($sipgateConnection && $sipgateConnection->status === 'active')
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">Sipgate verbunden</span>
+                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                    ✓
+                                </span>
+                            </div>
+                        @endif
+                        @if($dataforseoConnection && $dataforseoConnection->status === 'active')
+                            <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
+                                <span class="text-sm text-green-700">DataForSEO verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
                                     ✓
                                 </span>
@@ -990,6 +1101,68 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveLexwareConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- DataForSEO Modal (Login/Password Eingabe) --}}
+    <x-ui-modal wire:model="dataforseoModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-magnifying-glass', 'w-5 h-5 text-indigo-600')
+                </div>
+                <span>DataForSEO verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-blue-800">
+                        <p class="font-medium mb-1">API-Credentials erforderlich</p>
+                        <p>DataForSEO verwendet Basic Auth. Du benötigst deinen API-Login und dein API-Password.</p>
+                        <p class="mt-2">Die Credentials findest du in deinem DataForSEO-Konto unter:</p>
+                        <p class="font-mono text-xs mt-1 bg-blue-100 px-2 py-1 rounded">app.dataforseo.com &rarr; API Access</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="dataforseoLogin"
+                label="API Login (E-Mail)"
+                wire:model.live="dataforseoLogin"
+                type="text"
+                placeholder="dein-login@example.com"
+                :errorKey="'dataforseoLogin'"
+            />
+
+            <x-ui-input-text
+                name="dataforseoPassword"
+                label="API Password"
+                wire:model.live="dataforseoPassword"
+                type="password"
+                placeholder="Dein DataForSEO API-Password..."
+                :errorKey="'dataforseoPassword'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Die Credentials werden verschlüsselt gespeichert und sind nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeDataforseoModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveDataforseoConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>

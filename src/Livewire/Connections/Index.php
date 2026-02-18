@@ -23,6 +23,7 @@ use Platform\Integrations\Events\WhatsAppAccountsSynced;
 use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
 use Platform\Integrations\Services\SipgateIntegrationService;
+use Platform\Integrations\Services\DataForSeoIntegrationService;
 
 class Index extends Component
 {
@@ -50,6 +51,11 @@ class Index extends Component
     // Lexware Modal
     public bool $lexwareModalShow = false;
     public string $lexwareApiToken = '';
+
+    // DataForSEO Modal
+    public bool $dataforseoModalShow = false;
+    public string $dataforseoLogin = '';
+    public string $dataforseoPassword = '';
 
     public function render()
     {
@@ -103,6 +109,15 @@ class Index extends Component
             ->where('owner_user_id', $user->id)
             ->first();
 
+        // DataForSEO-Connection prüfen
+        $dataforseoConnection = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', function ($q) {
+                $q->where('key', 'dataforseo');
+            })
+            ->where('owner_user_id', $user->id)
+            ->first();
+
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
@@ -110,6 +125,7 @@ class Index extends Component
             'githubConnection' => $githubConnection,
             'lexwareConnection' => $lexwareConnection,
             'sipgateConnection' => $sipgateConnection,
+            'dataforseoConnection' => $dataforseoConnection,
         ])->layout('platform::layouts.app');
     }
 
@@ -745,6 +761,98 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'Sipgate-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== DATAFORSEO METHODS ====================
+
+    public function openDataforseoModal(): void
+    {
+        $this->resetValidation();
+        $this->dataforseoLogin = '';
+        $this->dataforseoPassword = '';
+        $this->dataforseoModalShow = true;
+    }
+
+    public function closeDataforseoModal(): void
+    {
+        $this->dataforseoModalShow = false;
+        $this->dataforseoLogin = '';
+        $this->dataforseoPassword = '';
+    }
+
+    public function saveDataforseoConnection(): void
+    {
+        $this->validate([
+            'dataforseoLogin' => ['required', 'string', 'min:3'],
+            'dataforseoPassword' => ['required', 'string', 'min:3'],
+        ], [
+            'dataforseoLogin.required' => 'Bitte gib deinen DataForSEO Login ein.',
+            'dataforseoLogin.min' => 'Der Login muss mindestens 3 Zeichen lang sein.',
+            'dataforseoPassword.required' => 'Bitte gib dein DataForSEO Password ein.',
+            'dataforseoPassword.min' => 'Das Password muss mindestens 3 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(DataForSeoIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->dataforseoLogin, $this->dataforseoPassword);
+
+            // Verbindung testen
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->dataforseoModalShow = false;
+                $this->dataforseoLogin = '';
+                $this->dataforseoPassword = '';
+                session()->flash('status', 'DataForSEO-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('dataforseoLogin', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('dataforseoLogin', 'Fehler: ' . $e->getMessage());
+            \Log::error('DataForSEO connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testDataforseoConnection(): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $dataforseoConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->whereHas('integration', function ($q) {
+                    $q->where('key', 'dataforseo');
+                })
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if (!$dataforseoConnection) {
+                $this->syncError = 'Keine DataForSEO-Connection gefunden.';
+                return;
+            }
+
+            $service = app(DataForSeoIntegrationService::class);
+            $result = $service->testConnection($dataforseoConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'DataForSEO-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

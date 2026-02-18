@@ -471,6 +471,13 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: Lexware Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // DataForSEO Tools (SEO Keyword-Daten)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\DataForSeo\DataForSeoTestConnectionTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: DataForSEO Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
         // TimeEntry Tools (Zeiterfassung)
         try {
             $registry->register(new \Platform\Integrations\Tools\TimeEntry\ListTimeEntriesTool());
