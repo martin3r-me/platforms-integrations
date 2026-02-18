@@ -337,6 +337,24 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.sipgate.webhook');
             });
 
+        // TimeEntry API Routes (Zeiterfassung)
+        Route::prefix('api/integrations/time-entries')
+            ->middleware(['web', 'auth'])
+            ->group(function () {
+                // Einzelne Zeiteinträge
+                Route::get('/', [\Platform\Integrations\Http\Controllers\TimeEntryController::class, 'index'])
+                    ->name('integrations.time-entries.index');
+                Route::post('/', [\Platform\Integrations\Http\Controllers\TimeEntryController::class, 'store'])
+                    ->name('integrations.time-entries.store');
+                Route::get('/{id}', [\Platform\Integrations\Http\Controllers\TimeEntryController::class, 'show'])
+                    ->name('integrations.time-entries.show')
+                    ->where('id', '[0-9]+');
+
+                // Bulk-Operationen
+                Route::post('/bulk', [\Platform\Integrations\Http\Controllers\TimeEntryController::class, 'bulkStore'])
+                    ->name('integrations.time-entries.bulk.store');
+            });
+
         // Andere Routes über ModuleRouter (wenn Modul aktiv ist)
         if (PlatformCore::getModule('integrations')) {
             $routesPath = __DIR__ . '/../routes/web.php';
@@ -451,6 +469,16 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Lexware\GetRecurringTemplateTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: Lexware Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // TimeEntry Tools (Zeiterfassung)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\TimeEntry\ListTimeEntriesTool());
+            $registry->register(new \Platform\Integrations\Tools\TimeEntry\GetTimeEntryTool());
+            $registry->register(new \Platform\Integrations\Tools\TimeEntry\CreateTimeEntryTool());
+            $registry->register(new \Platform\Integrations\Tools\TimeEntry\BulkCreateTimeEntriesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: TimeEntry Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
     }
 
