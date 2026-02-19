@@ -853,6 +853,8 @@ class LexwareApiService
      */
     public function createContact(User $user, array $data): array
     {
+        $data = $this->normalizeContactRoles($data);
+
         return $this->post($user, '/contacts', $data);
     }
 
@@ -924,6 +926,8 @@ class LexwareApiService
      */
     public function updateContact(User $user, string $contactId, array $data): array
     {
+        $data = $this->normalizeContactRoles($data);
+
         return $this->put($user, "/contacts/{$contactId}", $data);
     }
 
@@ -955,6 +959,31 @@ class LexwareApiService
     public function deleteContact(User $user, string $contactId): array
     {
         return $this->delete($user, "/contacts/{$contactId}");
+    }
+
+    /**
+     * Normalisiert die roles-Struktur in Kontakt-Daten.
+     *
+     * Problem: Wenn ein LLM {"customer": {}} sendet, wird das in PHP zu ['customer' => []].
+     * PHP's json_encode([]) erzeugt "[]" (JSON-Array) statt "{}" (JSON-Objekt).
+     * Die LexOffice API erwartet aber ein Objekt und gibt sonst "missing_entity" zurück.
+     *
+     * Lösung: Leere Role-Arrays werden zu stdClass-Objekten gecastet, sodass
+     * json_encode ein JSON-Objekt "{}" erzeugt statt ein JSON-Array "[]".
+     */
+    protected function normalizeContactRoles(array $data): array
+    {
+        if (!isset($data['roles']) || !is_array($data['roles'])) {
+            return $data;
+        }
+
+        foreach (['customer', 'vendor'] as $role) {
+            if (array_key_exists($role, $data['roles']) && is_array($data['roles'][$role]) && empty($data['roles'][$role])) {
+                $data['roles'][$role] = (object) [];
+            }
+        }
+
+        return $data;
     }
 
     // =========================================================================
