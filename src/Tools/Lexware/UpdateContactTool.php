@@ -18,7 +18,7 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /contacts/{id} - Aktualisiert einen Lexware-Kontakt. id (string, UUID) - Kontakt-ID. data (object) - Aktualisierte Felder. WICHTIG: version-Feld muss mitgesendet werden (aus vorherigem GET).';
+        return 'PUT /contacts/{id} - Aktualisiert einen Lexware-Kontakt. WICHTIG: Zuerst den Kontakt per GET abrufen, um die aktuelle version zu erhalten. Alle Felder, die NICHT im Request enthalten sind, werden auf Standardwerte zurückgesetzt! Daher immer den kompletten Kontakt senden. Beispiel: {"version":1,"roles":{"customer":{"number":10001}},"company":{"name":"Muster GmbH - Aktualisiert"},"addresses":{"billing":[{"street":"Neue Str. 2","zip":"12345","city":"Berlin","countryCode":"DE"}]}}';
     }
 
     public function getSchema(): array
@@ -26,10 +26,42 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'id' => ['type' => 'string', 'description' => 'UUID des Kontakts'],
+                'id' => ['type' => 'string', 'description' => 'PFLICHT. UUID des Kontakts (aus vorherigem GET).'],
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Aktualisierte Kontakt-Daten. WICHTIG: version (int) muss enthalten sein. Felder: roles, company, person, addresses, emailAddresses, phoneNumbers, note.',
+                    'description' => 'Vollständige Kontakt-Daten. WICHTIG: Felder die fehlen werden auf Standardwerte zurückgesetzt! Immer alle relevanten Felder mitsenden.',
+                    'properties' => [
+                        'version' => [
+                            'type' => 'integer',
+                            'description' => 'PFLICHT. Aktuelle Version des Kontakts (aus vorherigem GET). Wird für Optimistic Locking verwendet.',
+                        ],
+                        'roles' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. Rollen: {"customer":{}} und/oder {"vendor":{}}. Optional mit number: {"customer":{"number":10001}}.',
+                        ],
+                        'company' => [
+                            'type' => 'object',
+                            'description' => 'Firmendaten (wenn Firma). Felder: name (string, PFLICHT), taxNumber (string), allowTaxFreeInvoices (bool), contactPersons (array mit salutation, firstName, lastName, primary, emailAddress, phoneNumber).',
+                        ],
+                        'person' => [
+                            'type' => 'object',
+                            'description' => 'Personendaten (wenn Person). Felder: salutation (string), firstName (string, PFLICHT), lastName (string, PFLICHT).',
+                        ],
+                        'addresses' => [
+                            'type' => 'object',
+                            'description' => 'Adressen. Felder: billing (array), shipping (array). Jede Adresse: {street, zip, city, countryCode, supplement}.',
+                        ],
+                        'emailAddresses' => [
+                            'type' => 'object',
+                            'description' => 'E-Mails. Felder: business, office, private, other (jeweils Array von Strings).',
+                        ],
+                        'phoneNumbers' => [
+                            'type' => 'object',
+                            'description' => 'Telefonnummern. Felder: business, office, mobile, private, fax, other (jeweils Array von Strings).',
+                        ],
+                        'note' => ['type' => 'string', 'description' => 'Freitext-Notiz.'],
+                    ],
+                    'required' => ['version', 'roles'],
                 ],
             ],
             'required' => ['id', 'data'],

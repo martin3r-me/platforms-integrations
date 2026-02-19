@@ -18,7 +18,7 @@ class CreateDeliveryNoteTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /delivery-notes - Erstellt einen neuen Lexware-Lieferschein. data (object) - Lieferscheindaten gemäß Lexware API. finalize (bool, optional).';
+        return 'POST /delivery-notes - Erstellt einen neuen Lexware-Lieferschein. HINWEIS: Lieferscheine enthalten nur Mengenangaben, KEINE Preise! Beispiel: {"voucherDate":"2024-06-15","address":{"contactId":"UUID"},"lineItems":[{"type":"custom","name":"Produkt A","quantity":5,"unitName":"Karton"}],"shippingConditions":{"shippingDate":"2024-06-15","shippingType":"delivery"}}';
     }
 
     public function getSchema(): array
@@ -28,9 +28,42 @@ class CreateDeliveryNoteTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Lieferscheindaten gemäß Lexware API. Felder: voucherDate, address, lineItems, totalPrice, taxConditions, introduction, remark.',
+                    'description' => 'Lieferscheindaten für die Lexware API. WICHTIG: Lieferscheine enthalten KEINE Preise - nur Mengen!',
+                    'properties' => [
+                        'voucherDate' => ['type' => 'string', 'description' => 'Datum im Format YYYY-MM-DD.'],
+                        'address' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. Empfänger. ENTWEDER {"contactId":"UUID"} ODER {"name":"...","street":"...","zip":"...","city":"...","countryCode":"DE"}.',
+                        ],
+                        'lineItems' => [
+                            'type' => 'array',
+                            'description' => 'PFLICHT. Positionen (NUR Mengen, keine Preise). Jede Position: {"type":"custom","name":"Produkt A","quantity":5,"unitName":"Karton"}.',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string', 'description' => 'PFLICHT. "custom" oder "material".'],
+                                    'name' => ['type' => 'string', 'description' => 'PFLICHT. Bezeichnung.'],
+                                    'description' => ['type' => 'string', 'description' => 'Beschreibung.'],
+                                    'quantity' => ['type' => 'number', 'description' => 'PFLICHT. Menge.'],
+                                    'unitName' => ['type' => 'string', 'description' => 'Einheit, z.B. "Karton", "Stück", "Palette".'],
+                                ],
+                            ],
+                        ],
+                        'shippingConditions' => [
+                            'type' => 'object',
+                            'description' => 'Lieferbedingungen.',
+                            'properties' => [
+                                'shippingDate' => ['type' => 'string', 'description' => 'Lieferdatum YYYY-MM-DD.'],
+                                'shippingType' => ['type' => 'string', 'description' => '"delivery", "pickup" etc.'],
+                            ],
+                        ],
+                        'title' => ['type' => 'string', 'description' => 'Titel, z.B. "Lieferschein".'],
+                        'introduction' => ['type' => 'string', 'description' => 'Einleitungstext.'],
+                        'remark' => ['type' => 'string', 'description' => 'Schlussbemerkung.'],
+                    ],
+                    'required' => ['address', 'lineItems'],
                 ],
-                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false)'],
+                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false).'],
             ],
             'required' => ['data'],
         ];

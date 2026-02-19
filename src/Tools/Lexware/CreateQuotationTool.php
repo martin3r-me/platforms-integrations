@@ -18,7 +18,7 @@ class CreateQuotationTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /quotations - Erstellt ein neues Lexware-Angebot. data (object) - Angebotsdaten gemäß Lexware API. finalize (bool, optional). Wichtige Felder: voucherDate, expirationDate, address (contactId oder manuell), lineItems, totalPrice, taxConditions.';
+        return 'POST /quotations - Erstellt ein neues Lexware-Angebot. Beispiel: {"voucherDate":"2024-06-15","expirationDate":"2024-07-15","address":{"contactId":"UUID"},"lineItems":[{"type":"custom","name":"Beratung","quantity":10,"unitName":"Stunden","unitPrice":{"currency":"EUR","netAmount":100.00,"taxRatePercentage":19}}],"totalPrice":{"currency":"EUR"},"taxConditions":{"taxType":"net"},"introduction":"Gerne bieten wir Ihnen an:","remark":"Dieses Angebot ist 30 Tage gültig."}';
     }
 
     public function getSchema(): array
@@ -28,9 +28,47 @@ class CreateQuotationTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Angebotsdaten gemäß Lexware API. Felder: voucherDate, expirationDate, address, lineItems, totalPrice, taxConditions, introduction, remark.',
+                    'description' => 'Angebotsdaten für die Lexware API.',
+                    'properties' => [
+                        'voucherDate' => ['type' => 'string', 'description' => 'Angebotsdatum im Format YYYY-MM-DD.'],
+                        'expirationDate' => ['type' => 'string', 'description' => 'Gültig bis Datum im Format YYYY-MM-DD.'],
+                        'address' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. Empfänger. ENTWEDER {"contactId":"UUID"} ODER manuelle Adresse {"name":"...","street":"...","zip":"...","city":"...","countryCode":"DE"}.',
+                        ],
+                        'lineItems' => [
+                            'type' => 'array',
+                            'description' => 'PFLICHT. Positionen. Jede Position: {"type":"custom","name":"...","quantity":1,"unitName":"Stück","unitPrice":{"currency":"EUR","netAmount":100.00,"taxRatePercentage":19}}. type ist meistens "custom".',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string', 'description' => 'PFLICHT. "custom" (Freitext) oder "material" (Artikel).'],
+                                    'name' => ['type' => 'string', 'description' => 'PFLICHT. Bezeichnung.'],
+                                    'description' => ['type' => 'string', 'description' => 'Beschreibung.'],
+                                    'quantity' => ['type' => 'number', 'description' => 'PFLICHT. Menge.'],
+                                    'unitName' => ['type' => 'string', 'description' => 'Einheit, z.B. "Stunden", "Stück".'],
+                                    'unitPrice' => [
+                                        'type' => 'object',
+                                        'description' => 'PFLICHT. Preis: {currency:"EUR", netAmount:100.00, taxRatePercentage:19}. Bei taxType "gross" verwende grossAmount statt netAmount.',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'totalPrice' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. {"currency":"EUR"}.',
+                        ],
+                        'taxConditions' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. {"taxType":"net"} (Netto), {"taxType":"gross"} (Brutto) oder {"taxType":"vatfree"} (steuerfrei).',
+                        ],
+                        'title' => ['type' => 'string', 'description' => 'Titel, z.B. "Angebot".'],
+                        'introduction' => ['type' => 'string', 'description' => 'Einleitungstext.'],
+                        'remark' => ['type' => 'string', 'description' => 'Schlussbemerkung.'],
+                    ],
+                    'required' => ['address', 'lineItems', 'totalPrice', 'taxConditions'],
                 ],
-                'finalize' => ['type' => 'boolean', 'description' => 'Angebot direkt finalisieren (default: false)'],
+                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false). Finalisierte Angebote erhalten eine Angebotsnummer.'],
             ],
             'required' => ['data'],
         ];

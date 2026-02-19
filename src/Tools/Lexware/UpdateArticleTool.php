@@ -18,7 +18,7 @@ class UpdateArticleTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /articles/{id} - Aktualisiert einen Lexware-Artikel. id (string, UUID). data (object) - Aktualisierte Felder.';
+        return 'PUT /articles/{id} - Aktualisiert einen Lexware-Artikel. Zuerst per GET abrufen um aktuelle version zu erhalten. Beispiel: {"version":1,"title":"Neuer Titel","type":"SERVICE","unitName":"Stunde","price":{"netPrice":150.00,"grossPrice":178.50,"leadingPrice":"NET","taxRate":19.0}}';
     }
 
     public function getSchema(): array
@@ -26,10 +26,24 @@ class UpdateArticleTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'id' => ['type' => 'string', 'description' => 'UUID des Artikels'],
+                'id' => ['type' => 'string', 'description' => 'PFLICHT. UUID des Artikels (aus vorherigem GET).'],
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Aktualisierte Artikeldaten. Felder: title, description, type, articleNumber, unitName, price, note.',
+                    'description' => 'Aktualisierte Artikeldaten. WICHTIG: version muss enthalten sein (aus vorherigem GET).',
+                    'properties' => [
+                        'version' => ['type' => 'integer', 'description' => 'PFLICHT. Aktuelle Version (aus GET). Optimistic Locking.'],
+                        'title' => ['type' => 'string', 'description' => 'Artikelbezeichnung.'],
+                        'description' => ['type' => 'string', 'description' => 'Beschreibung.'],
+                        'type' => ['type' => 'string', 'description' => 'Artikeltyp: "PRODUCT" oder "SERVICE". GROSSBUCHSTABEN!'],
+                        'articleNumber' => ['type' => 'string', 'description' => 'Eigene Artikelnummer.'],
+                        'unitName' => ['type' => 'string', 'description' => 'Einheit, z.B. "Stück", "Stunde".'],
+                        'price' => [
+                            'type' => 'object',
+                            'description' => 'Preisinformationen: netPrice (number), grossPrice (number), leadingPrice ("NET"/"GROSS"), taxRate (number, z.B. 19.0).',
+                        ],
+                        'note' => ['type' => 'string', 'description' => 'Interne Notiz.'],
+                    ],
+                    'required' => ['version'],
                 ],
             ],
             'required' => ['id', 'data'],

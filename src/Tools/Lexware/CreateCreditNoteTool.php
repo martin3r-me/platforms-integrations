@@ -18,7 +18,7 @@ class CreateCreditNoteTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /credit-notes - Erstellt eine neue Lexware-Gutschrift. data (object) - Gutschriftdaten gemäß Lexware API. finalize (bool, optional).';
+        return 'POST /credit-notes - Erstellt eine neue Lexware-Gutschrift. Beispiel: {"voucherDate":"2024-06-20","address":{"contactId":"UUID"},"lineItems":[{"type":"custom","name":"Gutschrift für Reklamation","quantity":1,"unitName":"Pauschal","unitPrice":{"currency":"EUR","netAmount":50.00,"taxRatePercentage":19}}],"totalPrice":{"currency":"EUR"},"taxConditions":{"taxType":"net"}}';
     }
 
     public function getSchema(): array
@@ -28,9 +28,40 @@ class CreateCreditNoteTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Gutschriftdaten gemäß Lexware API. Felder: voucherDate, address, lineItems, totalPrice, taxConditions, introduction, remark.',
+                    'description' => 'Gutschriftdaten für die Lexware API.',
+                    'properties' => [
+                        'voucherDate' => ['type' => 'string', 'description' => 'Datum im Format YYYY-MM-DD.'],
+                        'address' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. Empfänger. ENTWEDER {"contactId":"UUID"} ODER {"name":"...","street":"...","zip":"...","city":"...","countryCode":"DE"}.',
+                        ],
+                        'lineItems' => [
+                            'type' => 'array',
+                            'description' => 'PFLICHT. Positionen. Jede Position: {"type":"custom","name":"...","quantity":1,"unitName":"Stück","unitPrice":{"currency":"EUR","netAmount":50.00,"taxRatePercentage":19}}.',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string', 'description' => 'PFLICHT. "custom" oder "material".'],
+                                    'name' => ['type' => 'string', 'description' => 'PFLICHT. Bezeichnung.'],
+                                    'description' => ['type' => 'string', 'description' => 'Beschreibung.'],
+                                    'quantity' => ['type' => 'number', 'description' => 'PFLICHT. Menge.'],
+                                    'unitName' => ['type' => 'string', 'description' => 'Einheit.'],
+                                    'unitPrice' => [
+                                        'type' => 'object',
+                                        'description' => 'PFLICHT. {currency:"EUR", netAmount:50.00, taxRatePercentage:19}.',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'totalPrice' => ['type' => 'object', 'description' => 'PFLICHT. {"currency":"EUR"}.'],
+                        'taxConditions' => ['type' => 'object', 'description' => 'PFLICHT. {"taxType":"net"}, "gross" oder "vatfree".'],
+                        'title' => ['type' => 'string', 'description' => 'Titel.'],
+                        'introduction' => ['type' => 'string', 'description' => 'Einleitungstext.'],
+                        'remark' => ['type' => 'string', 'description' => 'Schlussbemerkung.'],
+                    ],
+                    'required' => ['address', 'lineItems', 'totalPrice', 'taxConditions'],
                 ],
-                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false)'],
+                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false).'],
             ],
             'required' => ['data'],
         ];

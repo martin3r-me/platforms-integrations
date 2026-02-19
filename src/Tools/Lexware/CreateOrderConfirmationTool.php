@@ -18,7 +18,7 @@ class CreateOrderConfirmationTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /order-confirmations - Erstellt eine neue Lexware-Auftragsbestätigung. data (object) - Daten gemäß Lexware API. finalize (bool, optional).';
+        return 'POST /order-confirmations - Erstellt eine neue Lexware-Auftragsbestätigung. Beispiel: {"voucherDate":"2024-06-15","address":{"contactId":"UUID"},"lineItems":[{"type":"custom","name":"Dienstleistung","quantity":1,"unitName":"Pauschal","unitPrice":{"currency":"EUR","netAmount":500.00,"taxRatePercentage":19}}],"totalPrice":{"currency":"EUR"},"taxConditions":{"taxType":"net"}}';
     }
 
     public function getSchema(): array
@@ -28,9 +28,40 @@ class CreateOrderConfirmationTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'data' => [
                     'type' => 'object',
-                    'description' => 'Auftragsbestätigungsdaten gemäß Lexware API. Felder: voucherDate, address, lineItems, totalPrice, taxConditions, introduction, remark.',
+                    'description' => 'Auftragsbestätigungsdaten für die Lexware API.',
+                    'properties' => [
+                        'voucherDate' => ['type' => 'string', 'description' => 'Datum im Format YYYY-MM-DD.'],
+                        'address' => [
+                            'type' => 'object',
+                            'description' => 'PFLICHT. Empfänger. ENTWEDER {"contactId":"UUID"} ODER {"name":"...","street":"...","zip":"...","city":"...","countryCode":"DE"}.',
+                        ],
+                        'lineItems' => [
+                            'type' => 'array',
+                            'description' => 'PFLICHT. Positionen. Jede Position: {"type":"custom","name":"...","quantity":1,"unitName":"Stück","unitPrice":{"currency":"EUR","netAmount":100.00,"taxRatePercentage":19}}.',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string', 'description' => 'PFLICHT. "custom" oder "material".'],
+                                    'name' => ['type' => 'string', 'description' => 'PFLICHT. Bezeichnung.'],
+                                    'description' => ['type' => 'string', 'description' => 'Beschreibung.'],
+                                    'quantity' => ['type' => 'number', 'description' => 'PFLICHT. Menge.'],
+                                    'unitName' => ['type' => 'string', 'description' => 'Einheit.'],
+                                    'unitPrice' => [
+                                        'type' => 'object',
+                                        'description' => 'PFLICHT. {currency:"EUR", netAmount:100.00, taxRatePercentage:19}.',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'totalPrice' => ['type' => 'object', 'description' => 'PFLICHT. {"currency":"EUR"}.'],
+                        'taxConditions' => ['type' => 'object', 'description' => 'PFLICHT. {"taxType":"net"}, "gross" oder "vatfree".'],
+                        'title' => ['type' => 'string', 'description' => 'Titel.'],
+                        'introduction' => ['type' => 'string', 'description' => 'Einleitungstext.'],
+                        'remark' => ['type' => 'string', 'description' => 'Schlussbemerkung.'],
+                    ],
+                    'required' => ['address', 'lineItems', 'totalPrice', 'taxConditions'],
                 ],
-                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false)'],
+                'finalize' => ['type' => 'boolean', 'description' => 'Direkt finalisieren (default: false). Finalisierte Auftragsbestätigungen können nicht mehr bearbeitet werden.'],
             ],
             'required' => ['data'],
         ];
