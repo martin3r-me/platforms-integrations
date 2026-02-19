@@ -425,7 +425,18 @@ class SipgateIntegrationService
      */
     public function createOrUpdateConnectionForUser(User $user, array $tokenPayload): IntegrationConnection
     {
-        $integration = Integration::where('key', 'sipgate')->firstOrFail();
+        $integration = Integration::firstOrCreate(
+            ['key' => 'sipgate'],
+            [
+                'name' => 'Sipgate',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['oauth2'],
+                'meta' => [
+                    'description' => 'Sipgate Integration für VoIP-Telefonie und Fax. Verbindung erfolgt über OAuth2.',
+                    'icon' => 'heroicon-o-phone',
+                ],
+            ]
+        );
 
         $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)

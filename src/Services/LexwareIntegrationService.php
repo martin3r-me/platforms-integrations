@@ -81,7 +81,18 @@ class LexwareIntegrationService
      */
     public function createOrUpdateConnectionForUser(User $user, string $apiToken): IntegrationConnection
     {
-        $integration = Integration::where('key', 'lexoffice')->firstOrFail();
+        $integration = Integration::firstOrCreate(
+            ['key' => 'lexoffice'],
+            [
+                'name' => 'Lexware / Lexoffice',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['api_key'],
+                'meta' => [
+                    'description' => 'Lexware/Lexoffice Integration für Buchhaltung, Kontakte und Rechnungen. Verbindung erfolgt über API-Token (kein OAuth).',
+                    'icon' => 'heroicon-o-calculator',
+                ],
+            ]
+        );
 
         $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)

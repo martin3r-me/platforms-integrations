@@ -93,7 +93,18 @@ class DataForSeoIntegrationService
      */
     public function createOrUpdateConnectionForUser(User $user, string $login, string $password): IntegrationConnection
     {
-        $integration = Integration::where('key', 'dataforseo')->firstOrFail();
+        $integration = Integration::firstOrCreate(
+            ['key' => 'dataforseo'],
+            [
+                'name' => 'DataForSEO',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['basic'],
+                'meta' => [
+                    'description' => 'DataForSEO Integration für SEO-Keyword-Daten (Suchvolumen, verwandte Keywords, Keyword-Vorschläge). Verbindung erfolgt über API-Credentials (Login/Password).',
+                    'icon' => 'heroicon-o-magnifying-glass',
+                ],
+            ]
+        );
 
         $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)

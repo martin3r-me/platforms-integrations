@@ -123,7 +123,18 @@ class MetaIntegrationService
      */
     public function createOrUpdateConnectionForUser(User $user, array $oauthData): IntegrationConnection
     {
-        $integration = Integration::where('key', 'meta')->firstOrFail();
+        $integration = Integration::firstOrCreate(
+            ['key' => 'meta'],
+            [
+                'name' => 'Meta (Facebook, Instagram, WhatsApp)',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['oauth2'],
+                'meta' => [
+                    'description' => 'Meta Platform Integration für Facebook Pages, Instagram Accounts und WhatsApp Business Accounts',
+                    'icon' => 'heroicon-o-globe-alt',
+                ],
+            ]
+        );
 
         $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)

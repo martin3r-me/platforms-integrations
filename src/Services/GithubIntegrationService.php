@@ -123,7 +123,18 @@ class GithubIntegrationService
      */
     public function createOrUpdateConnectionForUser(User $user, array $oauthData): IntegrationConnection
     {
-        $integration = Integration::where('key', 'github')->firstOrFail();
+        $integration = Integration::firstOrCreate(
+            ['key' => 'github'],
+            [
+                'name' => 'GitHub',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['oauth2'],
+                'meta' => [
+                    'description' => 'GitHub Integration für Repository-Verwaltung',
+                    'icon' => 'heroicon-o-code-bracket',
+                ],
+            ]
+        );
 
         $connection = IntegrationConnection::withTrashed()
             ->where('integration_id', $integration->id)
