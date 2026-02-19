@@ -87,7 +87,12 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
             $result = $service->updateContact($context->user, $arguments['id'], $arguments['data']);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {
-            return ToolResult::error($e->getLexwareErrorCode() ?? 'LEXWARE_ERROR', $e->getMessage());
+            $errorMsg = $e->getMessage();
+            $responseData = $e->getResponseData();
+            if ($responseData) {
+                $errorMsg .= ' | API-Response: ' . json_encode($responseData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+            return ToolResult::error($e->getLexwareErrorCode() ?? 'LEXWARE_ERROR', $errorMsg);
         } catch (\Throwable $e) {
             return ToolResult::error('EXECUTION_ERROR', 'Fehler: ' . $e->getMessage());
         }

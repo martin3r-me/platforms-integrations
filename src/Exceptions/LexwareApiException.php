@@ -82,11 +82,30 @@ class LexwareApiException extends Exception
 
     /**
      * Erstellt eine Exception aus einer HTTP Response
+     *
+     * Lexware API gibt bei Validierungsfehlern oft ein IssueList-Array zurück:
+     * {"IssueList": [{"i18nKey": "...", "source": "fieldName", "type": "validation_failure"}]}
+     * Diese Details werden in die Fehlermeldung aufgenommen, damit der Aufrufer (z.B. LLM)
+     * genau sehen kann, welche Felder falsch sind.
      */
     public static function fromResponse(int $httpStatusCode, ?array $responseData = null): self
     {
         $message = $responseData['message'] ?? self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
         $lexwareErrorCode = $responseData['error'] ?? $responseData['code'] ?? null;
+
+        // Validierungs-Details aus IssueList extrahieren und an die Meldung anhängen
+        if (!empty($responseData['IssueList']) && is_array($responseData['IssueList'])) {
+            $issues = [];
+            foreach ($responseData['IssueList'] as $issue) {
+                $source = $issue['source'] ?? 'unbekannt';
+                $type = $issue['type'] ?? 'error';
+                $key = $issue['i18nKey'] ?? '';
+                $issues[] = "[{$source}] {$key} ({$type})";
+            }
+            if ($issues) {
+                $message .= ' Felder: ' . implode(', ', $issues);
+            }
+        }
 
         return new self($message, $httpStatusCode, $lexwareErrorCode, $responseData);
     }
