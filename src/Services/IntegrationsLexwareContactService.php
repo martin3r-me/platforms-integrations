@@ -90,9 +90,12 @@ class IntegrationsLexwareContactService
         $externalId = $data['id'] ?? '';
 
         // Kontakttyp bestimmen
+        // LexOffice API returns roles as associative array: {"customer": {...}, "vendor": {...}}
+        // The role names are the array keys, not nested 'name' fields.
         $roles = $data['roles'] ?? [];
-        $isCustomer = in_array('customer', array_map('strtolower', array_column($roles, 'name') ?: $roles));
-        $isVendor = in_array('vendor', array_map('strtolower', array_column($roles, 'name') ?: $roles));
+        $roleNames = array_map('strtolower', array_map('strval', array_keys($roles)));
+        $isCustomer = in_array('customer', $roleNames);
+        $isVendor = in_array('vendor', $roleNames);
 
         $contactType = 'customer';
         if ($isCustomer && $isVendor) {
