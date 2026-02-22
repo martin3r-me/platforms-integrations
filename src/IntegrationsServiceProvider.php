@@ -508,6 +508,14 @@ class IntegrationsServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             \Log::warning('Integrations: TimeEntry Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
+
+        // Meta Tools (Instagram Accounts, Facebook Pages)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Meta\ListInstagramAccountsTool());
+            $registry->register(new \Platform\Integrations\Tools\Meta\ListFacebookPagesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Meta Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
     }
 
     protected function registerLivewireComponents(): void

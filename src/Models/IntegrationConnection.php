@@ -89,6 +89,22 @@ class IntegrationConnection extends Model
         return $this->hasMany(IntegrationsMetaBusinessAccount::class, 'integration_connection_id');
     }
 
+    /**
+     * Meta-Ressourcen: Instagram Accounts (für Connection-Sharing mit Ressourcen-Scope)
+     */
+    public function metaInstagramAccounts(): HasMany
+    {
+        return $this->hasMany(IntegrationMetaInstagramAccount::class, 'connection_id');
+    }
+
+    /**
+     * Meta-Ressourcen: Facebook Pages (für Connection-Sharing mit Ressourcen-Scope)
+     */
+    public function metaFacebookPages(): HasMany
+    {
+        return $this->hasMany(IntegrationMetaFacebookPage::class, 'connection_id');
+    }
+
     public function isOwner(User $user): bool
     {
         return $this->owner_user_id === $user->id;
