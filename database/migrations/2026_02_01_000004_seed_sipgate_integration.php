@@ -18,6 +18,7 @@ return new class extends Migration
             [
                 'name' => 'Sipgate',
                 'is_enabled' => true,
+                'has_resources' => false,
                 'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
                     'description' => 'Sipgate VoIP & Telefonie Integration für Anrufe, SMS, Fax und Voicemails.',

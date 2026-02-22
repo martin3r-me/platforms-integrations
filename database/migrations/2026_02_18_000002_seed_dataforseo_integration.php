@@ -20,6 +20,7 @@ return new class extends Migration
             [
                 'name' => 'DataForSEO',
                 'is_enabled' => true,
+                'has_resources' => false,
                 'supported_auth_schemes' => json_encode(['basic'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
                     'description' => 'DataForSEO Integration für SEO-Keyword-Daten (Suchvolumen, verwandte Keywords, Keyword-Vorschläge). Verbindung erfolgt über API-Credentials (Login/Password).',
