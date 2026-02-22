@@ -20,6 +20,11 @@ use Platform\Integrations\Services\IntegrationConnectionShareService;
  * - team_id=null, user_id=42  → User 42 darf die Connection in allen Teams nutzen
  * - team_id=5, user_id=42     → Nur User 42 in Team 5 darf die Connection nutzen
  * - team_id=null, user_id=null → Alle User in allen Teams (vollständig öffentlich)
+ *
+ * Ressourcen-Scope (nur bei Integrations mit has_resources=true):
+ * - resource_id=null            → Freigabe für alle Ressourcen
+ * - resource_id=123 + resource_type=instagram_account → nur diese Ressource
+ * - Bei has_resources=false wird resource_id/resource_type ignoriert
  */
 class CreateShareTool implements ToolContract, ToolMetadataContract
 {
@@ -35,7 +40,10 @@ class CreateShareTool implements ToolContract, ToolMetadataContract
             . 'Wildcard-Support: team_id und/oder user_id können null sein. '
             . 'null bedeutet "alle" – z.B. team_id=null, user_id=null ergibt eine vollständig öffentliche Freigabe. '
             . 'team_id=5, user_id=null bedeutet "alle User in Team 5". '
-            . 'Duplikate (gleiche connection_id + team_id + user_id) werden ignoriert (idempotent).';
+            . 'Ressourcen-Scope: Bei Integrations mit has_resources=true kann optional resource_id + resource_type '
+            . 'angegeben werden, um nur eine bestimmte Ressource freizugeben (z.B. einen Instagram Account). '
+            . 'resource_id=null bedeutet "alle Ressourcen". Bei has_resources=false wird der Ressourcen-Scope ignoriert. '
+            . 'Duplikate (gleiche connection_id + team_id + user_id + resource_id + resource_type) werden ignoriert (idempotent).';
     }
 
     public function getSchema(): array
@@ -54,6 +62,17 @@ class CreateShareTool implements ToolContract, ToolMetadataContract
                 'user_id' => [
                     'type' => ['integer', 'null'],
                     'description' => 'Ziel-User-ID. null = Wildcard (alle User). Wenn gesetzt, gilt die Freigabe nur für diesen User.',
+                ],
+                'resource_id' => [
+                    'type' => ['integer', 'null'],
+                    'description' => 'Ressourcen-ID für granulare Freigabe. null = alle Ressourcen (Wildcard). '
+                        . 'Nur relevant bei Integrations mit has_resources=true (z.B. Meta, GitHub). '
+                        . 'Bei has_resources=false wird dieser Wert ignoriert. Erfordert resource_type wenn gesetzt.',
+                ],
+                'resource_type' => [
+                    'type' => ['string', 'null'],
+                    'description' => 'Typ der Ressource (z.B. instagram_account, facebook_page, github_repo). '
+                        . 'Muss zusammen mit resource_id angegeben werden.',
                 ],
             ],
             'required' => ['connection_id'],
@@ -79,13 +98,17 @@ class CreateShareTool implements ToolContract, ToolMetadataContract
 
             $teamId = array_key_exists('team_id', $arguments) ? $arguments['team_id'] : null;
             $userId = array_key_exists('user_id', $arguments) ? $arguments['user_id'] : null;
+            $resourceId = array_key_exists('resource_id', $arguments) ? $arguments['resource_id'] : null;
+            $resourceType = array_key_exists('resource_type', $arguments) ? $arguments['resource_type'] : null;
 
             // Integer-Cast für nicht-null Werte
             $teamId = $teamId !== null ? (int) $teamId : null;
             $userId = $userId !== null ? (int) $userId : null;
+            $resourceId = $resourceId !== null ? (int) $resourceId : null;
+            $resourceType = $resourceType !== null ? (string) $resourceType : null;
 
             $service = app(IntegrationConnectionShareService::class);
-            $share = $service->createShare($context->user, $connection, $teamId, $userId);
+            $share = $service->createShare($context->user, $connection, $teamId, $userId, $resourceId, $resourceType);
 
             return ToolResult::success([
                 'message' => 'Freigabe erstellt.',

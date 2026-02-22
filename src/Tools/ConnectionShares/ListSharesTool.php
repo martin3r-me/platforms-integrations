@@ -19,6 +19,10 @@ use Platform\Integrations\Services\IntegrationConnectionShareService;
  * - team_id=null → gilt für ALLE Teams
  * - user_id=null → gilt für ALLE User
  * - Beides null  → vollständig öffentlich (alle User in allen Teams)
+ *
+ * Ressourcen-Scope (bei has_resources=true):
+ * - resource_id=null → alle Ressourcen
+ * - resource_id + resource_type → nur diese spezifische Ressource
  */
 class ListSharesTool implements ToolContract, ToolMetadataContract
 {
@@ -31,8 +35,10 @@ class ListSharesTool implements ToolContract, ToolMetadataContract
     {
         return 'GET /connections/{connection_id}/shares - Listet alle Freigaben (Shares) einer Integration-Connection auf. '
             . 'Nur der Owner der Connection kann Freigaben einsehen. '
-            . 'Zeigt pro Share: Ziel-Team, Ziel-User und die Wildcard-Auflösung (null = alle). '
-            . 'Beispiel: team_id=5, user_id=null bedeutet "Alle User in Team 5 dürfen diese Connection nutzen".';
+            . 'Zeigt pro Share: Ziel-Team, Ziel-User, Ressourcen-Scope und die Wildcard-Auflösung (null = alle). '
+            . 'Beispiel: team_id=5, user_id=null bedeutet "Alle User in Team 5 dürfen diese Connection nutzen". '
+            . 'Bei Integrations mit has_resources=true zeigt resource_id/resource_type den Ressourcen-Scope an '
+            . '(null = alle Ressourcen, gesetzt = nur diese Ressource).';
     }
 
     public function getSchema(): array
@@ -69,12 +75,18 @@ class ListSharesTool implements ToolContract, ToolMetadataContract
             $service = app(IntegrationConnectionShareService::class);
             $shares = $service->listShares($context->user, $connection);
 
+            $hasResources = $connection->integration?->has_resources ?? false;
+
             return ToolResult::success([
                 'connection_id' => $connection->id,
                 'owner_user_id' => $connection->owner_user_id,
+                'has_resources' => $hasResources,
                 'shares' => $shares->toArray(),
                 'total' => $shares->count(),
-                'wildcard_info' => 'null-Werte sind Wildcards: team_id=null → alle Teams, user_id=null → alle User, beides null → vollständig öffentlich.',
+                'wildcard_info' => 'null-Werte sind Wildcards: team_id=null → alle Teams, user_id=null → alle User, beides null → vollständig öffentlich.'
+                    . ($hasResources
+                        ? ' resource_id=null → alle Ressourcen, resource_id + resource_type → nur diese Ressource.'
+                        : ' Diese Integration hat keine granularen Ressourcen (has_resources=false).'),
             ]);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             return ToolResult::error('FORBIDDEN', $e->getMessage());

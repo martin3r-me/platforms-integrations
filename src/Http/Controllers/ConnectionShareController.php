@@ -37,8 +37,8 @@ class ConnectionShareController extends Controller
      * POST /api/integrations/connections/{connection}/shares
      * Erstellt eine neue Freigabe. Nur für Owner.
      *
-     * Body: { "team_id": int|null, "user_id": int|null }
-     * Wildcard: null = alle (z.B. team_id=null → gilt für alle Teams)
+     * Body: { "team_id": int|null, "user_id": int|null, "resource_id": int|null, "resource_type": string|null }
+     * Wildcard: null = alle (z.B. team_id=null → gilt für alle Teams, resource_id=null → alle Ressourcen)
      */
     public function store(Request $request, IntegrationConnection $connection): JsonResponse
     {
@@ -48,6 +48,8 @@ class ConnectionShareController extends Controller
         $validated = $request->validate([
             'team_id' => ['nullable', 'integer', 'exists:teams,id'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'resource_id' => ['nullable', 'integer'],
+            'resource_type' => ['nullable', 'string', 'max:100'],
         ]);
 
         try {
@@ -56,6 +58,8 @@ class ConnectionShareController extends Controller
                 $connection,
                 $validated['team_id'] ?? null,
                 $validated['user_id'] ?? null,
+                $validated['resource_id'] ?? null,
+                $validated['resource_type'] ?? null,
             );
 
             return response()->json([
