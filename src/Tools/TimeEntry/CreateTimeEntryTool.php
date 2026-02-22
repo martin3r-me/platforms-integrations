@@ -18,7 +18,7 @@ class CreateTimeEntryTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /time-entries - Erstellt einen einzelnen Zeiteintrag (Stempeln). Pflichtfelder: date (YYYY-MM-DD), start_time (HH:MM), end_time (HH:MM). Optional: project_id, project_name, context, description, type (work/break/travel/meeting/other), tags (array), team_id.';
+        return '[DEPRECATED – Bitte organization.time_entries.POST verwenden] POST /time-entries - Erstellt einen einzelnen Zeiteintrag. Dieses Tool ist veraltet und wird in einer zukünftigen Version entfernt. Nutze stattdessen organization.time_entries.POST für Kontext-Zuordnung, Kaskaden und erweiterte Funktionen.';
     }
 
     public function getSchema(): array
@@ -65,11 +65,13 @@ class CreateTimeEntryTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'action',
-            'tags' => ['time-entries', 'create', 'stempeln', 'zeiterfassung'],
+            'tags' => ['time-entries', 'create', 'stempeln', 'zeiterfassung', 'deprecated'],
             'read_only' => false,
             'requires_auth' => true,
             'risk_level' => 'write',
             'side_effects' => ['creates'],
+            'deprecated' => true,
+            'replacement' => 'organization.time_entries.POST',
         ];
     }
 }

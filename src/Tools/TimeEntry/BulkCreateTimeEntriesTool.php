@@ -18,7 +18,7 @@ class BulkCreateTimeEntriesTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /time-entries/bulk - Erstellt mehrere Zeiteinträge auf einmal (Bulk-Stempeln). Max. ' . BulkTimeEntryRequest::MAX_BULK_SIZE . ' Einträge pro Aufruf. Jeder Eintrag wird einzeln validiert mit detailliertem Fehler-Reporting. entries (array) - Array von Zeiteinträgen mit date, start_time, end_time und optionalen Feldern. team_id (optional) - Team-ID für alle Einträge.';
+        return '[DEPRECATED – Bitte organization.time_entries.bulk.POST verwenden] POST /time-entries/bulk - Erstellt mehrere Zeiteinträge auf einmal. Dieses Tool ist veraltet und wird in einer zukünftigen Version entfernt. Nutze stattdessen organization.time_entries.bulk.POST für Kontext-Zuordnung, Kaskaden und erweiterte Funktionen.';
     }
 
     public function getSchema(): array
@@ -87,11 +87,13 @@ class BulkCreateTimeEntriesTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'action',
-            'tags' => ['time-entries', 'bulk', 'create', 'stempeln', 'zeiterfassung'],
+            'tags' => ['time-entries', 'bulk', 'create', 'stempeln', 'zeiterfassung', 'deprecated'],
             'read_only' => false,
             'requires_auth' => true,
             'risk_level' => 'write',
             'side_effects' => ['creates'],
+            'deprecated' => true,
+            'replacement' => 'organization.time_entries.bulk.POST',
         ];
     }
 }

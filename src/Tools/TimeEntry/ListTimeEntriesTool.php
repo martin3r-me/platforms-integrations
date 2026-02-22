@@ -17,7 +17,7 @@ class ListTimeEntriesTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'GET /time-entries - Listet Zeiteinträge auf. Paginiert (page, per_page). Filter: date_from, date_to (YYYY-MM-DD), project_id, context, type (work/break/travel/meeting/other), team_id.';
+        return '[DEPRECATED – Bitte organization.time_entries.GET verwenden] GET /time-entries - Listet Zeiteinträge auf. Dieses Tool ist veraltet und wird in einer zukünftigen Version entfernt. Nutze stattdessen organization.time_entries.GET für erweiterte Filter, Cross-Team-Abfragen und Kontext-Kaskaden.';
     }
 
     public function getSchema(): array
@@ -72,10 +72,12 @@ class ListTimeEntriesTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['time-entries', 'list', 'zeiterfassung'],
+            'tags' => ['time-entries', 'list', 'zeiterfassung', 'deprecated'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',
+            'deprecated' => true,
+            'replacement' => 'organization.time_entries.GET',
         ];
     }
 }

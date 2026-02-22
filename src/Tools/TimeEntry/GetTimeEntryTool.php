@@ -17,7 +17,7 @@ class GetTimeEntryTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'GET /time-entries/{id} - Ruft einen einzelnen Zeiteintrag ab. id (integer) - Zeiteintrag-ID.';
+        return '[DEPRECATED – Bitte organization.time_entries.GET verwenden] GET /time-entries/{id} - Ruft einen einzelnen Zeiteintrag ab. Dieses Tool ist veraltet und wird in einer zukünftigen Version entfernt. Nutze stattdessen organization.time_entries.GET mit Filtern.';
     }
 
     public function getSchema(): array
@@ -59,10 +59,12 @@ class GetTimeEntryTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['time-entries', 'detail', 'zeiterfassung'],
+            'tags' => ['time-entries', 'detail', 'zeiterfassung', 'deprecated'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',
+            'deprecated' => true,
+            'replacement' => 'organization.time_entries.GET',
         ];
     }
 }
