@@ -52,6 +52,11 @@ class IntegrationConnection extends Model
         return $this->hasMany(IntegrationConnectionGrant::class, 'connection_id');
     }
 
+    public function shares(): HasMany
+    {
+        return $this->hasMany(IntegrationConnectionShare::class, 'connection_id');
+    }
+
     /**
      * Facebook Pages, die über diese Meta-Connection synchronisiert wurden
      */
