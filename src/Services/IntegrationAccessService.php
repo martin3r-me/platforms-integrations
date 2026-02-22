@@ -46,6 +46,54 @@ class IntegrationAccessService
     }
 
     /**
+     * Prüft ob der User Credentials/Token dieser Connection sehen darf.
+     * Nur der Owner darf Credentials einsehen.
+     */
+    public function canViewCredentials(User $user, IntegrationConnection $connection): bool
+    {
+        return $connection->isOwner($user);
+    }
+
+    /**
+     * Gibt Connection-Daten zurück, bei denen Credentials je nach Berechtigung
+     * sichtbar oder ausgeblendet sind.
+     *
+     * Owner: sieht Credentials, Token, auth_scheme Details
+     * Andere: sehen readonly Metadaten (Integration-Name, Status), keine Credentials
+     */
+    public function formatConnectionForUser(User $user, IntegrationConnection $connection): array
+    {
+        $isOwner = $connection->isOwner($user);
+
+        $data = [
+            'id' => $connection->id,
+            'integration_id' => $connection->integration_id,
+            'integration_name' => $connection->integration?->name,
+            'integration_key' => $connection->integration?->key,
+            'owner_user_id' => $connection->owner_user_id,
+            'is_owner' => $isOwner,
+            'auth_scheme' => $connection->auth_scheme,
+            'status' => $connection->status,
+            'last_tested_at' => $connection->last_tested_at?->toIso8601String(),
+            'created_at' => $connection->created_at?->toIso8601String(),
+            'updated_at' => $connection->updated_at?->toIso8601String(),
+        ];
+
+        if ($isOwner) {
+            // Owner sieht alles
+            $data['credentials'] = $connection->credentials;
+            $data['last_error'] = $connection->last_error;
+        } else {
+            // Freigegebene User sehen keine Credentials
+            $data['credentials'] = null;
+            $data['credentials_hint'] = 'Nur der Owner kann Credentials einsehen.';
+            $data['last_error'] = null;
+        }
+
+        return $data;
+    }
+
+    /**
      * Prüft ob der User über einen Share Zugriff hat.
      *
      * Ein Share matcht, wenn:

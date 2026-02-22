@@ -337,6 +337,18 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.sipgate.webhook');
             });
 
+        // Connection Shares API Routes (Freigaben)
+        Route::prefix('api/integrations/connections/{connection}/shares')
+            ->middleware(['web', 'auth'])
+            ->group(function () {
+                Route::get('/', [\Platform\Integrations\Http\Controllers\ConnectionShareController::class, 'index'])
+                    ->name('integrations.connections.shares.index');
+                Route::post('/', [\Platform\Integrations\Http\Controllers\ConnectionShareController::class, 'store'])
+                    ->name('integrations.connections.shares.store');
+                Route::delete('/{share}', [\Platform\Integrations\Http\Controllers\ConnectionShareController::class, 'destroy'])
+                    ->name('integrations.connections.shares.destroy');
+            });
+
         // TimeEntry API Routes (Zeiterfassung)
         Route::prefix('api/integrations/time-entries')
             ->middleware(['web', 'auth'])
@@ -476,6 +488,15 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\DataForSeo\DataForSeoTestConnectionTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: DataForSEO Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // Connection Shares Tools (Freigaben)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\ConnectionShares\ListSharesTool());
+            $registry->register(new \Platform\Integrations\Tools\ConnectionShares\CreateShareTool());
+            $registry->register(new \Platform\Integrations\Tools\ConnectionShares\DeleteShareTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: ConnectionShares Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
         // TimeEntry Tools (Zeiterfassung)
