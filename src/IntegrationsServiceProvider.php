@@ -388,6 +388,7 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncWhatsAppAccounts::class,
                 \Platform\Integrations\Console\Commands\SyncWhatsAppTemplates::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepositories::class,
+                \Platform\Integrations\Console\Commands\SyncGithubRepos::class,
                 \Platform\Integrations\Console\Commands\SyncLexwareContacts::class,
                 \Platform\Integrations\Console\Commands\SeedIntegrations::class,
                 \Platform\Integrations\Console\Commands\SyncSipgateAccounts::class,
@@ -515,6 +516,14 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Meta\ListFacebookPagesTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: Meta Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // GitHub Tools (Repos, Resources Sync)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Github\ListGithubReposTool());
+            $registry->register(new \Platform\Integrations\Tools\Github\SyncGithubResourcesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: GitHub Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
     }
 

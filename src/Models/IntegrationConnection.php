@@ -105,6 +105,14 @@ class IntegrationConnection extends Model
         return $this->hasMany(IntegrationMetaFacebookPage::class, 'connection_id');
     }
 
+    /**
+     * GitHub-Ressourcen: Repos (für Connection-Sharing mit Ressourcen-Scope)
+     */
+    public function githubRepos(): HasMany
+    {
+        return $this->hasMany(IntegrationGithubRepo::class, 'connection_id');
+    }
+
     public function isOwner(User $user): bool
     {
         return $this->owner_user_id === $user->id;

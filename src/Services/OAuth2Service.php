@@ -403,6 +403,9 @@ class OAuth2Service
             'auth_scheme' => $connection->auth_scheme,
         ]);
 
+        // Initialer Ressourcen-Sync nach Verbindung
+        $this->syncResourcesAfterConnect($integrationKey, $connection);
+
         return $connection;
     }
 
@@ -466,6 +469,30 @@ class OAuth2Service
     public function newState(): string
     {
         return Str::random(32);
+    }
+
+    /**
+     * Initialer Ressourcen-Sync nach erfolgreichem OAuth-Connect.
+     * Wird asynchron ausgeführt (nicht blockierend für den User).
+     */
+    protected function syncResourcesAfterConnect(string $integrationKey, IntegrationConnection $connection): void
+    {
+        if ($integrationKey === 'github') {
+            try {
+                $service = resolve(IntegrationGithubRepoService::class);
+                $result = $service->syncRepos($connection);
+                \Log::info('OAuth2: GitHub Repos initial sync completed', [
+                    'connection_id' => $connection->id,
+                    'synced' => $result['synced'],
+                    'deactivated' => $result['deactivated'],
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('OAuth2: GitHub Repos initial sync failed (non-critical)', [
+                    'connection_id' => $connection->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     protected function getProviderConfig(string $integrationKey): array
