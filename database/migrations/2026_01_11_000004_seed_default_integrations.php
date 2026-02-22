@@ -13,7 +13,6 @@ return new class extends Migration
             [
                 'name' => 'Meta (Facebook, Instagram, WhatsApp)',
                 'is_enabled' => true,
-                'has_resources' => true,
                 'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
                     'description' => 'Meta Platform Integration für Facebook Pages, Instagram Accounts und WhatsApp Business Accounts',
@@ -30,7 +29,6 @@ return new class extends Migration
             [
                 'name' => 'GitHub',
                 'is_enabled' => true,
-                'has_resources' => true,
                 'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
                     'description' => 'GitHub Integration für Repository-Verwaltung',
@@ -47,7 +45,6 @@ return new class extends Migration
             [
                 'name' => 'Lexware / Lexoffice',
                 'is_enabled' => true,
-                'has_resources' => false,
                 'supported_auth_schemes' => json_encode(['api_key'], JSON_THROW_ON_ERROR),
                 'meta' => json_encode([
                     'description' => 'Lexware/Lexoffice Integration für Buchhaltung, Kontakte und Rechnungen. Verbindung erfolgt über API-Token (kein OAuth).',
