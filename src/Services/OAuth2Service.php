@@ -493,6 +493,23 @@ class OAuth2Service
                 ]);
             }
         }
+
+        if ($integrationKey === 'meta') {
+            try {
+                $service = resolve(IntegrationMetaResourceService::class);
+                $result = $service->syncResources($connection);
+                \Log::info('OAuth2: Meta resources initial sync completed', [
+                    'connection_id' => $connection->id,
+                    'facebook_pages' => $result['facebook_pages'],
+                    'instagram_accounts' => $result['instagram_accounts'],
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('OAuth2: Meta resources initial sync failed (non-critical)', [
+                    'connection_id' => $connection->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     protected function getProviderConfig(string $integrationKey): array

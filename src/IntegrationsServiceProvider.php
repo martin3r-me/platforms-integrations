@@ -389,6 +389,7 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncWhatsAppTemplates::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepositories::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepos::class,
+                \Platform\Integrations\Console\Commands\SyncMetaResources::class,
                 \Platform\Integrations\Console\Commands\SyncLexwareContacts::class,
                 \Platform\Integrations\Console\Commands\SeedIntegrations::class,
                 \Platform\Integrations\Console\Commands\SyncSipgateAccounts::class,
@@ -396,6 +397,13 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SipgateWebhookCleanup::class,
             ]);
         }
+
+        // Schritt 4b: Periodischen Sync registrieren (Scheduler)
+        $this->app->booted(function () {
+            $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+            $schedule->command('integrations:sync-meta-resources')->daily();
+            $schedule->command('integrations:sync-github-repos')->daily();
+        });
 
         // Schritt 5: LLM Tools registrieren
         $this->registerTools();
@@ -510,10 +518,11 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: TimeEntry Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
-        // Meta Tools (Instagram Accounts, Facebook Pages)
+        // Meta Tools (Instagram Accounts, Facebook Pages, Resources Sync)
         try {
             $registry->register(new \Platform\Integrations\Tools\Meta\ListInstagramAccountsTool());
             $registry->register(new \Platform\Integrations\Tools\Meta\ListFacebookPagesTool());
+            $registry->register(new \Platform\Integrations\Tools\Meta\SyncMetaResourcesTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: Meta Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
