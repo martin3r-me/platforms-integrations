@@ -26,6 +26,7 @@ class DeleteContactTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'id' => ['type' => 'string', 'description' => 'UUID des zu löschenden Kontakts'],
             ],
             'required' => ['id'],
@@ -43,7 +44,7 @@ class DeleteContactTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->deleteContact($context->user, $arguments['id']);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

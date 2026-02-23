@@ -20,7 +20,15 @@ class OAuth2Controller extends Controller
         $state = $this->oauth2->newState();
         $request->session()->put('integrations.oauth2.state', $state);
         $request->session()->put('integrations.oauth2.owner_user_id', $ownerUserId);
-        
+
+        // Optional: connection_id für Reconnect einer bestehenden Connection
+        $connectionId = $request->query('connection_id');
+        if ($connectionId) {
+            $request->session()->put('integrations.oauth2.connection_id', (int) $connectionId);
+        } else {
+            $request->session()->forget('integrations.oauth2.connection_id');
+        }
+
         // Session explizit speichern, bevor wir zu externem Service weiterleiten
         $request->session()->save();
 

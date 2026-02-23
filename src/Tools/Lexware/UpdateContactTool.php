@@ -26,6 +26,7 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'id' => ['type' => 'string', 'description' => 'PFLICHT. UUID des Kontakts (aus vorherigem GET).'],
                 'data' => [
                     'type' => 'object',
@@ -83,7 +84,7 @@ class UpdateContactTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->updateContact($context->user, $arguments['id'], $arguments['data']);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

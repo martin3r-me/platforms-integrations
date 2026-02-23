@@ -26,6 +26,7 @@ class UpdateArticleTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'id' => ['type' => 'string', 'description' => 'PFLICHT. UUID des Artikels (aus vorherigem GET).'],
                 'data' => [
                     'type' => 'object',
@@ -65,7 +66,7 @@ class UpdateArticleTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->updateArticle($context->user, $arguments['id'], $arguments['data']);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

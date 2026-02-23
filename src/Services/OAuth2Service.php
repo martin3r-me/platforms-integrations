@@ -262,17 +262,35 @@ class OAuth2Service
         $expiresIn = isset($payload['expires_in']) ? (int) $payload['expires_in'] : null;
         $expiresAt = $expiresIn ? now()->addSeconds($expiresIn)->timestamp : null;
 
-        $connection = IntegrationConnection::withTrashed()
-            ->where('integration_id', $integration->id)
-            ->where('owner_user_id', $ownerUserId)
-            ->first();
+        // Multi-Connection: connection_id aus Session bestimmt Update vs. Create
+        $connectionId = (int) $request->session()->pull('integrations.oauth2.connection_id', 0);
 
-        if ($connection && $connection->trashed()) {
-            $connection->restore();
-        } elseif (!$connection) {
+        if ($connectionId > 0) {
+            // Reconnect: bestehende Connection aktualisieren
+            $connection = IntegrationConnection::withTrashed()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', $ownerUserId)
+                ->first();
+
+            if ($connection && $connection->trashed()) {
+                $connection->restore();
+            }
+
+            if (!$connection) {
+                throw new \RuntimeException("Connection #{$connectionId} nicht gefunden oder keine Berechtigung.");
+            }
+        } else {
+            // Neue Connection erstellen
+            $isFirst = !IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->where('owner_user_id', $ownerUserId)
+                ->exists();
+
             $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $ownerUserId,
+                'name' => IntegrationConnection::generateName($integration->id, $ownerUserId, $integration->name),
+                'is_default' => $isFirst,
             ]);
         }
 

@@ -77,9 +77,11 @@ class LexwareIntegrationService
     }
 
     /**
-     * Erstellt oder aktualisiert eine Lexware-IntegrationConnection für einen User
+     * Erstellt oder aktualisiert eine Lexware-IntegrationConnection für einen User.
+     *
+     * @param int|null $connectionId Wenn gesetzt: Update dieser Connection; null = neue Connection
      */
-    public function createOrUpdateConnectionForUser(User $user, string $apiToken): IntegrationConnection
+    public function createOrUpdateConnectionForUser(User $user, string $apiToken, ?int $connectionId = null): IntegrationConnection
     {
         $integration = Integration::firstOrCreate(
             ['key' => 'lexoffice'],
@@ -94,19 +96,35 @@ class LexwareIntegrationService
             ]
         );
 
-        $connection = IntegrationConnection::withTrashed()
-            ->where('integration_id', $integration->id)
-            ->where('owner_user_id', $user->id)
-            ->first();
+        if ($connectionId) {
+            // Update spezifische Connection
+            $connection = IntegrationConnection::withTrashed()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', $user->id)
+                ->first();
 
-        if ($connection && $connection->trashed()) {
-            $connection->restore();
+            if ($connection && $connection->trashed()) {
+                $connection->restore();
+            }
+
+            if (!$connection) {
+                throw new \RuntimeException("Connection #{$connectionId} nicht gefunden.");
+            }
+
             $connection->auth_scheme = 'api_key';
             $connection->status = 'active';
-        } elseif (!$connection) {
+        } else {
+            // Neue Connection erstellen
+            $isFirst = !IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->where('owner_user_id', $user->id)
+                ->exists();
+
             $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $user->id,
+                'name' => IntegrationConnection::generateName($integration->id, $user->id, $integration->name),
+                'is_default' => $isFirst,
                 'auth_scheme' => 'api_key',
                 'status' => 'active',
             ]);

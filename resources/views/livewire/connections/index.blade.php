@@ -35,183 +35,209 @@
                             <p class="text-sm text-[var(--ui-muted)]">Verbinde dein Meta-Konto für Facebook Pages, Instagram Accounts und WhatsApp Business</p>
                         </div>
                     </div>
+                    @if($metaConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'meta'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
                 </div>
 
-                @if($metaConnection && $metaConnection->status === 'active')
+                @if($metaConnections->isNotEmpty())
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex-shrink-0">
-                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-green-900">Meta-Konto ist verbunden</p>
-                                <p class="text-xs text-green-700 mt-1">
-                                    Verbunden am {{ $metaConnection->updated_at->format('d.m.Y H:i') }}
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                <x-ui-button
-                                    variant="secondary"
-                                    size="sm"
-                                    :href="route('integrations.connections.grants', $metaConnection)"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-user-group', 'w-4 h-4')
-                                        <span>Freigaben</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button
-                                    variant="secondary"
-                                    size="sm"
-                                    :href="route('integrations.oauth2.start', ['integrationKey' => 'meta'])"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                        <span>Erneut verbinden</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button
-                                    variant="danger-outline"
-                                    size="sm"
-                                    wire:click="deleteConnection({{ $metaConnection->id }})"
-                                    wire:confirm="Meta-Verbindung wirklich löschen? Alle verknüpften Facebook Pages, Instagram Accounts und WhatsApp Accounts werden entfernt."
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-trash', 'w-4 h-4')
-                                        <span>Trennen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Facebook Pages</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsFacebookPage::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Instagram Accounts</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsInstagramAccount::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WhatsApp Accounts</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsWhatsAppAccount::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WA Templates</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsWhatsAppTemplate::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sync-Buttons --}}
-                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <x-ui-button 
-                                    variant="primary" 
-                                    size="sm"
-                                    wire:click="syncAll"
-                                    :disabled="$isSyncing"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @if($isSyncing)
-                                            @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                        @foreach($metaConnections as $metaConn)
+                            <div class="p-4 {{ $metaConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($metaConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
                                         @else
-                                            @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
                                         @endif
-                                        <span>Alle synchronisieren</span>
-                                    </span>
-                                </x-ui-button>
-                                
-                                <div class="flex gap-2 flex-wrap">
-                                    <x-ui-button 
-                                        variant="secondary-outline" 
-                                        size="sm"
-                                        wire:click="syncFacebookPages"
-                                        :disabled="$isSyncing"
-                                    >
-                                        <span class="inline-flex items-center gap-2">
-                                            @if($isSyncing)
-                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
-                                            @else
-                                                @svg('heroicon-o-globe-alt', 'w-4 h-4')
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $metaConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $metaConn->name ?? 'Meta' }}
+                                            </p>
+                                            @if($metaConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
                                             @endif
-                                            <span>Facebook Pages</span>
-                                        </span>
-                                    </x-ui-button>
-                                    
-                                    <x-ui-button 
-                                        variant="secondary-outline" 
-                                        size="sm"
-                                        wire:click="syncInstagramAccounts"
-                                        :disabled="$isSyncing"
-                                    >
-                                        <span class="inline-flex items-center gap-2">
-                                            @if($isSyncing)
-                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
-                                            @else
-                                                @svg('heroicon-o-camera', 'w-4 h-4')
-                                            @endif
-                                            <span>Instagram</span>
-                                        </span>
-                                    </x-ui-button>
-                                    
-                                    <x-ui-button
-                                        variant="secondary-outline"
-                                        size="sm"
-                                        wire:click="syncWhatsAppAccounts"
-                                        :disabled="$isSyncing"
-                                    >
-                                        <span class="inline-flex items-center gap-2">
-                                            @if($isSyncing)
-                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
-                                            @else
-                                                @svg('heroicon-o-chat-bubble-left-right', 'w-4 h-4')
-                                            @endif
-                                            <span>WhatsApp</span>
-                                        </span>
-                                    </x-ui-button>
-
-                                    <x-ui-button
-                                        variant="secondary-outline"
-                                        size="sm"
-                                        wire:click="syncWhatsAppTemplates"
-                                        :disabled="$isSyncing"
-                                    >
-                                        <span class="inline-flex items-center gap-2">
-                                            @if($isSyncing)
-                                                @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
-                                            @else
-                                                @svg('heroicon-o-document-text', 'w-4 h-4')
-                                            @endif
-                                            <span>WA Templates</span>
-                                        </span>
-                                    </x-ui-button>
-                                </div>
-                            </div>
-
-                            @if($syncMessage)
-                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
-                                </div>
-                            @endif
-
-                            @if($syncError)
-                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
-                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                            <x-ui-badge size="sm" variant="{{ $metaConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $metaConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $metaConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $metaConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$metaConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $metaConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            :href="route('integrations.connections.grants', $metaConn)"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            :href="route('integrations.oauth2.start', ['integrationKey' => 'meta', 'connection_id' => $metaConn->id])"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Reconnect</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $metaConn->id }})"
+                                            wire:confirm="Meta-Verbindung '{{ $metaConn->name }}' wirklich löschen? Alle verknüpften Facebook Pages, Instagram Accounts und WhatsApp Accounts werden entfernt."
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
+
+                                @if($metaConn->status === 'active')
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Facebook Pages</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ $metaConn->facebookPages()->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Instagram Accounts</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ $metaConn->instagramAccounts()->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WhatsApp Accounts</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ $metaConn->whatsappAccounts()->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">WA Templates</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsWhatsAppTemplate::where('user_id', auth()->id())->count() }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Sync-Buttons --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <div class="flex flex-col sm:flex-row gap-3">
+                                            <x-ui-button
+                                                variant="primary"
+                                                size="sm"
+                                                wire:click="syncAll({{ $metaConn->id }})"
+                                                :disabled="$isSyncing"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @if($isSyncing)
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                                    @else
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                    @endif
+                                                    <span>Alle synchronisieren</span>
+                                                </span>
+                                            </x-ui-button>
+
+                                            <div class="flex gap-2 flex-wrap">
+                                                <x-ui-button
+                                                    variant="secondary-outline"
+                                                    size="sm"
+                                                    wire:click="syncFacebookPages({{ $metaConn->id }})"
+                                                    :disabled="$isSyncing"
+                                                >
+                                                    <span class="inline-flex items-center gap-2">
+                                                        @svg('heroicon-o-globe-alt', 'w-4 h-4')
+                                                        <span>Facebook Pages</span>
+                                                    </span>
+                                                </x-ui-button>
+
+                                                <x-ui-button
+                                                    variant="secondary-outline"
+                                                    size="sm"
+                                                    wire:click="syncInstagramAccounts({{ $metaConn->id }})"
+                                                    :disabled="$isSyncing"
+                                                >
+                                                    <span class="inline-flex items-center gap-2">
+                                                        @svg('heroicon-o-camera', 'w-4 h-4')
+                                                        <span>Instagram</span>
+                                                    </span>
+                                                </x-ui-button>
+
+                                                <x-ui-button
+                                                    variant="secondary-outline"
+                                                    size="sm"
+                                                    wire:click="syncWhatsAppAccounts({{ $metaConn->id }})"
+                                                    :disabled="$isSyncing"
+                                                >
+                                                    <span class="inline-flex items-center gap-2">
+                                                        @svg('heroicon-o-chat-bubble-left-right', 'w-4 h-4')
+                                                        <span>WhatsApp</span>
+                                                    </span>
+                                                </x-ui-button>
+
+                                                <x-ui-button
+                                                    variant="secondary-outline"
+                                                    size="sm"
+                                                    wire:click="syncWhatsAppTemplates({{ $metaConn->id }})"
+                                                    :disabled="$isSyncing"
+                                                >
+                                                    <span class="inline-flex items-center gap-2">
+                                                        @svg('heroicon-o-document-text', 'w-4 h-4')
+                                                        <span>WA Templates</span>
+                                                    </span>
+                                                </x-ui-button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
@@ -220,8 +246,8 @@
                         </div>
                         <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Meta-Konto noch nicht verbunden</p>
                         <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein Meta-Konto, um Facebook Pages, Instagram Accounts und WhatsApp Business zu verwalten</p>
-                        <x-ui-button 
-                            variant="primary" 
+                        <x-ui-button
+                            variant="primary"
                             size="md"
                             :href="route('integrations.oauth2.start', ['integrationKey' => 'meta'])"
                         >
@@ -248,99 +274,141 @@
                             <p class="text-sm text-[var(--ui-muted)]">Verbinde dein GitHub-Konto für Repository-Verwaltung</p>
                         </div>
                     </div>
+                    @if($githubConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'github'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
                 </div>
 
-                @if($githubConnection && $githubConnection->status === 'active')
+                @if($githubConnections->isNotEmpty())
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex-shrink-0">
-                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-green-900">GitHub-Konto ist verbunden</p>
-                                <p class="text-xs text-green-700 mt-1">
-                                    Verbunden am {{ $githubConnection->updated_at->format('d.m.Y H:i') }}
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                <x-ui-button 
-                                    variant="secondary" 
-                                    size="sm"
-                                    :href="route('integrations.oauth2.start', ['integrationKey' => 'github'])"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                        <span>Erneut verbinden</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button 
-                                    variant="danger-outline" 
-                                    size="sm"
-                                    wire:click="deleteConnection({{ $githubConnection->id }})"
-                                    wire:confirm="GitHub-Verbindung wirklich löschen? Alle verknüpften Repositories werden entfernt."
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-trash', 'w-4 h-4')
-                                        <span>Trennen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Repositories</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Private</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', true)->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Public</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', false)->count() }}
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sync-Button --}}
-                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
-                            <x-ui-button 
-                                variant="primary" 
-                                size="sm"
-                                wire:click="syncGithubRepositories"
-                                :disabled="$isSyncing"
-                            >
-                                <span class="inline-flex items-center gap-2">
-                                    @if($isSyncing)
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
-                                    @else
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                    @endif
-                                    <span>Repositories synchronisieren</span>
-                                </span>
-                            </x-ui-button>
-
-                            @if($syncMessage)
-                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
-                                </div>
-                            @endif
-
-                            @if($syncError)
-                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
-                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                        @foreach($githubConnections as $ghConn)
+                            <div class="p-4 {{ $ghConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($ghConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $ghConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $ghConn->name ?? 'GitHub' }}
+                                            </p>
+                                            @if($ghConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $ghConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $ghConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $ghConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $ghConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$ghConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $ghConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            :href="route('integrations.oauth2.start', ['integrationKey' => 'github', 'connection_id' => $ghConn->id])"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Reconnect</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $ghConn->id }})"
+                                            wire:confirm="GitHub-Verbindung '{{ $ghConn->name }}' wirklich löschen? Alle verknüpften Repositories werden entfernt."
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
+
+                                @if($ghConn->status === 'active')
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Repositories</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Private</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', true)->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Public</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsGithubRepository::where('user_id', auth()->id())->where('is_private', false)->count() }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Sync-Button --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="primary"
+                                            size="sm"
+                                            wire:click="syncGithubRepositories({{ $ghConn->id }})"
+                                            :disabled="$isSyncing"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @if($isSyncing)
+                                                    @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                                @else
+                                                    @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                @endif
+                                                <span>Repositories synchronisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
@@ -349,8 +417,8 @@
                         </div>
                         <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">GitHub-Konto noch nicht verbunden</p>
                         <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein GitHub-Konto, um deine Repositories zu verwalten</p>
-                        <x-ui-button 
-                            variant="primary" 
+                        <x-ui-button
+                            variant="primary"
                             size="md"
                             :href="route('integrations.oauth2.start', ['integrationKey' => 'github'])"
                         >
@@ -377,112 +445,154 @@
                             <p class="text-sm text-[var(--ui-muted)]">Verbinde dein Lexware-Konto für Buchhaltung und Kontaktverwaltung</p>
                         </div>
                     </div>
+                    @if($lexwareConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openLexwareModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
                 </div>
 
-                @if($lexwareConnection && $lexwareConnection->status === 'active')
+                @if($lexwareConnections->isNotEmpty())
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex-shrink-0">
-                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-green-900">Lexware-Konto ist verbunden</p>
-                                <p class="text-xs text-green-700 mt-1">
-                                    Verbunden am {{ $lexwareConnection->updated_at->format('d.m.Y H:i') }}
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                <x-ui-button
-                                    variant="secondary"
-                                    size="sm"
-                                    wire:click="openLexwareModal"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                        <span>Token aktualisieren</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button
-                                    variant="danger-outline"
-                                    size="sm"
-                                    wire:click="deleteConnection({{ $lexwareConnection->id }})"
-                                    wire:confirm="Lexware-Verbindung wirklich loschen? Alle verknupften Kontakte werden entfernt."
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-trash', 'w-4 h-4')
-                                        <span>Trennen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kontakte</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kunden</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['customer', 'both'])->count() }}
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Lieferanten</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['vendor', 'both'])->count() }}
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sync-Buttons --}}
-                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <x-ui-button
-                                    variant="primary"
-                                    size="sm"
-                                    wire:click="syncLexwareContacts"
-                                    :disabled="$isSyncing"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @if($isSyncing)
-                                            @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                        @foreach($lexwareConnections as $lexConn)
+                            <div class="p-4 {{ $lexConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($lexConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
                                         @else
-                                            @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
                                         @endif
-                                        <span>Kontakte synchronisieren</span>
-                                    </span>
-                                </x-ui-button>
-
-                                <x-ui-button
-                                    variant="secondary-outline"
-                                    size="sm"
-                                    wire:click="testLexwareConnection"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-signal', 'w-4 h-4')
-                                        <span>Verbindung testen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-
-                            @if($syncMessage)
-                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
-                                </div>
-                            @endif
-
-                            @if($syncError)
-                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
-                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $lexConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $lexConn->name ?? 'Lexware' }}
+                                            </p>
+                                            @if($lexConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $lexConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $lexConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $lexConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $lexConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$lexConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $lexConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openLexwareModalForEdit({{ $lexConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Token aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $lexConn->id }})"
+                                            wire:confirm="Lexware-Verbindung '{{ $lexConn->name }}' wirklich loschen? Alle verknupften Kontakte werden entfernt."
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
+
+                                @if($lexConn->status === 'active')
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kontakte</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Kunden</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['customer', 'both'])->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Lieferanten</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsLexwareContact::where('user_id', auth()->id())->whereIn('contact_type', ['vendor', 'both'])->count() }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Sync-Buttons --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <div class="flex flex-col sm:flex-row gap-3">
+                                            <x-ui-button
+                                                variant="primary"
+                                                size="sm"
+                                                wire:click="syncLexwareContacts({{ $lexConn->id }})"
+                                                :disabled="$isSyncing"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @if($isSyncing)
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                                    @else
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                    @endif
+                                                    <span>Kontakte synchronisieren</span>
+                                                </span>
+                                            </x-ui-button>
+
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="testLexwareConnection({{ $lexConn->id }})"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @svg('heroicon-o-signal', 'w-4 h-4')
+                                                    <span>Verbindung testen</span>
+                                                </span>
+                                            </x-ui-button>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
@@ -519,94 +629,136 @@
                             <p class="text-sm text-[var(--ui-muted)]">Verbinde dein Sipgate-Konto für Telefonie, SMS und Fax</p>
                         </div>
                     </div>
+                    @if($sipgateConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'sipgate'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
                 </div>
 
-                @if($sipgateConnection && $sipgateConnection->status === 'active')
+                @if($sipgateConnections->isNotEmpty())
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex-shrink-0">
-                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-green-900">Sipgate-Konto ist verbunden</p>
-                                <p class="text-xs text-green-700 mt-1">
-                                    Verbunden am {{ $sipgateConnection->updated_at->format('d.m.Y H:i') }}
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                <x-ui-button
-                                    variant="secondary"
-                                    size="sm"
-                                    :href="route('integrations.oauth2.start', ['integrationKey' => 'sipgate'])"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                        <span>Erneut verbinden</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button
-                                    variant="danger-outline"
-                                    size="sm"
-                                    wire:click="deleteConnection({{ $sipgateConnection->id }})"
-                                    wire:confirm="Sipgate-Verbindung wirklich löschen?"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-trash', 'w-4 h-4')
-                                        <span>Trennen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Telefonie</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    @svg('heroicon-o-phone', 'w-6 h-6 text-green-600')
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">SMS</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    @svg('heroicon-o-chat-bubble-left', 'w-6 h-6 text-blue-600')
-                                </div>
-                            </div>
-                            <div class="p-4 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-xl">
-                                <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Fax</div>
-                                <div class="text-2xl font-bold text-[var(--ui-secondary)]">
-                                    @svg('heroicon-o-document', 'w-6 h-6 text-purple-600')
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Test-Button --}}
-                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
-                            <x-ui-button
-                                variant="secondary-outline"
-                                size="sm"
-                                wire:click="testSipgateConnection"
-                            >
-                                <span class="inline-flex items-center gap-2">
-                                    @svg('heroicon-o-signal', 'w-4 h-4')
-                                    <span>Verbindung testen</span>
-                                </span>
-                            </x-ui-button>
-
-                            @if($syncMessage)
-                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
-                                </div>
-                            @endif
-
-                            @if($syncError)
-                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
-                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                        @foreach($sipgateConnections as $sipConn)
+                            <div class="p-4 {{ $sipConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($sipConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $sipConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $sipConn->name ?? 'Sipgate' }}
+                                            </p>
+                                            @if($sipConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $sipConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $sipConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $sipConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $sipConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$sipConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $sipConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            :href="route('integrations.oauth2.start', ['integrationKey' => 'sipgate', 'connection_id' => $sipConn->id])"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Reconnect</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $sipConn->id }})"
+                                            wire:confirm="Sipgate-Verbindung '{{ $sipConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
+
+                                @if($sipConn->status === 'active')
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Telefonie</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                @svg('heroicon-o-phone', 'w-6 h-6 text-green-600')
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">SMS</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                @svg('heroicon-o-chat-bubble-left', 'w-6 h-6 text-blue-600')
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Fax</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                @svg('heroicon-o-document', 'w-6 h-6 text-purple-600')
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Test-Button --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testSipgateConnection({{ $sipConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
@@ -643,73 +795,115 @@
                             <p class="text-sm text-[var(--ui-muted)]">SEO-Keyword-Daten: Suchvolumen, verwandte Keywords und Keyword-Vorschläge</p>
                         </div>
                     </div>
+                    @if($dataforseoConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openDataforseoModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
                 </div>
 
-                @if($dataforseoConnection && $dataforseoConnection->status === 'active')
+                @if($dataforseoConnections->isNotEmpty())
                     <div class="space-y-4">
-                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                            <div class="flex-shrink-0">
-                                @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-sm font-medium text-green-900">DataForSEO ist verbunden</p>
-                                <p class="text-xs text-green-700 mt-1">
-                                    Verbunden am {{ $dataforseoConnection->updated_at->format('d.m.Y H:i') }}
-                                </p>
-                            </div>
-                            <div class="flex gap-2">
-                                <x-ui-button
-                                    variant="secondary"
-                                    size="sm"
-                                    wire:click="openDataforseoModal"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                        <span>Credentials aktualisieren</span>
-                                    </span>
-                                </x-ui-button>
-                                <x-ui-button
-                                    variant="danger-outline"
-                                    size="sm"
-                                    wire:click="deleteConnection({{ $dataforseoConnection->id }})"
-                                    wire:confirm="DataForSEO-Verbindung wirklich löschen?"
-                                >
-                                    <span class="inline-flex items-center gap-2">
-                                        @svg('heroicon-o-trash', 'w-4 h-4')
-                                        <span>Trennen</span>
-                                    </span>
-                                </x-ui-button>
-                            </div>
-                        </div>
-
-                        {{-- Test-Button --}}
-                        <div class="mt-6 pt-6 border-t border-[var(--ui-border)]/40">
-                            <x-ui-button
-                                variant="secondary-outline"
-                                size="sm"
-                                wire:click="testDataforseoConnection"
-                            >
-                                <span class="inline-flex items-center gap-2">
-                                    @svg('heroicon-o-signal', 'w-4 h-4')
-                                    <span>Verbindung testen</span>
-                                </span>
-                            </x-ui-button>
-
-                            @if($syncMessage)
-                                <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <p class="text-sm text-green-800">{{ $syncMessage }}</p>
-                                </div>
-                            @endif
-
-                            @if($syncError)
-                                <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
-                                        <p class="text-sm text-red-800">{{ $syncError }}</p>
+                        @foreach($dataforseoConnections as $dfsConn)
+                            <div class="p-4 {{ $dfsConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($dfsConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $dfsConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $dfsConn->name ?? 'DataForSEO' }}
+                                            </p>
+                                            @if($dfsConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $dfsConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $dfsConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $dfsConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $dfsConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$dfsConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $dfsConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openDataforseoModalForEdit({{ $dfsConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Credentials aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $dfsConn->id }})"
+                                            wire:confirm="DataForSEO-Verbindung '{{ $dfsConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
+
+                                @if($dfsConn->status === 'active')
+                                    {{-- Test-Button --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testDataforseoConnection({{ $dfsConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
@@ -753,10 +947,19 @@
                                             @svg('heroicon-o-link', 'w-5 h-5 text-[var(--ui-primary)]')
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <h3 class="text-sm font-bold text-[var(--ui-secondary)] mb-1 truncate">
-                                                {{ $conn->integration->name ?? $conn->integration->key ?? '—' }}
-                                            </h3>
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <h3 class="text-sm font-bold text-[var(--ui-secondary)] truncate">
+                                                    {{ $conn->name ?? $conn->integration->name ?? $conn->integration->key ?? '—' }}
+                                                </h3>
+                                                @if($conn->is_default)
+                                                    <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                                @endif
+                                            </div>
                                             <div class="flex items-center gap-3 text-xs text-[var(--ui-muted)]">
+                                                <span class="inline-flex items-center gap-1">
+                                                    @svg('heroicon-o-squares-2x2', 'w-3 h-3')
+                                                    {{ $conn->integration->name ?? $conn->integration->key ?? '—' }}
+                                                </span>
                                                 <span class="inline-flex items-center gap-1">
                                                     @svg('heroicon-o-key', 'w-3 h-3')
                                                     {{ $conn->auth_scheme }}
@@ -775,6 +978,16 @@
                                         >
                                             {{ $conn->status }}
                                         </x-ui-badge>
+                                        @if(!$conn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="xs"
+                                                wire:click="setDefaultConnection({{ $conn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-3.5 h-3.5')
+                                            </x-ui-button>
+                                        @endif
                                         <x-ui-button
                                             variant="secondary-outline"
                                             size="xs"
@@ -794,7 +1007,7 @@
                                             <x-ui-button
                                                 variant="secondary-outline"
                                                 size="xs"
-                                                :href="route('integrations.oauth2.start', ['integrationKey' => $conn->integration->key ?? ''])"
+                                                :href="route('integrations.oauth2.start', ['integrationKey' => $conn->integration->key ?? '', 'connection_id' => $conn->id])"
                                             >
                                                 @svg('heroicon-o-arrow-path', 'w-3.5 h-3.5')
                                             </x-ui-button>
@@ -803,7 +1016,7 @@
                                             variant="danger-outline"
                                             size="xs"
                                             wire:click="deleteConnection({{ $conn->id }})"
-                                            wire:confirm="Connection wirklich löschen?"
+                                            wire:confirm="Connection '{{ $conn->name }}' wirklich löschen?"
                                         >
                                             @svg('heroicon-o-trash', 'w-3.5 h-3.5')
                                         </x-ui-button>
@@ -872,43 +1085,43 @@
                                 {{ $connections->where('status', 'active')->count() }}
                             </span>
                         </div>
-                        @if($metaConnection && $metaConnection->status === 'active')
+                        @if($metaConnections->where('status', 'active')->isNotEmpty())
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">Meta verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                    ✓
+                                    {{ $metaConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif
-                        @if($githubConnection && $githubConnection->status === 'active')
+                        @if($githubConnections->where('status', 'active')->isNotEmpty())
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">GitHub verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                    ✓
+                                    {{ $githubConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif
-                        @if($lexwareConnection && $lexwareConnection->status === 'active')
+                        @if($lexwareConnections->where('status', 'active')->isNotEmpty())
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">Lexware verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                    ✓
+                                    {{ $lexwareConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif
-                        @if($sipgateConnection && $sipgateConnection->status === 'active')
+                        @if($sipgateConnections->where('status', 'active')->isNotEmpty())
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">Sipgate verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                    ✓
+                                    {{ $sipgateConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif
-                        @if($dataforseoConnection && $dataforseoConnection->status === 'active')
+                        @if($dataforseoConnections->where('status', 'active')->isNotEmpty())
                             <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
                                 <span class="text-sm text-green-700">DataForSEO verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
-                                    ✓
+                                    {{ $dataforseoConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif

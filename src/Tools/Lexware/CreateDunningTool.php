@@ -26,6 +26,7 @@ class CreateDunningTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'data' => [
                     'type' => 'object',
                     'description' => 'Mahnungsdaten für die Lexware API. Mahnungen enthalten Preise (anders als Lieferscheine).',
@@ -82,7 +83,7 @@ class CreateDunningTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->createDunning($context->user, $arguments['data'], $arguments['finalize'] ?? false);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

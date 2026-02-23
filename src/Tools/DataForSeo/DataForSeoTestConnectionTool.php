@@ -7,6 +7,7 @@ use Platform\Core\Contracts\ToolContext;
 use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\DataForSeoIntegrationService;
+use Platform\Integrations\Services\IntegrationConnectionResolver;
 
 /**
  * LLM-Tool: Connectivity-Check für DataForSEO
@@ -30,7 +31,9 @@ class DataForSeoTestConnectionTool implements ToolContract, ToolMetadataContract
     {
         return [
             'type' => 'object',
-            'properties' => new \stdClass(),
+            'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen DataForSEO-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
+            ],
             'required' => [],
         ];
     }
@@ -43,7 +46,14 @@ class DataForSeoTestConnectionTool implements ToolContract, ToolMetadataContract
 
         try {
             $service = app(DataForSeoIntegrationService::class);
-            $connection = $service->getConnectionForUser($context->user);
+            $connectionId = $arguments['connection_id'] ?? null;
+
+            if ($connectionId) {
+                $resolver = app(IntegrationConnectionResolver::class);
+                $connection = $resolver->resolveById($connectionId, $context->user);
+            } else {
+                $connection = $service->getConnectionForUser($context->user);
+            }
 
             if (!$connection) {
                 return ToolResult::error('NO_CONNECTION', 'Keine DataForSEO-Verbindung konfiguriert. Bitte zuerst unter Integrationen die DataForSEO-Credentials (Login/Password) eingeben.');

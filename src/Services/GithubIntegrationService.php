@@ -119,9 +119,11 @@ class GithubIntegrationService
     }
 
     /**
-     * Erstellt oder aktualisiert eine GitHub-IntegrationConnection für einen User
+     * Erstellt oder aktualisiert eine GitHub-IntegrationConnection für einen User.
+     *
+     * @param int|null $connectionId Wenn gesetzt: Update dieser Connection; null = neue Connection
      */
-    public function createOrUpdateConnectionForUser(User $user, array $oauthData): IntegrationConnection
+    public function createOrUpdateConnectionForUser(User $user, array $oauthData, ?int $connectionId = null): IntegrationConnection
     {
         $integration = Integration::firstOrCreate(
             ['key' => 'github'],
@@ -136,19 +138,33 @@ class GithubIntegrationService
             ]
         );
 
-        $connection = IntegrationConnection::withTrashed()
-            ->where('integration_id', $integration->id)
-            ->where('owner_user_id', $user->id)
-            ->first();
+        if ($connectionId) {
+            $connection = IntegrationConnection::withTrashed()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', $user->id)
+                ->first();
 
-        if ($connection && $connection->trashed()) {
-            $connection->restore();
+            if ($connection && $connection->trashed()) {
+                $connection->restore();
+            }
+
+            if (!$connection) {
+                throw new \RuntimeException("Connection #{$connectionId} nicht gefunden.");
+            }
+
             $connection->auth_scheme = 'oauth2';
             $connection->status = 'active';
-        } elseif (!$connection) {
+        } else {
+            $isFirst = !IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->where('owner_user_id', $user->id)
+                ->exists();
+
             $connection = new IntegrationConnection([
                 'integration_id' => $integration->id,
                 'owner_user_id' => $user->id,
+                'name' => IntegrationConnection::generateName($integration->id, $user->id, $integration->name),
+                'is_default' => $isFirst,
                 'auth_scheme' => 'oauth2',
                 'status' => 'active',
             ]);

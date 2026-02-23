@@ -5,6 +5,8 @@ return [
     'description' => 'External integrations (OAuth + manual credentials) with grants per user',
     'version' => '1.0.0',
 
+    'scope_type' => 'parent',
+
     'routing' => [
         'prefix' => 'integrations',
         'middleware' => ['web', 'auth'],

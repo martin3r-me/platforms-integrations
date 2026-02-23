@@ -46,9 +46,47 @@ class LexwareApiService
 
     protected LexwareIntegrationService $integrationService;
 
+    protected ?int $connectionIdOverride = null;
+
     public function __construct(LexwareIntegrationService $integrationService)
     {
         $this->integrationService = $integrationService;
+    }
+
+    /**
+     * Gibt eine Kopie dieses Services zurück, die eine spezifische Connection verwendet.
+     */
+    public function forConnection(?int $connectionId): static
+    {
+        if ($connectionId === null) {
+            return $this;
+        }
+
+        $clone = clone $this;
+        $clone->connectionIdOverride = $connectionId;
+
+        return $clone;
+    }
+
+    /**
+     * Löst die IntegrationConnection für den User auf.
+     * Bevorzugt connectionIdOverride, Fallback auf Default-Connection.
+     */
+    protected function resolveConnection(User $user): IntegrationConnection
+    {
+        if ($this->connectionIdOverride) {
+            $resolver = app(IntegrationConnectionResolver::class);
+            $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+        } else {
+            $connection = $this->integrationService->getConnectionForUser($user);
+        }
+
+        if (!$connection) {
+            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
+            throw LexwareApiException::noConnection();
+        }
+
+        return $connection;
     }
 
     // =========================================================================
@@ -515,13 +553,7 @@ class LexwareApiService
         string $fileName,
         ?string $contentType = null
     ): array {
-        // Token aus der IntegrationConnection Tabelle holen
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
-            throw LexwareApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $apiToken = $this->integrationService->getApiToken($connection);
 
@@ -1339,13 +1371,7 @@ class LexwareApiService
      */
     public function downloadFile(User $user, string $documentFileId): string
     {
-        // Token aus der IntegrationConnection Tabelle holen
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
-            throw LexwareApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $apiToken = $this->integrationService->getApiToken($connection);
 
@@ -1450,13 +1476,7 @@ class LexwareApiService
         string $type = 'voucher',
         ?string $contentType = null
     ): array {
-        // Token aus der IntegrationConnection Tabelle holen
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
-            throw LexwareApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $apiToken = $this->integrationService->getApiToken($connection);
 
@@ -1579,13 +1599,7 @@ class LexwareApiService
      */
     public function getFile(User $user, string $fileId, string $acceptHeader = 'application/pdf'): string
     {
-        // Token aus der IntegrationConnection Tabelle holen
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
-            throw LexwareApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $apiToken = $this->integrationService->getApiToken($connection);
 
@@ -4636,13 +4650,7 @@ class LexwareApiService
         array $query = [],
         array $data = []
     ): array {
-        // Token aus der IntegrationConnection Tabelle holen
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('Lexware API: Keine Connection für User', ['user_id' => $user->id]);
-            throw LexwareApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $apiToken = $this->integrationService->getApiToken($connection);
 

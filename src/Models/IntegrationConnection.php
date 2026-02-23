@@ -2,6 +2,7 @@
 
 namespace Platform\Integrations\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,8 @@ class IntegrationConnection extends Model
     protected $fillable = [
         'integration_id',
         'owner_user_id',
+        'name',
+        'is_default',
         'auth_scheme',
         'status',
         'credentials',
@@ -29,6 +32,7 @@ class IntegrationConnection extends Model
 
     protected $casts = [
         'last_tested_at' => 'datetime',
+        'is_default' => 'boolean',
         // EncryptedJson wird automatisch gesetzt via Encryptable, aber explizit ist besser (siehe planner)
         'credentials' => \Platform\Core\Casts\EncryptedJson::class,
     ];
@@ -111,6 +115,55 @@ class IntegrationConnection extends Model
     public function githubRepos(): HasMany
     {
         return $this->hasMany(IntegrationGithubRepo::class, 'connection_id');
+    }
+
+    /**
+     * Scope: nur Default-Connections
+     */
+    public function scopeDefault(Builder $query): Builder
+    {
+        return $query->where('is_default', true);
+    }
+
+    /**
+     * Setzt diese Connection als Default und entfernt Default bei allen anderen
+     * Connections desselben Typs und Users.
+     */
+    public function makeDefault(): void
+    {
+        // Alle anderen gleichen Typs + User auf non-default setzen
+        static::query()
+            ->where('integration_id', $this->integration_id)
+            ->where('owner_user_id', $this->owner_user_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_default' => false]);
+
+        $this->is_default = true;
+        $this->save();
+    }
+
+    /**
+     * Generiert einen eindeutigen Namen für eine neue Connection.
+     * Beispiel: "Meta", "Meta (2)", "Meta (3)"
+     */
+    public static function generateName(int $integrationId, int $userId, string $baseName): string
+    {
+        $existing = static::query()
+            ->where('integration_id', $integrationId)
+            ->where('owner_user_id', $userId)
+            ->pluck('name')
+            ->toArray();
+
+        if (!in_array($baseName, $existing)) {
+            return $baseName;
+        }
+
+        $counter = 2;
+        while (in_array("{$baseName} ({$counter})", $existing)) {
+            $counter++;
+        }
+
+        return "{$baseName} ({$counter})";
     }
 
     public function isOwner(User $user): bool

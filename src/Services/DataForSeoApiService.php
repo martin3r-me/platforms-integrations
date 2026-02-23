@@ -36,9 +36,46 @@ class DataForSeoApiService
 
     protected DataForSeoIntegrationService $integrationService;
 
+    protected ?int $connectionIdOverride = null;
+
     public function __construct(DataForSeoIntegrationService $integrationService)
     {
         $this->integrationService = $integrationService;
+    }
+
+    /**
+     * Gibt eine Kopie dieses Services zurück, die eine spezifische Connection verwendet.
+     */
+    public function forConnection(?int $connectionId): static
+    {
+        if ($connectionId === null) {
+            return $this;
+        }
+
+        $clone = clone $this;
+        $clone->connectionIdOverride = $connectionId;
+
+        return $clone;
+    }
+
+    /**
+     * Löst die IntegrationConnection für den User auf.
+     */
+    protected function resolveConnection(User $user): IntegrationConnection
+    {
+        if ($this->connectionIdOverride) {
+            $resolver = app(IntegrationConnectionResolver::class);
+            $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+        } else {
+            $connection = $this->integrationService->getConnectionForUser($user);
+        }
+
+        if (!$connection) {
+            Log::warning('DataForSEO API: Keine Connection für User', ['user_id' => $user->id]);
+            throw DataForSeoApiException::noConnection();
+        }
+
+        return $connection;
     }
 
     // =========================================================================
@@ -212,12 +249,7 @@ class DataForSeoApiService
      */
     protected function request(User $user, string $endpoint, array $data = []): array
     {
-        $connection = $this->integrationService->getConnectionForUser($user);
-
-        if (!$connection) {
-            Log::warning('DataForSEO API: Keine Connection für User', ['user_id' => $user->id]);
-            throw DataForSeoApiException::noConnection();
-        }
+        $connection = $this->resolveConnection($user);
 
         $credentials = $this->integrationService->getCredentials($connection);
 

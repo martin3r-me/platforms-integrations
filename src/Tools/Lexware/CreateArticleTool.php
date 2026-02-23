@@ -26,6 +26,7 @@ class CreateArticleTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'data' => [
                     'type' => 'object',
                     'description' => 'Artikeldaten für die Lexware API.',
@@ -68,7 +69,7 @@ class CreateArticleTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->createArticle($context->user, $arguments['data']);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

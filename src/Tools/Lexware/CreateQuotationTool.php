@@ -26,6 +26,7 @@ class CreateQuotationTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'data' => [
                     'type' => 'object',
                     'description' => 'Angebotsdaten für die Lexware API.',
@@ -85,7 +86,7 @@ class CreateQuotationTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->createQuotation($context->user, $arguments['data'], $arguments['finalize'] ?? false);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {

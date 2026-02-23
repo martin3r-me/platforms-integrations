@@ -73,59 +73,55 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        // Meta-Connection prüfen
-        $metaConnection = IntegrationConnection::query()
+        // Alle Connections pro Typ laden (Collections statt single)
+        $metaConnections = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', function ($q) {
-                $q->where('key', 'meta');
-            })
+            ->whereHas('integration', fn ($q) => $q->where('key', 'meta'))
             ->where('owner_user_id', $user->id)
-            ->first();
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
-        // GitHub-Connection prüfen
-        $githubConnection = IntegrationConnection::query()
+        $githubConnections = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', function ($q) {
-                $q->where('key', 'github');
-            })
+            ->whereHas('integration', fn ($q) => $q->where('key', 'github'))
             ->where('owner_user_id', $user->id)
-            ->first();
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
-        // Lexware-Connection prüfen
-        $lexwareConnection = IntegrationConnection::query()
+        $lexwareConnections = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', function ($q) {
-                $q->where('key', 'lexoffice');
-            })
+            ->whereHas('integration', fn ($q) => $q->where('key', 'lexoffice'))
             ->where('owner_user_id', $user->id)
-            ->first();
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
-        // Sipgate-Connection prüfen
-        $sipgateConnection = IntegrationConnection::query()
+        $sipgateConnections = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', function ($q) {
-                $q->where('key', 'sipgate');
-            })
+            ->whereHas('integration', fn ($q) => $q->where('key', 'sipgate'))
             ->where('owner_user_id', $user->id)
-            ->first();
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
-        // DataForSEO-Connection prüfen
-        $dataforseoConnection = IntegrationConnection::query()
+        $dataforseoConnections = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', function ($q) {
-                $q->where('key', 'dataforseo');
-            })
+            ->whereHas('integration', fn ($q) => $q->where('key', 'dataforseo'))
             ->where('owner_user_id', $user->id)
-            ->first();
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
-            'metaConnection' => $metaConnection,
-            'githubConnection' => $githubConnection,
-            'lexwareConnection' => $lexwareConnection,
-            'sipgateConnection' => $sipgateConnection,
-            'dataforseoConnection' => $dataforseoConnection,
+            'metaConnections' => $metaConnections,
+            'githubConnections' => $githubConnections,
+            'lexwareConnections' => $lexwareConnections,
+            'sipgateConnections' => $sipgateConnections,
+            'dataforseoConnections' => $dataforseoConnections,
         ])->layout('platform::layouts.app');
     }
 
@@ -185,16 +181,24 @@ class Index extends Component
             return; // error already set
         }
 
-        $connection = IntegrationConnection::withTrashed()
-            ->where('integration_id', $integration->id)
-            ->where('owner_user_id', $ownerUserId)
-            ->first() ?? new IntegrationConnection();
-
-        if ($connection->exists) {
+        if ($this->editingId) {
+            // Bestehende Connection bearbeiten
+            $connection = IntegrationConnection::withTrashed()->findOrFail($this->editingId);
             if ($connection->trashed()) {
                 $connection->restore();
             }
             $this->assertCanManage($connection);
+        } else {
+            // Neue Connection erstellen
+            $isFirst = !IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->where('owner_user_id', $ownerUserId)
+                ->exists();
+
+            $connection = new IntegrationConnection([
+                'name' => IntegrationConnection::generateName($integration->id, $ownerUserId, $integration->name),
+                'is_default' => $isFirst,
+            ]);
         }
 
         $connection->integration_id = $integration->id;
@@ -255,22 +259,17 @@ class Index extends Component
         }
     }
 
-    public function syncFacebookPages(): void
+    public function syncFacebookPages(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-            
             $metaConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'meta');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$metaConnection) {
@@ -287,9 +286,9 @@ class Index extends Component
 
             $service = app(IntegrationsFacebookPageService::class);
             $result = $service->syncFacebookPagesForUser($metaConnection);
-            
+
             $count = count($result);
-            $this->syncMessage = "✅ {$count} Facebook Page(s) synchronisiert.";
+            $this->syncMessage = "{$count} Facebook Page(s) synchronisiert.";
             session()->flash('status', $this->syncMessage);
         } catch (\Exception $e) {
             $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
@@ -303,22 +302,17 @@ class Index extends Component
         }
     }
 
-    public function syncInstagramAccounts(): void
+    public function syncInstagramAccounts(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-            
             $metaConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'meta');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$metaConnection) {
@@ -335,9 +329,9 @@ class Index extends Component
 
             $service = app(IntegrationsInstagramAccountService::class);
             $result = $service->syncInstagramAccountsForUser($metaConnection);
-            
+
             $count = count($result);
-            $this->syncMessage = "✅ {$count} Instagram Account(s) synchronisiert.";
+            $this->syncMessage = "{$count} Instagram Account(s) synchronisiert.";
             session()->flash('status', $this->syncMessage);
         } catch (\Exception $e) {
             $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
@@ -351,22 +345,17 @@ class Index extends Component
         }
     }
 
-    public function syncWhatsAppAccounts(): void
+    public function syncWhatsAppAccounts(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-            
             $metaConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'meta');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$metaConnection) {
@@ -385,7 +374,7 @@ class Index extends Component
             $result = $service->syncWhatsAppAccountsForUser($metaConnection);
 
             $count = count($result);
-            $this->syncMessage = "✅ {$count} WhatsApp Account(s) synchronisiert.";
+            $this->syncMessage = "{$count} WhatsApp Account(s) synchronisiert.";
             session()->flash('status', $this->syncMessage);
 
             // Event feuern für Comms Channel Sync
@@ -402,22 +391,17 @@ class Index extends Component
         }
     }
 
-    public function syncWhatsAppTemplates(): void
+    public function syncWhatsAppTemplates(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-
             $metaConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'meta');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$metaConnection) {
@@ -450,22 +434,17 @@ class Index extends Component
         }
     }
 
-    public function syncAll(): void
+    public function syncAll(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-            
             $metaConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'meta');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$metaConnection) {
@@ -481,7 +460,7 @@ class Index extends Component
             }
 
             $results = [];
-            
+
             // Facebook Pages
             try {
                 $fbService = app(IntegrationsFacebookPageService::class);
@@ -553,22 +532,17 @@ class Index extends Component
         }
     }
 
-    public function syncGithubRepositories(): void
+    public function syncGithubRepositories(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-            
             $githubConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'github');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$githubConnection) {
@@ -585,9 +559,9 @@ class Index extends Component
 
             $service = app(IntegrationsGithubRepositoryService::class);
             $result = $service->syncGithubRepositoriesForUser($githubConnection);
-            
+
             $count = count($result);
-            $this->syncMessage = "✅ {$count} GitHub Repository/Repositories synchronisiert.";
+            $this->syncMessage = "{$count} GitHub Repository/Repositories synchronisiert.";
             session()->flash('status', $this->syncMessage);
         } catch (\Exception $e) {
             $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
@@ -630,7 +604,7 @@ class Index extends Component
             $user = auth()->user();
 
             $service = app(LexwareIntegrationService::class);
-            $connection = $service->createOrUpdateConnectionForUser($user, $this->lexwareApiToken);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->lexwareApiToken, $this->editingId);
 
             // Verbindung testen
             $testResult = $service->testConnection($connection);
@@ -638,6 +612,7 @@ class Index extends Component
             if ($testResult['success']) {
                 $this->lexwareModalShow = false;
                 $this->lexwareApiToken = '';
+                $this->editingId = null;
                 session()->flash('status', 'Lexware-Verbindung erfolgreich hergestellt.');
             } else {
                 $this->addError('lexwareApiToken', $testResult['message']);
@@ -651,22 +626,17 @@ class Index extends Component
         }
     }
 
-    public function syncLexwareContacts(): void
+    public function syncLexwareContacts(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
         $this->isSyncing = true;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-
             $lexwareConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'lexoffice');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$lexwareConnection) {
@@ -699,21 +669,16 @@ class Index extends Component
         }
     }
 
-    public function testLexwareConnection(): void
+    public function testLexwareConnection(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-
             $lexwareConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'lexoffice');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$lexwareConnection) {
@@ -737,21 +702,16 @@ class Index extends Component
 
     // ==================== SIPGATE METHODS ====================
 
-    public function testSipgateConnection(): void
+    public function testSipgateConnection(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-
             $sipgateConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'sipgate');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$sipgateConnection) {
@@ -807,7 +767,7 @@ class Index extends Component
             $user = auth()->user();
 
             $service = app(DataForSeoIntegrationService::class);
-            $connection = $service->createOrUpdateConnectionForUser($user, $this->dataforseoLogin, $this->dataforseoPassword);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->dataforseoLogin, $this->dataforseoPassword, $this->editingId);
 
             // Verbindung testen
             $testResult = $service->testConnection($connection);
@@ -816,6 +776,7 @@ class Index extends Component
                 $this->dataforseoModalShow = false;
                 $this->dataforseoLogin = '';
                 $this->dataforseoPassword = '';
+                $this->editingId = null;
                 session()->flash('status', 'DataForSEO-Verbindung erfolgreich hergestellt.');
             } else {
                 $this->addError('dataforseoLogin', $testResult['message']);
@@ -829,21 +790,16 @@ class Index extends Component
         }
     }
 
-    public function testDataforseoConnection(): void
+    public function testDataforseoConnection(int $connectionId): void
     {
         $this->syncError = null;
         $this->syncMessage = null;
 
         try {
-            /** @var User $user */
-            $user = auth()->user();
-
             $dataforseoConnection = IntegrationConnection::query()
                 ->with('integration')
-                ->whereHas('integration', function ($q) {
-                    $q->where('key', 'dataforseo');
-                })
-                ->where('owner_user_id', $user->id)
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
                 ->first();
 
             if (!$dataforseoConnection) {
@@ -863,6 +819,47 @@ class Index extends Component
         } catch (\Exception $e) {
             $this->syncError = 'Fehler: ' . $e->getMessage();
         }
+    }
+
+    public function setDefaultConnection(int $id): void
+    {
+        $connection = IntegrationConnection::findOrFail($id);
+        $this->assertCanManage($connection);
+        $connection->makeDefault();
+        session()->flash('status', "'{$connection->name}' ist jetzt die Standard-Verbindung.");
+    }
+
+    public function renameConnection(int $id, string $name): void
+    {
+        $connection = IntegrationConnection::findOrFail($id);
+        $this->assertCanManage($connection);
+
+        $name = trim($name);
+        if (empty($name)) {
+            $this->addError('connectionName', 'Name darf nicht leer sein.');
+            return;
+        }
+
+        $connection->name = $name;
+        $connection->save();
+        session()->flash('status', 'Connection umbenannt.');
+    }
+
+    public function openLexwareModalForEdit(int $connectionId): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->lexwareApiToken = '';
+        $this->lexwareModalShow = true;
+    }
+
+    public function openDataforseoModalForEdit(int $connectionId): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->dataforseoLogin = '';
+        $this->dataforseoPassword = '';
+        $this->dataforseoModalShow = true;
     }
 
     protected function assertCanManage(IntegrationConnection $connection): void

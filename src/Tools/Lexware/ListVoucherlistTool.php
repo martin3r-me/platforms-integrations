@@ -26,6 +26,7 @@ class ListVoucherlistTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
                 'page' => ['type' => 'integer', 'description' => 'Seite (0-basiert, default: 0)'],
                 'size' => ['type' => 'integer', 'description' => 'Einträge pro Seite (max 250, default: 25)'],
                 'voucherType' => ['type' => 'string', 'description' => 'Belegart filtern (z.B. invoice, quotation, creditnote, orderconfirmation, deliverynote, dunning)'],
@@ -44,7 +45,7 @@ class ListVoucherlistTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->getVoucherlist(
                 $context->user,
                 $arguments['page'] ?? 0,

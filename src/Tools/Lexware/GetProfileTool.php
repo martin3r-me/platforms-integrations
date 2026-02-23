@@ -25,7 +25,9 @@ class GetProfileTool implements ToolContract, ToolMetadataContract
     {
         return [
             'type' => 'object',
-            'properties' => new \stdClass(),
+            'properties' => [
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen Lexware-Connection. Wenn nicht angegeben, wird die Standard-Connection verwendet.'],
+            ],
             'required' => [],
         ];
     }
@@ -37,7 +39,7 @@ class GetProfileTool implements ToolContract, ToolMetadataContract
         }
 
         try {
-            $service = app(LexwareApiService::class);
+            $service = app(LexwareApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $service->getProfile($context->user);
             return ToolResult::success($result);
         } catch (LexwareApiException $e) {
