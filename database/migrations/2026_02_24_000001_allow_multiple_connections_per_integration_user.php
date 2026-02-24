@@ -9,10 +9,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('integration_connections', function (Blueprint $table) {
-            // Drop unique constraint to allow multiple connections per user+integration
-            $table->dropUnique('ic_integration_user_uniq');
+        // Drop unique constraint if it exists (defensive check)
+        $databaseName = DB::getDatabaseName();
+        $indexExists = DB::select(
+            'SELECT COUNT(*) as count FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?',
+            [$databaseName, 'integration_connections', 'ic_integration_user_uniq']
+        );
 
+        if ($indexExists[0]->count > 0) {
+            Schema::table('integration_connections', function (Blueprint $table) {
+                $table->dropUnique('ic_integration_user_uniq');
+            });
+        }
+
+        Schema::table('integration_connections', function (Blueprint $table) {
             // Add name and is_default columns
             $table->string('name')->nullable()->after('owner_user_id');
             $table->boolean('is_default')->default(false)->after('name');
