@@ -25,13 +25,13 @@ class CompetitorDomainResult
         $organic = $metrics['organic'] ?? [];
 
         return new self(
-            domain: $data['domain'] ?? '',
-            avgPosition: $data['avg_position'] ?? null,
-            serpCount: $data['se_type'] ?? $data['serp_count'] ?? null,
-            intersections: $data['intersections'] ?? null,
-            fullDomainKeywords: $organic['count'] ?? $organic['keywords'] ?? null,
-            fullDomainTraffic: $organic['estimated_paid_traffic_cost'] ?? $organic['traffic'] ?? null,
-            fullDomainCost: $organic['estimated_paid_traffic_cost'] ?? $organic['cost'] ?? null,
+            domain: (string) ($data['domain'] ?? ''),
+            avgPosition: isset($data['avg_position']) ? (float) $data['avg_position'] : null,
+            serpCount: isset($data['se_type']) ? (int) $data['se_type'] : (isset($data['serp_count']) ? (int) $data['serp_count'] : null),
+            intersections: isset($data['intersections']) ? (int) $data['intersections'] : null,
+            fullDomainKeywords: isset($organic['count']) ? (int) $organic['count'] : (isset($organic['keywords']) ? (int) $organic['keywords'] : null),
+            fullDomainTraffic: isset($organic['estimated_paid_traffic_cost']) ? (float) $organic['estimated_paid_traffic_cost'] : (isset($organic['traffic']) ? (float) $organic['traffic'] : null),
+            fullDomainCost: isset($organic['estimated_paid_traffic_cost']) ? (float) $organic['estimated_paid_traffic_cost'] : (isset($organic['cost']) ? (float) $organic['cost'] : null),
         );
     }
 

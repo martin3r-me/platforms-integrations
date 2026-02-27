@@ -28,15 +28,17 @@ class LabsKeywordResult
         $ki = $kd['keyword_info'] ?? $kd;
 
         return new self(
-            keyword: $kd['keyword'] ?? $ki['keyword'] ?? '',
-            searchVolume: $ki['search_volume'] ?? null,
-            cpc: $ki['cpc'] ?? null,
-            competition: $ki['competition'] ?? null,
-            competitionLevel: $ki['competition_level'] ?? null,
-            keywordDifficulty: $kd['keyword_properties']['keyword_difficulty'] ?? $ki['keyword_difficulty'] ?? null,
+            keyword: (string) ($kd['keyword'] ?? $ki['keyword'] ?? ''),
+            searchVolume: isset($ki['search_volume']) ? (int) $ki['search_volume'] : null,
+            cpc: isset($ki['cpc']) ? (float) $ki['cpc'] : null,
+            competition: isset($ki['competition']) ? (float) $ki['competition'] : null,
+            competitionLevel: isset($ki['competition_level']) ? (string) $ki['competition_level'] : null,
+            keywordDifficulty: isset($kd['keyword_properties']['keyword_difficulty'])
+                ? (int) $kd['keyword_properties']['keyword_difficulty']
+                : (isset($ki['keyword_difficulty']) ? (int) $ki['keyword_difficulty'] : null),
             monthlySearches: $ki['monthly_searches'] ?? null,
-            locationCode: $kd['location_code'] ?? null,
-            languageCode: $kd['language_code'] ?? null,
+            locationCode: isset($kd['location_code']) ? (int) $kd['location_code'] : null,
+            languageCode: isset($kd['language_code']) ? (string) $kd['language_code'] : null,
         );
     }
 

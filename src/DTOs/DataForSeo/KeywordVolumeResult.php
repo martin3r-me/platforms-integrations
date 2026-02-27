@@ -26,16 +26,16 @@ class KeywordVolumeResult
     public static function fromApiResult(array $data): self
     {
         return new self(
-            keyword: $data['keyword'] ?? '',
-            searchVolume: $data['search_volume'] ?? null,
-            competition: $data['competition'] ?? null,
-            competitionLevel: $data['competition_level'] ?? null,
-            competitionIndex: $data['competition_index'] ?? null,
-            cpcLow: $data['low_top_of_page_bid'] ?? null,
-            cpcHigh: $data['high_top_of_page_bid'] ?? null,
+            keyword: (string) ($data['keyword'] ?? ''),
+            searchVolume: isset($data['search_volume']) ? (int) $data['search_volume'] : null,
+            competition: isset($data['competition']) ? (float) $data['competition'] : null,
+            competitionLevel: isset($data['competition_level']) ? (string) $data['competition_level'] : null,
+            competitionIndex: isset($data['competition_index']) ? (int) $data['competition_index'] : null,
+            cpcLow: isset($data['low_top_of_page_bid']) ? (float) $data['low_top_of_page_bid'] : null,
+            cpcHigh: isset($data['high_top_of_page_bid']) ? (float) $data['high_top_of_page_bid'] : null,
             monthlySearches: $data['monthly_searches'] ?? null,
-            locationCode: $data['location_code'] ?? null,
-            languageCode: $data['language_code'] ?? null,
+            locationCode: isset($data['location_code']) ? (int) $data['location_code'] : null,
+            languageCode: isset($data['language_code']) ? (string) $data['language_code'] : null,
         );
     }
 

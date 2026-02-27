@@ -29,13 +29,13 @@ class RankedKeywordResult
         $serpItem = $serp['serp_item'] ?? [];
 
         return new self(
-            keyword: $kd['keyword'] ?? '',
-            position: $serpItem['rank_absolute'] ?? $serp['position'] ?? null,
+            keyword: (string) ($kd['keyword'] ?? ''),
+            position: isset($serpItem['rank_absolute']) ? (int) $serpItem['rank_absolute'] : (isset($serp['position']) ? (int) $serp['position'] : null),
             url: $serpItem['url'] ?? $serp['url'] ?? null,
-            searchVolume: $ki['search_volume'] ?? null,
-            cpc: $ki['cpc'] ?? null,
-            competition: $ki['competition'] ?? null,
-            keywordDifficulty: $kd['keyword_properties']['keyword_difficulty'] ?? null,
+            searchVolume: isset($ki['search_volume']) ? (int) $ki['search_volume'] : null,
+            cpc: isset($ki['cpc']) ? (float) $ki['cpc'] : null,
+            competition: isset($ki['competition']) ? (float) $ki['competition'] : null,
+            keywordDifficulty: isset($kd['keyword_properties']['keyword_difficulty']) ? (int) $kd['keyword_properties']['keyword_difficulty'] : null,
             serpFeatures: $serpItem['serp_features'] ?? null,
             isLocalPack: ($serpItem['type'] ?? '') === 'local_pack',
         );

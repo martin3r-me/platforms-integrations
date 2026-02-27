@@ -24,14 +24,14 @@ class SerpOrganicResult
     public static function fromApiResult(array $data, string $keyword = ''): self
     {
         return new self(
-            keyword: $keyword,
-            position: $data['rank_absolute'] ?? $data['position'] ?? null,
-            url: $data['url'] ?? null,
-            domain: $data['domain'] ?? null,
-            title: $data['title'] ?? null,
-            description: $data['description'] ?? null,
+            keyword: (string) $keyword,
+            position: isset($data['rank_absolute']) ? (int) $data['rank_absolute'] : (isset($data['position']) ? (int) $data['position'] : null),
+            url: isset($data['url']) ? (string) $data['url'] : null,
+            domain: isset($data['domain']) ? (string) $data['domain'] : null,
+            title: isset($data['title']) ? (string) $data['title'] : null,
+            description: isset($data['description']) ? (string) $data['description'] : null,
             serpFeatures: $data['about_this_result']['languages'] ?? null,
-            breadcrumb: $data['breadcrumb'] ?? null,
+            breadcrumb: isset($data['breadcrumb']) ? (string) $data['breadcrumb'] : null,
             isFeaturedSnippet: ($data['type'] ?? '') === 'featured_snippet',
         );
     }
