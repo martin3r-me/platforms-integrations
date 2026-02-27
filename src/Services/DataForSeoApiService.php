@@ -6,13 +6,18 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Platform\Core\Models\User;
+use Platform\Integrations\DTOs\DataForSeo\CompetitorDomainResult;
 use Platform\Integrations\DTOs\DataForSeo\KeywordVolumeResult;
+use Platform\Integrations\DTOs\DataForSeo\LabsKeywordResult;
+use Platform\Integrations\DTOs\DataForSeo\OnPageResult;
+use Platform\Integrations\DTOs\DataForSeo\RankedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\RelatedKeywordResult;
+use Platform\Integrations\DTOs\DataForSeo\SerpOrganicResult;
 use Platform\Integrations\Exceptions\DataForSeoApiException;
 use Platform\Integrations\Models\IntegrationConnection;
 
 /**
- * Service für die Kommunikation mit der DataForSEO Keywords Data API v3
+ * Service für die Kommunikation mit der DataForSEO API v3
  *
  * Stellt authentifizierte HTTP-Requests an die DataForSEO API bereit.
  * Credentials (Login/Password für Basic Auth) werden aus der IntegrationConnection gelesen.
@@ -21,8 +26,14 @@ use Platform\Integrations\Models\IntegrationConnection;
  * - POST /v3/keywords_data/google_ads/search_volume/live – Suchvolumen
  * - POST /v3/keywords_data/google_ads/keywords_for_keywords/live – Verwandte Keywords
  * - POST /v3/keywords_data/google_ads/keyword_suggestions/live – Keyword-Vorschläge
+ * - POST /v3/serp/google/organic/live/regular – SERP Organic
+ * - POST /v3/dataforseo_labs/google/keyword_suggestions/live – Labs Keyword Suggestions
+ * - POST /v3/dataforseo_labs/google/related_keywords/live – Labs Related Keywords
+ * - POST /v3/dataforseo_labs/google/ranked_keywords/live – Labs Ranked Keywords
+ * - POST /v3/dataforseo_labs/google/competitors_domain/live – Labs Competitors Domain
+ * - POST /v3/on_page/instant_pages – On-Page Instant
  *
- * @see https://docs.dataforseo.com/v3/keywords_data/google_ads/
+ * @see https://docs.dataforseo.com/v3/
  */
 class DataForSeoApiService
 {
@@ -181,6 +192,214 @@ class DataForSeoApiService
         return $this->extractRelatedKeywordResults($response);
     }
 
+    /**
+     * SERP Organic Ergebnisse für ein Keyword abrufen
+     *
+     * @param User $user
+     * @param string $keyword Keyword
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param int|null $languageCode Language Code (Default: 1001 = German)
+     * @param string $device Device type ('desktop' oder 'mobile')
+     * @return SerpOrganicResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getSerpOrganic(
+        User $user,
+        string $keyword,
+        ?int $locationCode = null,
+        ?int $languageCode = null,
+        string $device = 'desktop',
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+
+        $payload = [
+            [
+                'keyword' => $keyword,
+                'location_code' => $locationCode,
+                'language_code' => $languageCode,
+                'device' => $device,
+                'depth' => 100,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/serp/google/organic/live/regular', $payload);
+
+        return $this->extractSerpOrganicResults($response, $keyword);
+    }
+
+    /**
+     * Labs Keyword Suggestions abrufen
+     *
+     * @param User $user
+     * @param string[] $keywords Seed-Keywords
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param int|null $languageCode Language Code (Default: 1001 = German)
+     * @param int $limit Maximale Anzahl Ergebnisse
+     * @return LabsKeywordResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getLabsKeywordSuggestions(
+        User $user,
+        array $keywords,
+        ?int $locationCode = null,
+        ?int $languageCode = null,
+        int $limit = 100,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+
+        $payload = [
+            [
+                'keywords' => array_values($keywords),
+                'location_code' => $locationCode,
+                'language_code' => $languageCode,
+                'limit' => $limit,
+                'include_seed_keyword' => true,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/keyword_suggestions/live', $payload);
+
+        return $this->extractLabsKeywordResults($response);
+    }
+
+    /**
+     * Labs Related Keywords abrufen
+     *
+     * @param User $user
+     * @param string[] $keywords Seed-Keywords
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param int|null $languageCode Language Code (Default: 1001 = German)
+     * @param int $limit Maximale Anzahl Ergebnisse
+     * @return LabsKeywordResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getLabsRelatedKeywords(
+        User $user,
+        array $keywords,
+        ?int $locationCode = null,
+        ?int $languageCode = null,
+        int $limit = 100,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+
+        $payload = [
+            [
+                'keywords' => array_values($keywords),
+                'location_code' => $locationCode,
+                'language_code' => $languageCode,
+                'limit' => $limit,
+                'include_seed_keyword' => true,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/related_keywords/live', $payload);
+
+        return $this->extractLabsKeywordResults($response);
+    }
+
+    /**
+     * Ranked Keywords für eine Domain/URL abrufen
+     *
+     * @param User $user
+     * @param string $target Domain oder URL
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param int|null $languageCode Language Code (Default: 1001 = German)
+     * @param int $limit Maximale Anzahl Ergebnisse
+     * @return RankedKeywordResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getRankedKeywords(
+        User $user,
+        string $target,
+        ?int $locationCode = null,
+        ?int $languageCode = null,
+        int $limit = 100,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+
+        $payload = [
+            [
+                'target' => $target,
+                'location_code' => $locationCode,
+                'language_code' => $languageCode,
+                'limit' => $limit,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/ranked_keywords/live', $payload);
+
+        return $this->extractRankedKeywordResults($response);
+    }
+
+    /**
+     * Competitor Domains für eine Domain abrufen
+     *
+     * @param User $user
+     * @param string $target Domain
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param int|null $languageCode Language Code (Default: 1001 = German)
+     * @param int $limit Maximale Anzahl Ergebnisse
+     * @return CompetitorDomainResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getCompetitorsDomain(
+        User $user,
+        string $target,
+        ?int $locationCode = null,
+        ?int $languageCode = null,
+        int $limit = 20,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+
+        $payload = [
+            [
+                'target' => $target,
+                'location_code' => $locationCode,
+                'language_code' => $languageCode,
+                'limit' => $limit,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/competitors_domain/live', $payload);
+
+        return $this->extractCompetitorDomainResults($response);
+    }
+
+    /**
+     * On-Page Instant Analyse einer URL
+     *
+     * @param User $user
+     * @param string $url URL die analysiert werden soll
+     * @return OnPageResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getOnPageInstant(
+        User $user,
+        string $url,
+    ): array {
+        $payload = [
+            [
+                'url' => $url,
+                'enable_javascript' => true,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/on_page/instant_pages', $payload);
+
+        return $this->extractOnPageResults($response);
+    }
+
     // =========================================================================
     // RESULT EXTRACTION
     // =========================================================================
@@ -219,6 +438,123 @@ class DataForSeoApiService
             $taskResults = $task['result'] ?? [];
             foreach ($taskResults as $result) {
                 $results[] = RelatedKeywordResult::fromApiResult($result);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert SerpOrganicResult-Objekte aus der API-Response
+     *
+     * @return SerpOrganicResult[]
+     */
+    protected function extractSerpOrganicResults(array $response, string $keyword): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    if (($item['type'] ?? '') === 'organic') {
+                        $results[] = SerpOrganicResult::fromApiResult($item, $keyword);
+                    }
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert LabsKeywordResult-Objekte aus der API-Response
+     *
+     * @return LabsKeywordResult[]
+     */
+    protected function extractLabsKeywordResults(array $response): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    $results[] = LabsKeywordResult::fromApiResult($item);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert RankedKeywordResult-Objekte aus der API-Response
+     *
+     * @return RankedKeywordResult[]
+     */
+    protected function extractRankedKeywordResults(array $response): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    $results[] = RankedKeywordResult::fromApiResult($item);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert CompetitorDomainResult-Objekte aus der API-Response
+     *
+     * @return CompetitorDomainResult[]
+     */
+    protected function extractCompetitorDomainResults(array $response): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    $results[] = CompetitorDomainResult::fromApiResult($item);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert OnPageResult-Objekte aus der API-Response
+     *
+     * @return OnPageResult[]
+     */
+    protected function extractOnPageResults(array $response): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    $results[] = OnPageResult::fromApiResult($item);
+                }
             }
         }
 
