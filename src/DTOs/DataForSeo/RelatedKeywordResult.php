@@ -21,7 +21,7 @@ class RelatedKeywordResult
         public readonly ?float $cpcHigh,
         public readonly ?array $monthlySearches,
         public readonly ?int $locationCode,
-        public readonly ?int $languageCode,
+        public readonly ?string $languageCode,
     ) {}
 
     public static function fromApiResult(array $data): self
