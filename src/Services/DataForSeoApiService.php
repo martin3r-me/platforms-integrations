@@ -43,7 +43,7 @@ class DataForSeoApiService
     protected const DEFAULT_LOCATION_CODE = 2276;
 
     /** Default Language: German */
-    protected const DEFAULT_LANGUAGE_CODE = 'de';
+    protected const DEFAULT_LANGUAGE_NAME = 'German';
 
     protected DataForSeoIntegrationService $integrationService;
 
@@ -99,7 +99,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string[] $keywords Liste der Keywords (max. 700 pro Request)
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @return KeywordVolumeResult[]
      *
      * @throws DataForSeoApiException
@@ -108,16 +108,16 @@ class DataForSeoApiService
         User $user,
         array $keywords,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'keywords' => array_values($keywords),
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
             ],
         ];
 
@@ -132,7 +132,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string[] $keywords Seed-Keywords
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @return RelatedKeywordResult[]
      *
      * @throws DataForSeoApiException
@@ -141,16 +141,16 @@ class DataForSeoApiService
         User $user,
         array $keywords,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'keywords' => array_values($keywords),
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
             ],
         ];
 
@@ -165,7 +165,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string[] $keywords Seed-Keywords
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @return RelatedKeywordResult[]
      *
      * @throws DataForSeoApiException
@@ -174,16 +174,16 @@ class DataForSeoApiService
         User $user,
         array $keywords,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'keywords' => array_values($keywords),
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
             ],
         ];
 
@@ -198,7 +198,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string $keyword Keyword
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @param string $device Device type ('desktop' oder 'mobile')
      * @return SerpOrganicResult[]
      *
@@ -208,17 +208,17 @@ class DataForSeoApiService
         User $user,
         string $keyword,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
         string $device = 'desktop',
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'keyword' => $keyword,
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
                 'device' => $device,
                 'depth' => 100,
             ],
@@ -235,7 +235,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string[] $keywords Seed-Keywords
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @param int $limit Maximale Anzahl Ergebnisse
      * @return LabsKeywordResult[]
      *
@@ -245,16 +245,16 @@ class DataForSeoApiService
         User $user,
         array $keywords,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
         int $limit = 100,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = array_map(fn(string $kw) => [
             'keyword' => $kw,
             'location_code' => $locationCode,
-            'language_code' => $languageCode,
+            'language_name' => $languageName,
             'limit' => $limit,
             'include_seed_keyword' => true,
         ], array_values($keywords));
@@ -270,7 +270,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string[] $keywords Seed-Keywords
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @param int $limit Maximale Anzahl Ergebnisse
      * @return LabsKeywordResult[]
      *
@@ -280,16 +280,16 @@ class DataForSeoApiService
         User $user,
         array $keywords,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
         int $limit = 100,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = array_map(fn(string $kw) => [
             'keyword' => $kw,
             'location_code' => $locationCode,
-            'language_code' => $languageCode,
+            'language_name' => $languageName,
             'limit' => $limit,
             'include_seed_keyword' => true,
         ], array_values($keywords));
@@ -305,7 +305,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string $target Domain oder URL
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @param int $limit Maximale Anzahl Ergebnisse
      * @return RankedKeywordResult[]
      *
@@ -315,17 +315,17 @@ class DataForSeoApiService
         User $user,
         string $target,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
         int $limit = 100,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'target' => $target,
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
                 'limit' => $limit,
             ],
         ];
@@ -341,7 +341,7 @@ class DataForSeoApiService
      * @param User $user
      * @param string $target Domain
      * @param int|null $locationCode Location Code (Default: 2276 = Germany)
-     * @param string|null $languageCode Language Code (Default: 'de' = German)
+     * @param string|null $languageName Language Name (Default: 'German')
      * @param int $limit Maximale Anzahl Ergebnisse
      * @return CompetitorDomainResult[]
      *
@@ -351,17 +351,17 @@ class DataForSeoApiService
         User $user,
         string $target,
         ?int $locationCode = null,
-        ?string $languageCode = null,
+        ?string $languageName = null,
         int $limit = 20,
     ): array {
         $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
-        $languageCode = $languageCode ?? config('integrations.dataforseo.default_language_code', self::DEFAULT_LANGUAGE_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
 
         $payload = [
             [
                 'target' => $target,
                 'location_code' => $locationCode,
-                'language_code' => $languageCode,
+                'language_name' => $languageName,
                 'limit' => $limit,
             ],
         ];
