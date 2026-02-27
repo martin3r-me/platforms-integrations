@@ -15,6 +15,7 @@ use Platform\Integrations\Models\IntegrationsWhatsAppTemplate;
 use Platform\Integrations\Models\IntegrationsGithubRepository;
 use Platform\Integrations\Models\IntegrationsLexwareContact;
 use Platform\Integrations\Services\IntegrationAccessService;
+use Platform\Integrations\Services\IntegrationConnectionShareService;
 use Platform\Integrations\Services\IntegrationsFacebookPageService;
 use Platform\Integrations\Services\IntegrationsInstagramAccountService;
 use Platform\Integrations\Services\IntegrationsWhatsAppAccountService;
@@ -56,6 +57,19 @@ class Index extends Component
     public bool $dataforseoModalShow = false;
     public string $dataforseoLogin = '';
     public string $dataforseoPassword = '';
+
+    // Share Modal
+    public bool $shareModalShow = false;
+    public ?int $shareConnectionId = null;
+    public ?string $shareConnectionName = null;
+    public bool $shareConnectionHasResources = false;
+    public string $shareType = 'team';       // 'team' | 'user'
+    public ?int $shareTeamId = null;
+    public ?int $shareUserId = null;
+    public ?int $shareResourceId = null;
+    public ?string $shareResourceType = null;
+    public array $sharesList = [];
+    public array $shareableResources = [];
 
     public function render()
     {
@@ -114,6 +128,35 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        // Connections, die mir von anderen Usern freigegeben wurden
+        $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
+        $sharedWithMe = IntegrationConnection::query()
+            ->with(['integration', 'ownerUser'])
+            ->where('owner_user_id', '!=', $user->id)
+            ->where('status', 'active')
+            ->whereHas('shares', function ($query) use ($user, $userTeamIds) {
+                $query->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')->orWhere('user_id', $user->id);
+                })->where(function ($q) use ($userTeamIds) {
+                    $q->whereNull('team_id');
+                    if (!empty($userTeamIds)) {
+                        $q->orWhereIn('team_id', $userTeamIds);
+                    }
+                });
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        // Teams des Users für Share-Modal
+        $userTeams = $user->teams()->orderBy('name')->get();
+
+        // User für Share-Modal (alle User außer sich selbst)
+        $teamUsers = User::query()
+            ->where('id', '!=', $user->id)
+            ->orderBy('name')
+            ->orderBy('email')
+            ->get();
+
         return view('integrations::livewire.connections.index', [
             'connections' => $connections,
             'integrations' => $integrations,
@@ -122,6 +165,9 @@ class Index extends Component
             'lexwareConnections' => $lexwareConnections,
             'sipgateConnections' => $sipgateConnections,
             'dataforseoConnections' => $dataforseoConnections,
+            'sharedWithMe' => $sharedWithMe,
+            'userTeams' => $userTeams,
+            'teamUsers' => $teamUsers,
         ])->layout('platform::layouts.app');
     }
 
@@ -860,6 +906,119 @@ class Index extends Component
         $this->dataforseoLogin = '';
         $this->dataforseoPassword = '';
         $this->dataforseoModalShow = true;
+    }
+
+    // ==================== SHARE MODAL METHODS ====================
+
+    public function openShareModal(int $connectionId): void
+    {
+        $connection = IntegrationConnection::query()->with('integration')->findOrFail($connectionId);
+        $this->assertCanManage($connection);
+
+        $this->shareConnectionId = $connection->id;
+        $this->shareConnectionName = $connection->name ?? $connection->integration?->name ?? 'Connection';
+        $this->shareConnectionHasResources = $connection->integration?->has_resources ?? false;
+        $this->shareType = 'team';
+        $this->shareTeamId = null;
+        $this->shareUserId = null;
+        $this->shareResourceId = null;
+        $this->shareResourceType = null;
+
+        // Bestehende Shares laden
+        /** @var User $user */
+        $user = auth()->user();
+        $shareService = app(IntegrationConnectionShareService::class);
+        $this->sharesList = $shareService->listShares($user, $connection)->toArray();
+
+        // Ressourcen laden, wenn Integration has_resources=true
+        $this->shareableResources = [];
+        if ($this->shareConnectionHasResources) {
+            $key = $connection->integration?->key;
+            if ($key === 'meta') {
+                $igAccounts = $connection->metaInstagramAccounts()->get()->map(fn ($a) => [
+                    'id' => $a->id,
+                    'type' => 'instagram_account',
+                    'label' => 'Instagram: ' . ($a->username ?? $a->name ?? "#{$a->id}"),
+                ])->toArray();
+                $fbPages = $connection->metaFacebookPages()->get()->map(fn ($p) => [
+                    'id' => $p->id,
+                    'type' => 'facebook_page',
+                    'label' => 'Facebook Page: ' . ($p->name ?? "#{$p->id}"),
+                ])->toArray();
+                $this->shareableResources = array_merge($igAccounts, $fbPages);
+            } elseif ($key === 'github') {
+                $this->shareableResources = $connection->githubRepos()->get()->map(fn ($r) => [
+                    'id' => $r->id,
+                    'type' => 'github_repo',
+                    'label' => 'Repo: ' . ($r->full_name ?? $r->name ?? "#{$r->id}"),
+                ])->toArray();
+            }
+        }
+
+        $this->shareModalShow = true;
+    }
+
+    public function closeShareModal(): void
+    {
+        $this->shareModalShow = false;
+        $this->shareConnectionId = null;
+        $this->shareConnectionName = null;
+        $this->shareConnectionHasResources = false;
+        $this->shareType = 'team';
+        $this->shareTeamId = null;
+        $this->shareUserId = null;
+        $this->shareResourceId = null;
+        $this->shareResourceType = null;
+        $this->sharesList = [];
+        $this->shareableResources = [];
+    }
+
+    public function addShare(): void
+    {
+        $connection = IntegrationConnection::query()->with('integration')->findOrFail($this->shareConnectionId);
+        $this->assertCanManage($connection);
+
+        /** @var User $user */
+        $user = auth()->user();
+        $shareService = app(IntegrationConnectionShareService::class);
+
+        $teamId = $this->shareType === 'team' ? $this->shareTeamId : null;
+        $userId = $this->shareType === 'user' ? $this->shareUserId : null;
+
+        // Ressourcen-Scope
+        $resourceId = null;
+        $resourceType = null;
+        if ($this->shareConnectionHasResources && $this->shareResourceId) {
+            $resource = collect($this->shareableResources)->firstWhere('id', $this->shareResourceId);
+            if ($resource) {
+                $resourceId = $resource['id'];
+                $resourceType = $resource['type'];
+            }
+        }
+
+        try {
+            $shareService->createShare($user, $connection, $teamId, $userId, $resourceId, $resourceType);
+            $this->sharesList = $shareService->listShares($user, $connection)->toArray();
+            $this->shareTeamId = null;
+            $this->shareUserId = null;
+            $this->shareResourceId = null;
+            $this->shareResourceType = null;
+        } catch (\InvalidArgumentException $e) {
+            $this->addError('shareType', $e->getMessage());
+        }
+    }
+
+    public function removeShare(int $shareId): void
+    {
+        $connection = IntegrationConnection::query()->with('integration')->findOrFail($this->shareConnectionId);
+        $this->assertCanManage($connection);
+
+        /** @var User $user */
+        $user = auth()->user();
+        $shareService = app(IntegrationConnectionShareService::class);
+
+        $shareService->deleteShare($user, $connection, $shareId);
+        $this->sharesList = $shareService->listShares($user, $connection)->toArray();
     }
 
     protected function assertCanManage(IntegrationConnection $connection): void

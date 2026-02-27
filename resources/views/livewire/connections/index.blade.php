@@ -91,7 +91,7 @@
                                         <x-ui-button
                                             variant="secondary"
                                             size="sm"
-                                            :href="route('integrations.connections.grants', $metaConn)"
+                                            wire:click="openShareModal({{ $metaConn->id }})"
                                         >
                                             <span class="inline-flex items-center gap-2">
                                                 @svg('heroicon-o-user-group', 'w-4 h-4')
@@ -927,6 +927,57 @@
             </div>
         </div>
 
+        {{-- Für mich freigegeben --}}
+        @if($sharedWithMe->isNotEmpty())
+            <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+                <div class="p-6 lg:p-8">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-share', 'w-6 h-6 text-purple-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Für mich freigegeben</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Connections, die andere User mit dir geteilt haben</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        @foreach($sharedWithMe as $sharedConn)
+                            <div class="group relative overflow-hidden rounded-xl border border-purple-200/60 shadow-sm bg-purple-50/30 p-4">
+                                <div class="flex items-center justify-between gap-4">
+                                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/10 to-purple-600/5 flex items-center justify-center flex-shrink-0">
+                                            @svg('heroicon-o-link', 'w-5 h-5 text-purple-600')
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <h3 class="text-sm font-bold text-[var(--ui-secondary)] truncate">
+                                                    {{ $sharedConn->name ?? $sharedConn->integration->name ?? '—' }}
+                                                </h3>
+                                                <x-ui-badge size="sm" variant="{{ $sharedConn->status === 'active' ? 'success' : 'warning' }}">
+                                                    {{ $sharedConn->status }}
+                                                </x-ui-badge>
+                                            </div>
+                                            <div class="flex items-center gap-3 text-xs text-[var(--ui-muted)]">
+                                                <span class="inline-flex items-center gap-1">
+                                                    @svg('heroicon-o-squares-2x2', 'w-3 h-3')
+                                                    {{ $sharedConn->integration->name ?? '—' }}
+                                                </span>
+                                                <span class="inline-flex items-center gap-1">
+                                                    @svg('heroicon-o-user', 'w-3 h-3')
+                                                    von {{ $sharedConn->ownerUser->name ?? $sharedConn->ownerUser->email ?? '—' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Alle Connections --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -991,7 +1042,7 @@
                                         <x-ui-button
                                             variant="secondary-outline"
                                             size="xs"
-                                            :href="route('integrations.connections.grants', $conn)"
+                                            wire:click="openShareModal({{ $conn->id }})"
                                             title="Freigaben verwalten"
                                         >
                                             @svg('heroicon-o-user-group', 'w-3.5 h-3.5')
@@ -1380,6 +1431,154 @@
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>
                     </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- Share Modal --}}
+    <x-ui-modal wire:model="shareModalShow" size="lg">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/10 to-purple-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-user-group', 'w-5 h-5 text-purple-600')
+                </div>
+                <span>Freigaben: {{ $shareConnectionName }}</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-6">
+            {{-- Freigabe-Art Auswahl --}}
+            <div>
+                <label class="block text-sm font-medium text-[var(--ui-secondary)] mb-2">Freigabe-Art</label>
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        wire:click="$set('shareType', 'team')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $shareType === 'team' ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-white border-[var(--ui-border)] text-[var(--ui-muted)] hover:bg-gray-50' }}"
+                    >
+                        @svg('heroicon-o-user-group', 'w-4 h-4 inline mr-1')
+                        Ganzes Team
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="$set('shareType', 'user')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $shareType === 'user' ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-white border-[var(--ui-border)] text-[var(--ui-muted)] hover:bg-gray-50' }}"
+                    >
+                        @svg('heroicon-o-user', 'w-4 h-4 inline mr-1')
+                        Einzelner User
+                    </button>
+                </div>
+            </div>
+
+            {{-- Team-Dropdown (wenn shareType='team') --}}
+            @if($shareType === 'team')
+                <div>
+                    <x-ui-input-select
+                        name="shareTeamId"
+                        label="Team auswählen"
+                        :options="$userTeams->map(fn($t) => ['value' => $t->id, 'label' => $t->name])"
+                        optionValue="value"
+                        optionLabel="label"
+                        :nullable="true"
+                        wire:model.live="shareTeamId"
+                        :errorKey="'shareType'"
+                    />
+                    <p class="text-xs text-[var(--ui-muted)] mt-1">
+                        Leer lassen = Freigabe für alle Teams (Wildcard)
+                    </p>
+                </div>
+            @endif
+
+            {{-- User-Dropdown (wenn shareType='user') --}}
+            @if($shareType === 'user')
+                <div>
+                    <x-ui-input-select
+                        name="shareUserId"
+                        label="User auswählen"
+                        :options="$teamUsers->map(fn($u) => ['value' => $u->id, 'label' => $u->name . ' (' . $u->email . ')'])"
+                        optionValue="value"
+                        optionLabel="label"
+                        :nullable="false"
+                        wire:model.live="shareUserId"
+                        :errorKey="'shareType'"
+                    />
+                </div>
+            @endif
+
+            {{-- Ressourcen-Dropdown (optional, nur bei has_resources=true) --}}
+            @if($shareConnectionHasResources && count($shareableResources) > 0)
+                <div>
+                    <x-ui-input-select
+                        name="shareResourceId"
+                        label="Ressource einschränken (optional)"
+                        :options="collect($shareableResources)->map(fn($r) => ['value' => $r['id'], 'label' => $r['label']])"
+                        optionValue="value"
+                        optionLabel="label"
+                        :nullable="true"
+                        wire:model.live="shareResourceId"
+                    />
+                    <p class="text-xs text-[var(--ui-muted)] mt-1">
+                        Leer lassen = Freigabe für alle Ressourcen der Connection
+                    </p>
+                </div>
+            @endif
+
+            {{-- Freigabe hinzufügen --}}
+            <div>
+                <x-ui-button type="button" variant="primary" size="sm" wire:click="addShare">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-plus', 'w-4 h-4')
+                        <span>Freigabe hinzufügen</span>
+                    </span>
+                </x-ui-button>
+            </div>
+
+            {{-- Aktive Freigaben-Liste --}}
+            @if(count($sharesList) > 0)
+                <div>
+                    <h3 class="text-sm font-medium text-[var(--ui-secondary)] mb-3">Aktive Freigaben</h3>
+                    <div class="space-y-2">
+                        @foreach($sharesList as $share)
+                            <div class="flex items-center justify-between p-3 bg-[var(--ui-muted-5)] border border-[var(--ui-border)]/40 rounded-lg">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    @if($share['team_id'] && !$share['user_id'])
+                                        @svg('heroicon-o-user-group', 'w-4 h-4 text-purple-600 flex-shrink-0')
+                                    @elseif($share['user_id'] && !$share['team_id'])
+                                        @svg('heroicon-o-user', 'w-4 h-4 text-blue-600 flex-shrink-0')
+                                    @elseif($share['team_id'] && $share['user_id'])
+                                        @svg('heroicon-o-user', 'w-4 h-4 text-indigo-600 flex-shrink-0')
+                                    @else
+                                        @svg('heroicon-o-globe-alt', 'w-4 h-4 text-green-600 flex-shrink-0')
+                                    @endif
+                                    <span class="text-sm text-[var(--ui-secondary)] truncate">
+                                        {{ $share['wildcard_description'] }}
+                                    </span>
+                                </div>
+                                <x-ui-button
+                                    type="button"
+                                    variant="danger-outline"
+                                    size="xs"
+                                    wire:click="removeShare({{ $share['id'] }})"
+                                    wire:confirm="Freigabe wirklich entfernen?"
+                                >
+                                    @svg('heroicon-o-trash', 'w-3.5 h-3.5')
+                                </x-ui-button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @else
+                <div class="text-center py-6 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                    <p class="text-sm text-[var(--ui-muted)]">Noch keine Freigaben vorhanden</p>
+                </div>
+            @endif
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeShareModal">
+                    Schließen
                 </x-ui-button>
             </div>
         </x-slot>

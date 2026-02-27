@@ -16,8 +16,8 @@ class IntegrationConnectionResolver
     /**
      * Resolve Connection für Integration-Key.
      *
-     * User-zentriert: Nur User-owned Connections.
-     * Bevorzugt is_default = true, Fallback auf erste aktive.
+     * 1. Bevorzugt eigene Default-Connection
+     * 2. Fallback auf geteilte Connections
      */
     public function resolveForUser(string $integrationKey, User $user): ?IntegrationConnection
     {
@@ -27,7 +27,7 @@ class IntegrationConnectionResolver
             return null;
         }
 
-        // Bevorzugt Default-Connection
+        // Bevorzugt eigene Default-Connection
         $userConn = IntegrationConnection::query()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $user->id)
@@ -38,12 +38,31 @@ class IntegrationConnectionResolver
             return $userConn;
         }
 
-        return null;
+        // Fallback: geteilte Connections anderer User
+        $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
+
+        $sharedConn = IntegrationConnection::query()
+            ->where('integration_id', $integration->id)
+            ->where('owner_user_id', '!=', $user->id)
+            ->where('status', 'active')
+            ->whereHas('shares', function ($query) use ($user, $userTeamIds) {
+                $query->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')->orWhere('user_id', $user->id);
+                })->where(function ($q) use ($userTeamIds) {
+                    $q->whereNull('team_id');
+                    if (!empty($userTeamIds)) {
+                        $q->orWhereIn('team_id', $userTeamIds);
+                    }
+                });
+            })
+            ->first();
+
+        return $sharedConn;
     }
 
     /**
      * Resolve eine spezifische Connection by ID.
-     * Prüft, dass der User Zugriff hat.
+     * Prüft, dass der User Zugriff hat (Owner oder Share).
      */
     public function resolveById(int $connectionId, User $user): ?IntegrationConnection
     {
@@ -55,10 +74,6 @@ class IntegrationConnectionResolver
             return null;
         }
 
-        if ($connection->owner_user_id !== $user->id) {
-            return null;
-        }
-
         if ($this->access->canUse($user, $connection)) {
             return $connection;
         }
@@ -67,7 +82,7 @@ class IntegrationConnectionResolver
     }
 
     /**
-     * Alle Connections eines Typs für einen User.
+     * Alle Connections eines Typs für einen User (eigene + geteilte).
      */
     public function resolveAllForUser(string $integrationKey, User $user): Collection
     {
@@ -77,13 +92,35 @@ class IntegrationConnectionResolver
             return collect();
         }
 
-        return IntegrationConnection::query()
+        // Eigene Connections
+        $owned = IntegrationConnection::query()
             ->where('integration_id', $integration->id)
             ->where('owner_user_id', $user->id)
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get()
-            ->filter(fn (IntegrationConnection $conn) => $this->access->canUse($user, $conn))
-            ->values();
+            ->filter(fn (IntegrationConnection $conn) => $this->access->canUse($user, $conn));
+
+        // Geteilte Connections
+        $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
+
+        $shared = IntegrationConnection::query()
+            ->where('integration_id', $integration->id)
+            ->where('owner_user_id', '!=', $user->id)
+            ->where('status', 'active')
+            ->whereHas('shares', function ($query) use ($user, $userTeamIds) {
+                $query->where(function ($q) use ($user) {
+                    $q->whereNull('user_id')->orWhere('user_id', $user->id);
+                })->where(function ($q) use ($userTeamIds) {
+                    $q->whereNull('team_id');
+                    if (!empty($userTeamIds)) {
+                        $q->orWhereIn('team_id', $userTeamIds);
+                    }
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
+        return $owned->merge($shared)->unique('id')->values();
     }
 }
