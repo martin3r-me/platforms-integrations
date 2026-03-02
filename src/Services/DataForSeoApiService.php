@@ -557,9 +557,56 @@ class DataForSeoApiService
         return $results;
     }
 
+    /**
+     * Verfügbare SERP-Locations für Google abrufen (kostenlos, kein Credit-Verbrauch).
+     *
+     * @param User $user  Wird für Connection-Auth benötigt
+     * @param string|null $country  ISO-2 Country Code Filter (z.B. 'DE', 'AT', 'CH')
+     * @return array<array{location_code: int, location_name: string, country_iso_code: string, location_type: string}>
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getLocations(User $user, ?string $country = null): array
+    {
+        $endpoint = '/v3/serp/google/locations';
+
+        if ($country) {
+            $endpoint .= '/' . strtoupper($country);
+        }
+
+        $response = $this->get($user, $endpoint);
+
+        $locations = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $result) {
+                $locations[] = [
+                    'location_code' => $result['location_code'] ?? null,
+                    'location_name' => $result['location_name'] ?? null,
+                    'country_iso_code' => $result['country_iso_code'] ?? null,
+                    'location_type' => $result['location_type'] ?? null,
+                ];
+            }
+        }
+
+        return $locations;
+    }
+
     // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
+
+    /**
+     * GET Request an die DataForSEO API
+     *
+     * @throws DataForSeoApiException
+     */
+    protected function get(User $user, string $endpoint): array
+    {
+        return $this->request($user, $endpoint, [], 'GET');
+    }
 
     /**
      * POST Request an die DataForSEO API
@@ -579,7 +626,7 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function request(User $user, string $endpoint, array $data = []): array
+    protected function request(User $user, string $endpoint, array $data = [], string $method = 'POST'): array
     {
         $connection = $this->resolveConnection($user);
 
@@ -596,13 +643,16 @@ class DataForSeoApiService
         $connectTimeout = config('integrations.dataforseo.timeout.connect', 10);
 
         try {
-            $response = Http::withBasicAuth($credentials['login'], $credentials['password'])
+            $http = Http::withBasicAuth($credentials['login'], $credentials['password'])
                 ->timeout($timeout)
                 ->connectTimeout($connectTimeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
-                ])
-                ->post($url, $data);
+                ]);
+
+            $response = ($method === 'GET')
+                ? $http->get($url)
+                : $http->post($url, $data);
 
             return $this->handleResponse($response, $connection);
         } catch (DataForSeoApiException $e) {
