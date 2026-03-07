@@ -1,15 +1,17 @@
 <x-ui-page>
     <x-slot name="navbar">
-        <x-ui-page-navbar title="Integrationen" icon="heroicon-o-link">
-            <x-slot name="actions">
-                <x-ui-button variant="primary" size="sm" wire:click="openCreateModal">
-                    <span class="inline-flex items-center gap-2">
-                        @svg('heroicon-o-plus', 'w-4 h-4')
-                        <span>Neue Connection</span>
-                    </span>
-                </x-ui-button>
-            </x-slot>
-        </x-ui-page-navbar>
+        <x-ui-page-navbar title="" />
+    </x-slot>
+
+    <x-slot name="actionbar">
+        <x-ui-page-actionbar :breadcrumbs="[
+            ['label' => 'Integrationen', 'icon' => 'link'],
+        ]">
+            <x-ui-button variant="primary" size="sm" wire:click="openCreateModal">
+                @svg('heroicon-o-plus', 'w-4 h-4')
+                <span>Neue Connection</span>
+            </x-ui-button>
+        </x-ui-page-actionbar>
     </x-slot>
 
     <x-ui-page-container spacing="space-y-8">
@@ -1096,30 +1098,6 @@
     <x-slot name="sidebar">
         <x-ui-page-sidebar title="Übersicht" width="w-80" :defaultOpen="true">
             <div class="p-6 space-y-6">
-                {{-- Navigation --}}
-                <div>
-                    <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)] mb-3">Navigation</h3>
-                    <div class="flex flex-col gap-2">
-                        <a href="{{ route('integrations.connections.index') }}" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-[var(--ui-primary)] bg-[var(--ui-primary-10)] border border-[var(--ui-primary)]/20 rounded-lg">
-                            @svg('heroicon-o-link', 'w-4 h-4')
-                            <span>Connections</span>
-                        </a>
-                    </div>
-                </div>
-
-                {{-- Aktionen --}}
-                <div>
-                    <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)] mb-3">Aktionen</h3>
-                    <div class="flex flex-col gap-2">
-                        <x-ui-button variant="primary" size="sm" wire:click="openCreateModal" class="w-full">
-                            <span class="inline-flex items-center gap-2">
-                                @svg('heroicon-o-plus', 'w-4 h-4')
-                                <span>Neue Connection</span>
-                            </span>
-                        </x-ui-button>
-                    </div>
-                </div>
-
                 {{-- Statistiken --}}
                 <div>
                     <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--ui-muted)] mb-3">Statistiken</h3>
