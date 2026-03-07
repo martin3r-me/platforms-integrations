@@ -535,63 +535,6 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: GitHub Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
-        // Canva Tools (Design-Verwaltung, Exporte, Brand Templates)
-        try {
-            // Connection Test
-            $registry->register(new \Platform\Integrations\Tools\Canva\TestConnectionTool());
-
-            // Designs
-            $registry->register(new \Platform\Integrations\Tools\Canva\ListDesignsTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetDesignTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateDesignTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetDesignPagesTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetDesignExportFormatsTool());
-
-            // Exports
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateExportTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetExportStatusTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\ExportAndWaitTool());
-
-            // Folders
-            $registry->register(new \Platform\Integrations\Tools\Canva\ListFolderItemsTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetFolderTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateFolderTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\DeleteFolderTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\MoveItemTool());
-
-            // Assets
-            $registry->register(new \Platform\Integrations\Tools\Canva\UploadAssetTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetAssetTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\DeleteAssetTool());
-
-            // Comments
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateCommentThreadTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetCommentThreadTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateReplyTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetReplyTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\ListRepliesTool());
-
-            // Brand Templates
-            $registry->register(new \Platform\Integrations\Tools\Canva\ListBrandTemplatesTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetBrandTemplateTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetBrandTemplateDatasetTool());
-
-            // Autofill
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateAutofillTool());
-
-            // Resizes
-            $registry->register(new \Platform\Integrations\Tools\Canva\CreateResizeTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetResizeStatusTool());
-
-            // Design Imports
-            $registry->register(new \Platform\Integrations\Tools\Canva\ImportDesignTool());
-
-            // Users
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetMeTool());
-            $registry->register(new \Platform\Integrations\Tools\Canva\GetCapabilitiesTool());
-        } catch (\Throwable $e) {
-            \Log::warning('Integrations: Canva Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
-        }
     }
 
     protected function registerLivewireComponents(): void

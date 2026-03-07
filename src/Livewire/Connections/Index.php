@@ -25,7 +25,6 @@ use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
 use Platform\Integrations\Services\SipgateIntegrationService;
 use Platform\Integrations\Services\DataForSeoIntegrationService;
-use Platform\Integrations\Services\CanvaIntegrationService;
 
 class Index extends Component
 {
@@ -129,14 +128,6 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        $canvaConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'canva'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -174,7 +165,6 @@ class Index extends Component
             'lexwareConnections' => $lexwareConnections,
             'sipgateConnections' => $sipgateConnections,
             'dataforseoConnections' => $dataforseoConnections,
-            'canvaConnections' => $canvaConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -780,39 +770,6 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'Sipgate-Verbindung erfolgreich getestet.';
-                session()->flash('status', $this->syncMessage);
-            } else {
-                $this->syncError = $result['message'];
-            }
-        } catch (\Exception $e) {
-            $this->syncError = 'Fehler: ' . $e->getMessage();
-        }
-    }
-
-    // ==================== CANVA METHODS ====================
-
-    public function testCanvaConnection(int $connectionId): void
-    {
-        $this->syncError = null;
-        $this->syncMessage = null;
-
-        try {
-            $canvaConnection = IntegrationConnection::query()
-                ->with('integration')
-                ->where('id', $connectionId)
-                ->where('owner_user_id', auth()->id())
-                ->first();
-
-            if (!$canvaConnection) {
-                $this->syncError = 'Keine Canva-Connection gefunden.';
-                return;
-            }
-
-            $service = app(CanvaIntegrationService::class);
-            $result = $service->testConnection($canvaConnection);
-
-            if ($result['success']) {
-                $this->syncMessage = 'Canva-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
