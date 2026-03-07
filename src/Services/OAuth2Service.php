@@ -36,6 +36,17 @@ class OAuth2Service
             'state' => $state,
         ];
 
+        // PKCE Support (z.B. für Canva)
+        if (!empty($cfg['pkce'])) {
+            $codeVerifier = $this->generateCodeVerifier();
+            $codeChallenge = $this->generateCodeChallenge($codeVerifier);
+
+            $params['code_challenge'] = $codeChallenge;
+            $params['code_challenge_method'] = 'S256';
+
+            session()->put('integrations.oauth2.code_verifier', $codeVerifier);
+        }
+
         return rtrim($authorizeUrl, '?') . '?' . http_build_query($params);
     }
 
@@ -209,6 +220,12 @@ class OAuth2Service
             'client_id' => $cfg['client_id'],
         ];
 
+        // PKCE: code_verifier aus Session hinzufügen
+        $codeVerifier = $request->session()->pull('integrations.oauth2.code_verifier');
+        if ($codeVerifier) {
+            $tokenParams['code_verifier'] = $codeVerifier;
+        }
+
         // Meta benötigt client_secret als Query-Parameter und verwendet GET
         if ($integrationKey === 'meta' && ($cfg['client_secret'] ?? null)) {
             $tokenParams['client_secret'] = $cfg['client_secret'];
@@ -367,7 +384,7 @@ class OAuth2Service
                     'Accept' => 'application/vnd.github.v3+json',
                     'Authorization' => 'Bearer ' . $payload['access_token'],
                 ])->get('https://api.github.com/user');
-                
+
                 if ($meResponse->successful()) {
                     $meData = $meResponse->json();
                     if (isset($meData['id'])) {
@@ -385,7 +402,30 @@ class OAuth2Service
                 ]);
             }
         }
-        
+
+        // Für Canva: Versuche Canva User-Info abzurufen (optional, nicht kritisch)
+        if ($integrationKey === 'canva' && !empty($payload['access_token'])) {
+            try {
+                $meResponse = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $payload['access_token'],
+                    'Accept' => 'application/json',
+                ])->get('https://api.canva.com/rest/v1/users/me');
+
+                if ($meResponse->successful()) {
+                    $meData = $meResponse->json();
+                    if (isset($meData['id'])) {
+                        $credentials['oauth']['canva_user_id'] = $meData['id'];
+                        $credentials['oauth']['canva_display_name'] = $meData['display_name'] ?? null;
+                        $connection->credentials = $credentials;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('OAuth2: Could not fetch Canva user info', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         \Log::info('OAuth2 Saving Connection', [
             'integration_id' => $integration->id,
             'owner_user_id' => $ownerUserId,
@@ -528,6 +568,37 @@ class OAuth2Service
                 ]);
             }
         }
+
+        if ($integrationKey === 'canva') {
+            try {
+                $service = resolve(CanvaIntegrationService::class);
+                $service->testConnection($connection);
+                \Log::info('OAuth2: Canva connection verified', [
+                    'connection_id' => $connection->id,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('OAuth2: Canva connection verify failed (non-critical)', [
+                    'connection_id' => $connection->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Generiert einen PKCE Code-Verifier (86 Zeichen, base64url-encoded).
+     */
+    protected function generateCodeVerifier(): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes(64)), '+/', '-_'), '=');
+    }
+
+    /**
+     * Generiert den PKCE Code-Challenge (SHA-256, base64url-encoded).
+     */
+    protected function generateCodeChallenge(string $verifier): string
+    {
+        return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
     }
 
     protected function getProviderConfig(string $integrationKey): array

@@ -144,6 +144,43 @@ return [
 
             // Lexware/Lexoffice hat KEIN OAuth! Verwendet API-Key Authentifizierung
             // Der API-Token wird manuell vom Benutzer eingegeben
+
+            /**
+             * Canva Connect API OAuth2 Konfiguration
+             *
+             * Canva verwendet OAuth2 mit PKCE (SHA-256).
+             * Die Credentials werden über das Canva Developer Portal erstellt:
+             * https://www.canva.com/developers/
+             *
+             * Benötigte ENV-Variablen:
+             * - CANVA_CLIENT_ID: OAuth2 Client ID
+             * - CANVA_CLIENT_SECRET: OAuth2 Client Secret
+             * - CANVA_OAUTH_REDIRECT_DOMAIN: Optional - Domain für Redirect URI
+             *
+             * Dokumentation:
+             * @see https://www.canva.dev/docs/connect/authentication/
+             */
+            'canva' => [
+                'authorize_url' => 'https://www.canva.com/api/oauth/authorize',
+                'token_url' => 'https://api.canva.com/rest/v1/oauth/token',
+                'client_id' => env('CANVA_CLIENT_ID'),
+                'client_secret' => env('CANVA_CLIENT_SECRET'),
+                'redirect_domain' => env('CANVA_OAUTH_REDIRECT_DOMAIN'),
+                'pkce' => true,
+                'scopes' => [
+                    'design:read',
+                    'design:write',
+                    'design:meta:read',
+                    'asset:read',
+                    'asset:write',
+                    'folder:read',
+                    'folder:write',
+                    'comment:write',
+                    'brandtemplate:read',
+                    'brandtemplate:content:read',
+                    'profile:read',
+                ],
+            ],
         ],
     ],
 
@@ -225,6 +262,36 @@ return [
      * - SIPGATE_RETRY_INITIAL_DELAY: Initiale Wartezeit in ms (Standard: 1000)
      * - SIPGATE_RETRY_MAX_DELAY: Maximale Wartezeit in ms (Standard: 10000)
      */
+    /**
+     * Canva Connect API Konfiguration
+     *
+     * Canva Connect API für Design-Verwaltung, Exporte, Brand Templates.
+     * Verwendet OAuth2 mit PKCE.
+     *
+     * ENV-Variablen:
+     * - CANVA_CLIENT_ID: OAuth2 Client ID (siehe oauth2.providers.canva)
+     * - CANVA_CLIENT_SECRET: OAuth2 Client Secret
+     * - CANVA_OAUTH_REDIRECT_DOMAIN: Domain für OAuth Callback
+     * - CANVA_API_BASE_URL: Base URL für API-Aufrufe (Standard: https://api.canva.com)
+     *
+     * @see https://www.canva.dev/docs/connect/
+     */
+    'canva' => [
+        'api_base_url' => env('CANVA_API_BASE_URL', 'https://api.canva.com'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('CANVA_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('CANVA_CONNECT_TIMEOUT', 10),
+        ],
+
+        // Async Job Polling (Exports, Uploads, Resizes, etc.)
+        'async_job' => [
+            'poll_interval' => (int) env('CANVA_JOB_POLL_INTERVAL', 2),
+            'max_poll_attempts' => (int) env('CANVA_JOB_MAX_POLL_ATTEMPTS', 30),
+        ],
+    ],
+
     'sipgate' => [
         'api_base_url' => env('SIPGATE_API_BASE_URL', 'https://api.sipgate.com/v2'),
 
