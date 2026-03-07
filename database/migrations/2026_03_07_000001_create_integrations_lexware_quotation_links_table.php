@@ -29,7 +29,7 @@ return new class extends Migration
             // Connection-Referenz
             $table->foreignId('integration_connection_id')
                 ->nullable()
-                ->constrained('integration_connections')
+                ->constrained('integration_connections', indexName: 'ilql_connection_id_foreign')
                 ->onDelete('set null');
 
             // Metadaten (JSON für zusätzliche Infos)
