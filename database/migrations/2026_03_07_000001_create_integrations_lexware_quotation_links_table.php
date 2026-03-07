@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('integrations_lexware_quotation_links');
         Schema::create('integrations_lexware_quotation_links', function (Blueprint $table) {
             $table->id();
             $table->string('uuid')->unique();
