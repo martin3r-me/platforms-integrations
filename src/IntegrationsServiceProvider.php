@@ -402,6 +402,7 @@ class IntegrationsServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
             $schedule->command('integrations:sync-meta-resources')->daily();
+            $schedule->command('integrations:sync-whatsapp-accounts')->daily();
             $schedule->command('integrations:sync-github-repos')->daily();
         });
 
