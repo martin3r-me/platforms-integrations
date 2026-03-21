@@ -198,7 +198,7 @@ class IntegrationsWhatsAppAccountService
                         'phone_number' => $phoneNumber,
                         'phone_number_id' => $phoneNumberId,
                         'description' => $waAccountData['description'] ?? null,
-                        'active' => isset($waAccountData['status']) && $waAccountData['status'] === 'ACTIVE',
+                        'active' => !isset($waAccountData['status']) || $waAccountData['status'] === 'ACTIVE',
                         'access_token' => $waAccountData['access_token'] ?? $accessToken,
                         'verified_at' => isset($waAccountData['verified']) && $waAccountData['verified'] ? now() : null,
                         'integration_connection_id' => $connection->id,
