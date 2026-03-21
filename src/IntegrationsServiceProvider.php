@@ -536,6 +536,14 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: GitHub Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // WhatsApp Tools (Accounts, Templates)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\WhatsApp\ListWhatsAppAccountsTool());
+            $registry->register(new \Platform\Integrations\Tools\WhatsApp\ListWhatsAppTemplatesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: WhatsApp Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void
