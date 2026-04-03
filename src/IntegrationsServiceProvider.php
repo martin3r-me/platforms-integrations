@@ -33,6 +33,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             PlatformCore::registerModule([
                 'key'        => 'integrations',
                 'title'      => 'Integrations',
+                'group'      => 'admin',
                 'routing'    => config('integrations.routing'),
                 'guard'      => config('integrations.guard'),
                 'navigation' => config('integrations.navigation'),
