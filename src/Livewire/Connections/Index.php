@@ -25,6 +25,12 @@ use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
 use Platform\Integrations\Services\SipgateIntegrationService;
 use Platform\Integrations\Services\DataForSeoIntegrationService;
+use Platform\Integrations\Services\HubspotIntegrationService;
+use Platform\Integrations\Services\HubspotCrmSyncService;
+use Platform\Integrations\Models\IntegrationsHubspotContact;
+use Platform\Integrations\Models\IntegrationsHubspotCompany;
+use Platform\Integrations\Models\IntegrationsHubspotDeal;
+use Platform\Integrations\Models\IntegrationsHubspotEngagement;
 
 class Index extends Component
 {
@@ -57,6 +63,11 @@ class Index extends Component
     public bool $dataforseoModalShow = false;
     public string $dataforseoLogin = '';
     public string $dataforseoPassword = '';
+
+    // HubSpot Modal
+    public bool $hubspotModalShow = false;
+    public string $hubspotApiToken = '';
+    public ?int $hubspotEditingConnectionId = null;
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -128,6 +139,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $hubspotConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'hubspot'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -165,6 +184,7 @@ class Index extends Component
             'lexwareConnections' => $lexwareConnections,
             'sipgateConnections' => $sipgateConnections,
             'dataforseoConnections' => $dataforseoConnections,
+            'hubspotConnections' => $hubspotConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -858,6 +878,141 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'DataForSEO-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== HUBSPOT METHODS ====================
+
+    public function openHubspotModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->hubspotEditingConnectionId = $connectionId;
+        $this->hubspotApiToken = '';
+        $this->hubspotModalShow = true;
+    }
+
+    public function closeHubspotModal(): void
+    {
+        $this->hubspotModalShow = false;
+        $this->hubspotApiToken = '';
+        $this->hubspotEditingConnectionId = null;
+    }
+
+    public function saveHubspotConnection(): void
+    {
+        $this->validate([
+            'hubspotApiToken' => ['required', 'string', 'min:10'],
+        ], [
+            'hubspotApiToken.required' => 'Bitte gib dein HubSpot Private App Access Token ein.',
+            'hubspotApiToken.min' => 'Der Token muss mindestens 10 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(HubspotIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->hubspotApiToken,
+                $this->hubspotEditingConnectionId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->hubspotModalShow = false;
+                $this->hubspotApiToken = '';
+                $this->hubspotEditingConnectionId = null;
+                session()->flash('status', 'HubSpot-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('hubspotApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('hubspotApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('HubSpot connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function syncHubspotCrm(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+        $this->isSyncing = true;
+
+        try {
+            $hubspotConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$hubspotConnection) {
+                $this->syncError = 'Keine HubSpot-Connection gefunden. Bitte zuerst mit HubSpot verbinden.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            if ($hubspotConnection->status !== 'active') {
+                $this->syncError = 'HubSpot-Connection ist nicht aktiv.';
+                $this->isSyncing = false;
+                return;
+            }
+
+            $service = app(HubspotCrmSyncService::class);
+            $results = $service->syncAllForConnection($hubspotConnection);
+
+            $parts = [];
+            $parts[] = ($results['contacts'] ?? 0) . ' Contacts';
+            $parts[] = ($results['companies'] ?? 0) . ' Companies';
+            $parts[] = ($results['deals'] ?? 0) . ' Deals';
+            $parts[] = ($results['engagements'] ?? 0) . ' Engagements';
+
+            $this->syncMessage = implode(', ', $parts) . ' synchronisiert.';
+            session()->flash('status', $this->syncMessage);
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler beim Synchronisieren: ' . $e->getMessage();
+            \Log::error('HubSpot CRM Sync Error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->isSyncing = false;
+        }
+    }
+
+    public function testHubspotConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $hubspotConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$hubspotConnection) {
+                $this->syncError = 'Keine HubSpot-Connection gefunden.';
+                return;
+            }
+
+            $service = app(HubspotIntegrationService::class);
+            $result = $service->testConnection($hubspotConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'HubSpot-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

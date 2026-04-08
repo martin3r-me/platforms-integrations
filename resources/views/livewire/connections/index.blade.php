@@ -618,6 +618,183 @@
             </div>
         </div>
 
+        {{-- HubSpot Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-users', 'w-6 h-6 text-amber-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">HubSpot</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Synchronisiere dein HubSpot CRM (Contacts, Companies, Deals, Engagements) via Private App Token</p>
+                        </div>
+                    </div>
+                    @if($hubspotConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openHubspotModal()"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($hubspotConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($hubspotConnections as $hubConn)
+                            <div class="p-4 {{ $hubConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($hubConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $hubConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $hubConn->name ?? 'HubSpot' }}
+                                            </p>
+                                            @if($hubConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $hubConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $hubConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $hubConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $hubConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($hubConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $hubConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$hubConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $hubConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openHubspotModal({{ $hubConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Token aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $hubConn->id }})"
+                                            wire:confirm="HubSpot-Verbindung '{{ $hubConn->name }}' wirklich loschen? Alle verknupften CRM-Daten werden entfernt."
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($hubConn->status === 'active')
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Contacts</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsHubspotContact::where('integration_connection_id', $hubConn->id)->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Companies</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsHubspotCompany::where('integration_connection_id', $hubConn->id)->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Deals</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsHubspotDeal::where('integration_connection_id', $hubConn->id)->count() }}
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-white/60 border border-[var(--ui-border)]/40 rounded-xl">
+                                            <div class="text-xs font-semibold text-[var(--ui-muted)] mb-1 uppercase tracking-wide">Engagements</div>
+                                            <div class="text-2xl font-bold text-[var(--ui-secondary)]">
+                                                {{ \Platform\Integrations\Models\IntegrationsHubspotEngagement::where('integration_connection_id', $hubConn->id)->count() }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <div class="flex flex-col sm:flex-row gap-3">
+                                            <x-ui-button
+                                                variant="primary"
+                                                size="sm"
+                                                wire:click="syncHubspotCrm({{ $hubConn->id }})"
+                                                :disabled="$isSyncing"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @if($isSyncing)
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4 animate-spin')
+                                                    @else
+                                                        @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                    @endif
+                                                    <span>CRM synchronisieren</span>
+                                                </span>
+                                            </x-ui-button>
+
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="testHubspotConnection({{ $hubConn->id }})"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @svg('heroicon-o-signal', 'w-4 h-4')
+                                                    <span>Verbindung testen</span>
+                                                </span>
+                                            </x-ui-button>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-4">
+                            @svg('heroicon-o-users', 'w-8 h-8 text-amber-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">HubSpot-Konto noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein HubSpot-Konto durch Eingabe eines Private App Access Tokens</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openHubspotModal()"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>HubSpot verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Sipgate Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -1343,6 +1520,70 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveLexwareConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- HubSpot Modal (Private App Token Eingabe) --}}
+    <x-ui-modal wire:model="hubspotModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-users', 'w-5 h-5 text-amber-600')
+                </div>
+                <span>HubSpot verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-amber-800">
+                        <p class="font-medium mb-1">Private App Access Token erforderlich</p>
+                        <p>Erstelle in HubSpot eine Private App und füge das generierte Access Token hier ein.</p>
+                        <p class="mt-2 font-medium">Erforderliche Scopes:</p>
+                        <ul class="mt-1 list-disc list-inside font-mono text-xs space-y-0.5">
+                            <li>crm.objects.contacts.read</li>
+                            <li>crm.objects.companies.read</li>
+                            <li>crm.objects.deals.read</li>
+                            <li>crm.objects.notes.read</li>
+                            <li>crm.objects.calls.read</li>
+                            <li>crm.objects.emails.read</li>
+                            <li>crm.objects.meetings.read</li>
+                            <li>crm.objects.tasks.read</li>
+                        </ul>
+                        <p class="mt-2">Private App findest du in HubSpot unter:</p>
+                        <p class="font-mono text-xs mt-1 bg-amber-100 px-2 py-1 rounded">Settings &rarr; Integrations &rarr; Private Apps</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="hubspotApiToken"
+                label="Private App Access Token"
+                wire:model.live="hubspotApiToken"
+                type="password"
+                placeholder="pat-eu1-..."
+                :errorKey="'hubspotApiToken'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der Token wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeHubspotModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveHubspotConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>
