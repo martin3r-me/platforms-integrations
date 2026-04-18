@@ -4,6 +4,7 @@ namespace Platform\Integrations\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * GitHub-Ressource: Repository
@@ -34,5 +35,15 @@ class IntegrationGithubRepo extends Model
     public function connection(): BelongsTo
     {
         return $this->belongsTo(IntegrationConnection::class, 'connection_id');
+    }
+
+    public function commits(): HasMany
+    {
+        return $this->hasMany(IntegrationGithubCommit::class, 'repo_id');
+    }
+
+    public function pullRequests(): HasMany
+    {
+        return $this->hasMany(IntegrationGithubPullRequest::class, 'repo_id');
     }
 }

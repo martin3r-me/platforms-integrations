@@ -390,6 +390,7 @@ class IntegrationsServiceProvider extends ServiceProvider
                 \Platform\Integrations\Console\Commands\SyncWhatsAppTemplates::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepositories::class,
                 \Platform\Integrations\Console\Commands\SyncGithubRepos::class,
+                \Platform\Integrations\Console\Commands\SyncGithubData::class,
                 \Platform\Integrations\Console\Commands\SyncMetaResources::class,
                 \Platform\Integrations\Console\Commands\SyncLexwareContacts::class,
                 \Platform\Integrations\Console\Commands\SeedIntegrations::class,
@@ -404,7 +405,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
             $schedule->command('integrations:sync-meta-resources')->daily();
             $schedule->command('integrations:sync-whatsapp-accounts')->daily();
-            $schedule->command('integrations:sync-github-repos')->daily();
+            $schedule->command('integrations:sync-github-data')->hourly();
         });
 
         // Schritt 5: LLM Tools registrieren
