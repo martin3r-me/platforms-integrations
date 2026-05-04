@@ -19,6 +19,7 @@ class RankedKeywordResult
         public readonly ?int $keywordDifficulty,
         public readonly ?array $serpFeatures,
         public readonly bool $isLocalPack = false,
+        public readonly ?array $monthlySearches = null,
     ) {}
 
     public static function fromApiResult(array $data): self
@@ -27,6 +28,17 @@ class RankedKeywordResult
         $ki = $kd['keyword_info'] ?? [];
         $serp = $data['ranked_serp_element'] ?? [];
         $serpItem = $serp['serp_item'] ?? [];
+
+        // Monthly searches: [{year, month, search_volume}, ...]
+        $monthlyRaw = $ki['monthly_searches'] ?? null;
+        $monthlySearches = null;
+        if (is_array($monthlyRaw) && !empty($monthlyRaw)) {
+            $monthlySearches = array_map(fn($m) => [
+                'year' => (int) ($m['year'] ?? 0),
+                'month' => (int) ($m['month'] ?? 0),
+                'search_volume' => (int) ($m['search_volume'] ?? 0),
+            ], $monthlyRaw);
+        }
 
         return new self(
             keyword: (string) ($kd['keyword'] ?? ''),
@@ -38,6 +50,7 @@ class RankedKeywordResult
             keywordDifficulty: isset($kd['keyword_properties']['keyword_difficulty']) ? (int) $kd['keyword_properties']['keyword_difficulty'] : null,
             serpFeatures: $serpItem['serp_features'] ?? null,
             isLocalPack: ($serpItem['type'] ?? '') === 'local_pack',
+            monthlySearches: $monthlySearches,
         );
     }
 
@@ -62,6 +75,7 @@ class RankedKeywordResult
             'keyword_difficulty' => $this->keywordDifficulty,
             'serp_features' => $this->serpFeatures,
             'is_local_pack' => $this->isLocalPack,
+            'monthly_searches' => $this->monthlySearches,
         ];
     }
 }
