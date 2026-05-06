@@ -27,6 +27,7 @@ use Platform\Integrations\Services\SipgateIntegrationService;
 use Platform\Integrations\Services\DataForSeoIntegrationService;
 use Platform\Integrations\Services\HubspotIntegrationService;
 use Platform\Integrations\Services\HubspotCrmSyncService;
+use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -68,6 +69,13 @@ class Index extends Component
     public bool $hubspotModalShow = false;
     public string $hubspotApiToken = '';
     public ?int $hubspotEditingConnectionId = null;
+
+    // BuchhaltungsButler Modal
+    public bool $buchhaltungsbutlerModalShow = false;
+    public string $buchhaltungsbutlerApiClient = '';
+    public string $buchhaltungsbutlerApiSecret = '';
+    public string $buchhaltungsbutlerApiKey = '';
+    public ?int $buchhaltungsbutlerEditingConnectionId = null;
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -147,6 +155,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $buchhaltungsbutlerConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'buchhaltungsbutler'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -185,6 +201,7 @@ class Index extends Component
             'sipgateConnections' => $sipgateConnections,
             'dataforseoConnections' => $dataforseoConnections,
             'hubspotConnections' => $hubspotConnections,
+            'buchhaltungsbutlerConnections' => $buchhaltungsbutlerConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1013,6 +1030,103 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'HubSpot-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== BUCHHALTUNGSBUTLER METHODS ====================
+
+    public function openBuchhaltungsbutlerModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->buchhaltungsbutlerEditingConnectionId = $connectionId;
+        $this->buchhaltungsbutlerApiClient = '';
+        $this->buchhaltungsbutlerApiSecret = '';
+        $this->buchhaltungsbutlerApiKey = '';
+        $this->buchhaltungsbutlerModalShow = true;
+    }
+
+    public function closeBuchhaltungsbutlerModal(): void
+    {
+        $this->buchhaltungsbutlerModalShow = false;
+        $this->buchhaltungsbutlerApiClient = '';
+        $this->buchhaltungsbutlerApiSecret = '';
+        $this->buchhaltungsbutlerApiKey = '';
+        $this->buchhaltungsbutlerEditingConnectionId = null;
+    }
+
+    public function saveBuchhaltungsbutlerConnection(): void
+    {
+        $this->validate([
+            'buchhaltungsbutlerApiClient' => ['required', 'string', 'min:3'],
+            'buchhaltungsbutlerApiSecret' => ['required', 'string', 'min:3'],
+            'buchhaltungsbutlerApiKey'    => ['required', 'string', 'min:3'],
+        ], [
+            'buchhaltungsbutlerApiClient.required' => 'Bitte gib deinen API-Client ein.',
+            'buchhaltungsbutlerApiSecret.required' => 'Bitte gib dein API-Secret ein.',
+            'buchhaltungsbutlerApiKey.required'    => 'Bitte gib deinen kundenspezifischen API-Key ein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service    = app(BuchhaltungsbutlerIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->buchhaltungsbutlerApiClient,
+                $this->buchhaltungsbutlerApiSecret,
+                $this->buchhaltungsbutlerApiKey,
+                $this->buchhaltungsbutlerEditingConnectionId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->buchhaltungsbutlerModalShow = false;
+                $this->buchhaltungsbutlerApiClient = '';
+                $this->buchhaltungsbutlerApiSecret = '';
+                $this->buchhaltungsbutlerApiKey = '';
+                $this->buchhaltungsbutlerEditingConnectionId = null;
+                session()->flash('status', 'BuchhaltungsButler-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('buchhaltungsbutlerApiKey', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('buchhaltungsbutlerApiKey', 'Fehler: ' . $e->getMessage());
+            \Log::error('BuchhaltungsButler connection error', [
+                'user_id' => auth()->id(),
+                'error'   => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testBuchhaltungsbutlerConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $connection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$connection) {
+                $this->syncError = 'Keine BuchhaltungsButler-Connection gefunden.';
+                return;
+            }
+
+            $result = app(BuchhaltungsbutlerIntegrationService::class)->testConnection($connection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'BuchhaltungsButler-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

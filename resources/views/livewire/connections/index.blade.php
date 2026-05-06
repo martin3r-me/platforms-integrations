@@ -795,6 +795,133 @@
             </div>
         </div>
 
+        {{-- BuchhaltungsButler Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-banknotes', 'w-6 h-6 text-cyan-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">BuchhaltungsButler</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Erstelle Rechnungen, Angebote und Gutschriften als Entwurf via API.</p>
+                        </div>
+                    </div>
+                    @if($buchhaltungsbutlerConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openBuchhaltungsbutlerModal()"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($buchhaltungsbutlerConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($buchhaltungsbutlerConnections as $bbConn)
+                            <div class="p-4 {{ $bbConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($bbConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $bbConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $bbConn->name ?? 'BuchhaltungsButler' }}
+                                            </p>
+                                            @if($bbConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $bbConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $bbConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $bbConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $bbConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($bbConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $bbConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$bbConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $bbConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testBuchhaltungsbutlerConnection({{ $bbConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openBuchhaltungsbutlerModal({{ $bbConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Credentials aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $bbConn->id }})"
+                                            wire:confirm="BuchhaltungsButler-Verbindung '{{ $bbConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-100 mb-4">
+                            @svg('heroicon-o-banknotes', 'w-8 h-8 text-cyan-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">BuchhaltungsButler-Konto noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Hinterlege API-Client, API-Secret und kundenspezifischen API-Key.</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openBuchhaltungsbutlerModal()"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>BuchhaltungsButler verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Sipgate Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -1584,6 +1711,78 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveHubspotConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- BuchhaltungsButler Modal (API Client + Secret + Key) --}}
+    <x-ui-modal wire:model="buchhaltungsbutlerModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-banknotes', 'w-5 h-5 text-cyan-600')
+                </div>
+                <span>BuchhaltungsButler verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-cyan-800">
+                        <p class="font-medium mb-1">Drei Werte erforderlich</p>
+                        <p>BuchhaltungsButler nutzt HTTP Basic Auth (API-Client + API-Secret) plus einen kundenspezifischen API-Key.</p>
+                        <p class="mt-2 font-medium">Werte findest du in BuchhaltungsButler unter:</p>
+                        <p class="font-mono text-xs mt-1 bg-cyan-100 px-2 py-1 rounded">Einstellungen &rarr; Schnittstellen und API-Zugang</p>
+                        <p class="mt-2 text-xs">Dort API aktivieren, anschließend werden API-Client und API-Secret angezeigt; nach Verifizierung wird der API-Key sichtbar.</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="buchhaltungsbutlerApiClient"
+                label="API-Client"
+                wire:model.live="buchhaltungsbutlerApiClient"
+                type="text"
+                placeholder="z.B. ak_xxxxx"
+                :errorKey="'buchhaltungsbutlerApiClient'"
+            />
+
+            <x-ui-input-text
+                name="buchhaltungsbutlerApiSecret"
+                label="API-Secret"
+                wire:model.live="buchhaltungsbutlerApiSecret"
+                type="password"
+                placeholder="••••••••"
+                :errorKey="'buchhaltungsbutlerApiSecret'"
+            />
+
+            <x-ui-input-text
+                name="buchhaltungsbutlerApiKey"
+                label="API-Key (kundenspezifisch)"
+                wire:model.live="buchhaltungsbutlerApiKey"
+                type="password"
+                placeholder="••••••••"
+                :errorKey="'buchhaltungsbutlerApiKey'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Alle drei Werte werden verschlüsselt gespeichert und sind nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeBuchhaltungsbutlerModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveBuchhaltungsbutlerConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>

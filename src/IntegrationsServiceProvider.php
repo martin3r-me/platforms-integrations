@@ -243,6 +243,16 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.recurring-templates.deeplink');
             });
 
+        // BuchhaltungsButler API Routes
+        Route::prefix('api/integrations/buchhaltungsbutler')
+            ->middleware(['web', 'auth'])
+            ->group(function () {
+                Route::get('/test', [\Platform\Integrations\Http\Controllers\BuchhaltungsbutlerController::class, 'test'])
+                    ->name('integrations.buchhaltungsbutler.test');
+                Route::get('/debtors', [\Platform\Integrations\Http\Controllers\BuchhaltungsbutlerController::class, 'debtors'])
+                    ->name('integrations.buchhaltungsbutler.debtors');
+            });
+
         // Sipgate API Routes (authentifizierte Endpunkte)
         Route::prefix('api/integrations/sipgate')
             ->middleware(['web', 'auth'])
@@ -493,6 +503,18 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Lexware\GetRecurringTemplateTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: Lexware Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // BuchhaltungsButler Tools (Rechnungen/Angebote/Gutschriften als Entwurf + Debitoren)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\CreateInvoiceDraftTool());
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\CreateOfferDraftTool());
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\CreateCreditNoteDraftTool());
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\ListDebtorsTool());
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\CreateDebtorTool());
+            $registry->register(new \Platform\Integrations\Tools\Buchhaltungsbutler\UpdateDebtorTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: BuchhaltungsButler Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
         // DataForSEO Tools (SEO Keyword-Daten)
