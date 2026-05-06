@@ -18,7 +18,9 @@ class UpdateDebtorTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /settings/update/debtor — Aktualisiert ein bestehendes Debitorenkonto. Pflicht: postingaccount_number (Identifikation des Kontos).';
+        return 'POST /settings/update/debtor — Aktualisiert ein bestehendes Debitorenkonto. Pflicht: postingaccount_number. '
+             . 'WICHTIG: BuchhaltungsButler ersetzt beim Update den kompletten Datensatz — Felder, die NICHT mitgeschickt werden, werden auf NULL gesetzt (z. B. Adresse, IBAN, E-Mail). '
+             . 'Empfohlener Ablauf: Erst per debtors.GET den aktuellen Datensatz holen, alle bestehenden Werte mit den gewünschten Änderungen mergen und vollständig im Update-Body übergeben. Niemals nur einzelne Felder schicken, wenn die anderen erhalten bleiben sollen.';
     }
 
     public function getSchema(): array
@@ -28,18 +30,18 @@ class UpdateDebtorTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen BuchhaltungsButler-Connection.'],
                 'postingaccount_number' => ['type' => 'string', 'description' => 'PFLICHT. Buchungskonto-Nummer des zu aktualisierenden Debitors.'],
-                'name' => ['type' => 'string', 'description' => 'Neuer Name.'],
-                'contact_person_name' => ['type' => 'string', 'description' => 'Neuer Ansprechpartner.'],
-                'street' => ['type' => 'string', 'description' => 'Neue Straße.'],
-                'additional_address_line' => ['type' => 'string', 'description' => 'Neue Zusatzzeile zur Adresse.'],
-                'customer_number' => ['type' => 'string', 'description' => 'Neue Kundennummer.'],
-                'zip' => ['type' => 'string', 'description' => 'Neue PLZ.'],
-                'city' => ['type' => 'string', 'description' => 'Neuer Ort.'],
-                'country' => ['type' => 'string', 'description' => 'Neues Land. ISO-Code oder deutscher Ländername.'],
-                'sales_tax_id' => ['type' => 'string', 'description' => 'Neue USt-IdNr.'],
-                'email' => ['type' => 'string', 'description' => 'Neue E-Mail.'],
-                'iban' => ['type' => 'string', 'description' => 'Neue IBAN.'],
-                'bic' => ['type' => 'string', 'description' => 'Neue BIC.'],
+                'name' => ['type' => 'string', 'description' => 'Name. Bestehenden Wert mitschicken, sonst wird er ggf. genullt.'],
+                'contact_person_name' => ['type' => 'string', 'description' => 'Ansprechpartner. Bestehenden Wert mitschicken, sonst NULL.'],
+                'street' => ['type' => 'string', 'description' => 'Straße. Bestehenden Wert mitschicken, sonst NULL.'],
+                'additional_address_line' => ['type' => 'string', 'description' => 'Zusatzzeile zur Adresse. Bestehenden Wert mitschicken, sonst NULL.'],
+                'customer_number' => ['type' => 'string', 'description' => 'Kundennummer. Bestehenden Wert mitschicken, sonst NULL.'],
+                'zip' => ['type' => 'string', 'description' => 'PLZ. Bestehenden Wert mitschicken, sonst NULL.'],
+                'city' => ['type' => 'string', 'description' => 'Ort. Bestehenden Wert mitschicken, sonst NULL.'],
+                'country' => ['type' => 'string', 'description' => 'Land (ISO-Code oder deutscher Ländername). Bestehenden Wert mitschicken, sonst NULL.'],
+                'sales_tax_id' => ['type' => 'string', 'description' => 'USt-IdNr. Bestehenden Wert mitschicken, sonst NULL.'],
+                'email' => ['type' => 'string', 'description' => 'E-Mail. Bestehenden Wert mitschicken, sonst NULL.'],
+                'iban' => ['type' => 'string', 'description' => 'IBAN. Bestehenden Wert mitschicken, sonst NULL.'],
+                'bic' => ['type' => 'string', 'description' => 'BIC. Bestehenden Wert mitschicken, sonst NULL.'],
             ],
             'required' => ['postingaccount_number'],
         ];
