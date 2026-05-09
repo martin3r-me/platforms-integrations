@@ -12,6 +12,7 @@ use Platform\Integrations\DTOs\DataForSeo\LabsKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\OnPageResult;
 use Platform\Integrations\DTOs\DataForSeo\RankedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\RelatedKeywordResult;
+use Platform\Integrations\DTOs\DataForSeo\GoogleBusinessInfoResult;
 use Platform\Integrations\DTOs\DataForSeo\SerpOrganicResult;
 use Platform\Integrations\Exceptions\DataForSeoApiException;
 use Platform\Integrations\Models\IntegrationConnection;
@@ -396,6 +397,39 @@ class DataForSeoApiService
         return $this->extractOnPageResults($response);
     }
 
+    /**
+     * Google Business Info für ein Keyword abrufen
+     *
+     * @param User $user
+     * @param string $keyword Keyword oder place_id:ChIJ...
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param string|null $languageName Language Name (Default: 'German')
+     * @return GoogleBusinessInfoResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getGoogleBusinessInfo(
+        User $user,
+        string $keyword,
+        ?int $locationCode = null,
+        ?string $languageName = null,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
+
+        $payload = [
+            [
+                'keyword' => $keyword,
+                'location_code' => $locationCode,
+                'language_name' => $languageName,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/business_data/google/my_business_info/live', $payload);
+
+        return $this->extractGoogleBusinessInfoResults($response);
+    }
+
     // =========================================================================
     // RESULT EXTRACTION
     // =========================================================================
@@ -550,6 +584,29 @@ class DataForSeoApiService
                 $items = $resultSet['items'] ?? [];
                 foreach ($items as $item) {
                     $results[] = OnPageResult::fromApiResult($item);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extrahiert GoogleBusinessInfoResult-Objekte aus der API-Response
+     *
+     * @return GoogleBusinessInfoResult[]
+     */
+    protected function extractGoogleBusinessInfoResults(array $response): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    $results[] = GoogleBusinessInfoResult::fromApiResult($item);
                 }
             }
         }
