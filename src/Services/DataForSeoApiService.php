@@ -13,6 +13,7 @@ use Platform\Integrations\DTOs\DataForSeo\OnPageResult;
 use Platform\Integrations\DTOs\DataForSeo\RankedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\RelatedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\GoogleBusinessInfoResult;
+use Platform\Integrations\DTOs\DataForSeo\GoogleTrendsResult;
 use Platform\Integrations\DTOs\DataForSeo\SerpOrganicResult;
 use Platform\Integrations\Exceptions\DataForSeoApiException;
 use Platform\Integrations\Models\IntegrationConnection;
@@ -615,6 +616,43 @@ class DataForSeoApiService
     }
 
     /**
+     * Google Trends Explore — Trend-Daten für Keywords abrufen
+     *
+     * @param User $user
+     * @param string[] $keywords Keywords (max. 5 pro Request)
+     * @param int|null $locationCode Location Code (Default: 2276 = Germany)
+     * @param string|null $languageName Language Name (Default: 'German')
+     * @param string $timeRange Zeitraum (z.B. 'past_12_months')
+     * @return GoogleTrendsResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getGoogleTrendsExplore(
+        User $user,
+        array $keywords,
+        ?int $locationCode = null,
+        ?string $languageName = null,
+        string $timeRange = 'past_12_months',
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
+
+        $payload = [
+            [
+                'keywords' => array_values(array_slice($keywords, 0, 5)),
+                'location_code' => $locationCode,
+                'language_name' => $languageName,
+                'time_range' => $timeRange,
+                'item_types' => ['google_trends_graph'],
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/keywords_data/google_trends/explore/live', $payload);
+
+        return $this->extractGoogleTrendsResults($response, $keywords);
+    }
+
+    /**
      * Verfügbare SERP-Locations für Google abrufen (kostenlos, kein Credit-Verbrauch).
      *
      * @param User $user  Wird für Connection-Auth benötigt
@@ -649,6 +687,33 @@ class DataForSeoApiService
         }
 
         return $locations;
+    }
+
+    /**
+     * Extrahiert GoogleTrendsResult-Objekte aus der API-Response
+     *
+     * @param string[] $keywords Die angefragten Keywords
+     * @return GoogleTrendsResult[]
+     */
+    protected function extractGoogleTrendsResults(array $response, array $keywords): array
+    {
+        $results = [];
+        $tasks = $response['tasks'] ?? [];
+
+        foreach ($tasks as $task) {
+            $taskResults = $task['result'] ?? [];
+            foreach ($taskResults as $resultSet) {
+                $items = $resultSet['items'] ?? [];
+                foreach ($items as $item) {
+                    if (($item['type'] ?? '') === 'google_trends_graph') {
+                        $keyword = $item['keywords'][0] ?? ($keywords[0] ?? '');
+                        $results[] = GoogleTrendsResult::fromApiResult($item, $keyword);
+                    }
+                }
+            }
+        }
+
+        return $results;
     }
 
     // =========================================================================
