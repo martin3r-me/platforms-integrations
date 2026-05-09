@@ -41,22 +41,36 @@ class GoogleBusinessInfoResult
             $ratingDistribution = $data['rating']['rating_distribution'];
         }
 
-        // Place topics: [{keyword, count}, ...]
+        // Place topics: mixed format from API — normalize to [{keyword, count}, ...]
         $placeTopics = null;
         if (isset($data['place_topics']) && is_array($data['place_topics'])) {
-            $placeTopics = array_map(fn(array $t) => [
-                'keyword' => $t['keyword'] ?? null,
-                'count' => $t['count'] ?? null,
-            ], $data['place_topics']);
+            $placeTopics = [];
+            foreach ($data['place_topics'] as $key => $value) {
+                if (is_array($value)) {
+                    $placeTopics[] = [
+                        'keyword' => $value['keyword'] ?? $value['topic'] ?? null,
+                        'count' => $value['count'] ?? $value['reviews_count'] ?? null,
+                    ];
+                } elseif (is_string($key)) {
+                    $placeTopics[] = ['keyword' => $key, 'count' => $value];
+                }
+            }
         }
 
-        // Local business links
+        // Local business links: mixed format — normalize to [{type, url}, ...]
         $localBusinessLinks = null;
         if (isset($data['local_business_links']) && is_array($data['local_business_links'])) {
-            $localBusinessLinks = array_map(fn(array $l) => [
-                'type' => $l['type'] ?? null,
-                'url' => $l['url'] ?? null,
-            ], $data['local_business_links']);
+            $localBusinessLinks = [];
+            foreach ($data['local_business_links'] as $key => $value) {
+                if (is_array($value)) {
+                    $localBusinessLinks[] = [
+                        'type' => $value['type'] ?? $key ?? null,
+                        'url' => $value['url'] ?? $value['link'] ?? null,
+                    ];
+                } elseif (is_string($value)) {
+                    $localBusinessLinks[] = ['type' => $key, 'url' => $value];
+                }
+            }
         }
 
         return new self(
