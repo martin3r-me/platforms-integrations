@@ -66,10 +66,11 @@ return [
                     
                     // Instagram
                     'instagram_basic',
+                    'instagram_content_publish',
                     'instagram_manage_comments',
                     'instagram_manage_insights',
-                    'instagram_manage_messages', // Für Instagram Messages (wie im glowkit-master)
-                    'instagram_shopping_tag_products', // Für Instagram Shopping (wie im glowkit-master)
+                    'instagram_manage_messages',
+                    'instagram_shopping_tag_products',
                     
                     // WhatsApp
                     'whatsapp_business_management',
