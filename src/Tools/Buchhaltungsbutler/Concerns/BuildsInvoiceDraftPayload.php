@@ -36,7 +36,7 @@ trait BuildsInvoiceDraftPayload
                 ],
                 'date' => [
                     'type' => 'string',
-                    'description' => 'PFLICHT. Datum der ' . $documentLabel . ' im Format YYYY-MM-DD.',
+                    'description' => 'PFLICHT laut API (Format YYYY-MM-DD), wird vom BuchhaltungsButler /invoices/create/draft-Endpoint aber empirisch ignoriert und immer auf das heutige Datum gesetzt. Der User muss das Datum nach dem Anlegen bei Bedarf im UI anpassen. Trotzdem mitschicken — die API lehnt den Request ohne date ab.',
                 ],
                 'items' => [
                     'type' => 'array',
