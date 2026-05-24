@@ -87,8 +87,9 @@ class BuchhaltungsbutlerApiService
         $connection = $this->resolveConnection($user);
         $creds      = $this->credentialsFor($connection);
 
-        $body = array_merge($data, ['api_key' => $creds['key']]);
-        $url  = self::BASE_URL . '/' . ltrim($endpoint, '/');
+        $body    = array_merge($data, ['api_key' => $creds['key']]);
+        $baseUrl = config('integrations.buchhaltungsbutler.api_base_url', self::BASE_URL);
+        $url     = $baseUrl . '/' . ltrim($endpoint, '/');
 
         try {
             $response = Http::withBasicAuth($creds['client'], $creds['secret'])

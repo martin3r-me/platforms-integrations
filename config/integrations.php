@@ -194,6 +194,30 @@ return [
     ],
 
     /**
+     * BuchhaltungsButler API Konfiguration
+     *
+     * BuchhaltungsButler Buchhaltungs-Software.
+     * Alle Endpoints sind POST mit JSON-Body (auch Read-Operationen).
+     * HTTP Basic Auth (api_client + api_secret) + api_key im Body.
+     *
+     * API-Credentials erhält man unter:
+     * BuchhaltungsButler → Einstellungen → Schnittstellen und API-Zugang
+     *
+     * Rate-Limit: 100 Requests pro Kunde pro Minute.
+     *
+     * @see https://app.buchhaltungsbutler.de/docs/api/v1/
+     */
+    'buchhaltungsbutler' => [
+        'api_base_url' => env('BUCHHALTUNGSBUTLER_API_BASE_URL', 'https://webapp.buchhaltungsbutler.de/api/v1'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('BUCHHALTUNGSBUTLER_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('BUCHHALTUNGSBUTLER_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
      * Moss API Konfiguration
      *
      * Moss Spend-Management Platform.
