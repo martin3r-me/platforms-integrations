@@ -194,6 +194,33 @@ return [
     ],
 
     /**
+     * Moss API Konfiguration
+     *
+     * Moss Spend-Management Platform.
+     * Verwendet OAuth2 Client Credentials (client_id + client_secret → Bearer Token).
+     * Auth-Scheme in DB ist 'basic' (client_id = login, client_secret = password).
+     *
+     * API-Credentials erhält man unter:
+     * https://getmoss.com → API Settings
+     *
+     * ENV-Variablen:
+     * - MOSS_API_BASE_URL: Base URL für API-Aufrufe (Standard: https://public-api.getmoss.com)
+     *
+     * Dokumentation:
+     * @see https://public-api.getmoss.com
+     */
+    'moss' => [
+        'api_base_url' => env('MOSS_API_BASE_URL', 'https://public-api.getmoss.com'),
+        'token_url' => '/oauth2/token',
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('MOSS_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('MOSS_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
      * Sipgate API Konfiguration
      *
      * Sipgate VoIP & Telefonie Integration für:

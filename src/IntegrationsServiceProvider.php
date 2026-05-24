@@ -524,6 +524,22 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: DataForSEO Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // Moss Tools (Spend-Management)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Moss\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListExpensesTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListExpenseAccountsTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListSuppliersTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\GetSupplierTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListUsersTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListBankAccountsTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListDimensionsTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListDimensionItemsTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListPaymentTermsTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Moss Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
         // Connection Shares Tools (Freigaben)
         try {
             $registry->register(new \Platform\Integrations\Tools\ConnectionShares\ListSharesTool());

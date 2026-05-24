@@ -25,6 +25,7 @@ use Platform\Integrations\Services\LexwareIntegrationService;
 use Platform\Integrations\Services\IntegrationsLexwareContactService;
 use Platform\Integrations\Services\SipgateIntegrationService;
 use Platform\Integrations\Services\DataForSeoIntegrationService;
+use Platform\Integrations\Services\MossIntegrationService;
 use Platform\Integrations\Services\HubspotIntegrationService;
 use Platform\Integrations\Services\HubspotCrmSyncService;
 use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
@@ -69,6 +70,12 @@ class Index extends Component
     public bool $hubspotModalShow = false;
     public string $hubspotApiToken = '';
     public ?int $hubspotEditingConnectionId = null;
+
+    // Moss Modal
+    public bool $mossModalShow = false;
+    public string $mossClientId = '';
+    public string $mossClientSecret = '';
+    public ?int $mossEditingConnectionId = null;
 
     // BuchhaltungsButler Modal
     public bool $buchhaltungsbutlerModalShow = false;
@@ -155,6 +162,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $mossConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'moss'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         $buchhaltungsbutlerConnections = IntegrationConnection::query()
             ->with('integration')
             ->whereHas('integration', fn ($q) => $q->where('key', 'buchhaltungsbutler'))
@@ -201,6 +216,7 @@ class Index extends Component
             'sipgateConnections' => $sipgateConnections,
             'dataforseoConnections' => $dataforseoConnections,
             'hubspotConnections' => $hubspotConnections,
+            'mossConnections' => $mossConnections,
             'buchhaltungsbutlerConnections' => $buchhaltungsbutlerConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
@@ -1030,6 +1046,105 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'HubSpot-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== MOSS METHODS ====================
+
+    public function openMossModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->mossEditingConnectionId = $connectionId;
+        $this->mossClientId = '';
+        $this->mossClientSecret = '';
+        $this->mossModalShow = true;
+    }
+
+    public function openMossModalForEdit(int $connectionId): void
+    {
+        $this->openMossModal($connectionId);
+    }
+
+    public function closeMossModal(): void
+    {
+        $this->mossModalShow = false;
+        $this->mossClientId = '';
+        $this->mossClientSecret = '';
+        $this->mossEditingConnectionId = null;
+    }
+
+    public function saveMossConnection(): void
+    {
+        $this->validate([
+            'mossClientId' => ['required', 'string', 'regex:/^kid_/'],
+            'mossClientSecret' => ['required', 'string', 'regex:/^sk_/'],
+        ], [
+            'mossClientId.required' => 'Bitte gib deine Moss Client ID ein.',
+            'mossClientId.regex' => 'Die Client ID muss mit "kid_" beginnen.',
+            'mossClientSecret.required' => 'Bitte gib dein Moss Client Secret ein.',
+            'mossClientSecret.regex' => 'Das Client Secret muss mit "sk_" beginnen.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(MossIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->mossClientId,
+                $this->mossClientSecret,
+                $this->mossEditingConnectionId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->mossModalShow = false;
+                $this->mossClientId = '';
+                $this->mossClientSecret = '';
+                $this->mossEditingConnectionId = null;
+                session()->flash('status', 'Moss-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('mossClientId', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('mossClientId', 'Fehler: ' . $e->getMessage());
+            \Log::error('Moss connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testMossConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $mossConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$mossConnection) {
+                $this->syncError = 'Keine Moss-Connection gefunden.';
+                return;
+            }
+
+            $service = app(MossIntegrationService::class);
+            $result = $service->testConnection($mossConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'Moss-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
