@@ -3,6 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Illuminate\Support\Collection;
+use Platform\Core\Models\Team;
 use Platform\Core\Models\User;
 use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Models\IntegrationConnection;
@@ -54,6 +55,50 @@ class IntegrationConnectionResolver
                         $q->orWhereIn('team_id', $userTeamIds);
                     }
                 });
+            })
+            ->first();
+
+        return $sharedConn;
+    }
+
+    /**
+     * Resolve Connection für Integration-Key über ein Team.
+     *
+     * 1. Connections von Team-Mitgliedern (Owner ist Mitglied des Teams)
+     * 2. Geteilte Connections, die explizit für dieses Team freigegeben sind
+     *
+     * Nützlich für Commands und Kontexte ohne User (z.B. SEO-Pipeline).
+     */
+    public function resolveForTeam(string $integrationKey, Team $team): ?IntegrationConnection
+    {
+        $integration = Integration::query()->where('key', $integrationKey)->first();
+
+        if (!$integration || !$integration->is_enabled) {
+            return null;
+        }
+
+        $teamMemberIds = $team->users()->pluck('users.id')->toArray();
+
+        // Connection eines Team-Mitglieds (bevorzugt Default)
+        if (!empty($teamMemberIds)) {
+            $memberConn = IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->whereIn('owner_user_id', $teamMemberIds)
+                ->where('status', 'active')
+                ->orderByDesc('is_default')
+                ->first();
+
+            if ($memberConn) {
+                return $memberConn;
+            }
+        }
+
+        // Fallback: Connections, die explizit für dieses Team geteilt sind
+        $sharedConn = IntegrationConnection::query()
+            ->where('integration_id', $integration->id)
+            ->where('status', 'active')
+            ->whereHas('shares', function ($query) use ($team) {
+                $query->where('team_id', $team->id);
             })
             ->first();
 
