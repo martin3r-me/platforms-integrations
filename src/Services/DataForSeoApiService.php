@@ -74,17 +74,25 @@ class DataForSeoApiService
     /**
      * Löst die IntegrationConnection für den User auf.
      */
-    protected function resolveConnection(User $user): IntegrationConnection
+    protected function resolveConnection(?User $user): IntegrationConnection
     {
         if ($this->connectionIdOverride) {
-            $resolver = app(IntegrationConnectionResolver::class);
-            $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            if ($user) {
+                $resolver = app(IntegrationConnectionResolver::class);
+                $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            } else {
+                // Scheduler/CLI: direkt per ID laden ohne Access-Check
+                $connection = IntegrationConnection::with('integration')->find($this->connectionIdOverride);
+            }
         } else {
+            if (!$user) {
+                throw DataForSeoApiException::noConnection();
+            }
             $connection = $this->integrationService->getConnectionForUser($user);
         }
 
         if (!$connection) {
-            Log::warning('DataForSEO API: Keine Connection für User', ['user_id' => $user->id]);
+            Log::warning('DataForSEO API: Keine Connection', ['user_id' => $user?->id, 'connection_override' => $this->connectionIdOverride]);
             throw DataForSeoApiException::noConnection();
         }
 
@@ -107,7 +115,7 @@ class DataForSeoApiService
      * @throws DataForSeoApiException
      */
     public function getSearchVolume(
-        User $user,
+        ?User $user,
         array $keywords,
         ?int $locationCode = null,
         ?string $languageName = null,
@@ -207,7 +215,7 @@ class DataForSeoApiService
      * @throws DataForSeoApiException
      */
     public function getSerpOrganic(
-        User $user,
+        ?User $user,
         string $keyword,
         ?int $locationCode = null,
         ?string $languageName = null,
@@ -244,7 +252,7 @@ class DataForSeoApiService
      * @throws DataForSeoApiException
      */
     public function getLabsKeywordSuggestions(
-        User $user,
+        ?User $user,
         array $keywords,
         ?int $locationCode = null,
         ?string $languageName = null,
@@ -314,7 +322,7 @@ class DataForSeoApiService
      * @throws DataForSeoApiException
      */
     public function getRankedKeywords(
-        User $user,
+        ?User $user,
         string $target,
         ?int $locationCode = null,
         ?string $languageName = null,
@@ -383,7 +391,7 @@ class DataForSeoApiService
      * @throws DataForSeoApiException
      */
     public function getOnPageInstant(
-        User $user,
+        ?User $user,
         string $url,
     ): array {
         $payload = [
@@ -735,7 +743,7 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function post(User $user, string $endpoint, array $data = []): array
+    protected function post(?User $user, string $endpoint, array $data = []): array
     {
         return $this->request($user, $endpoint, $data);
     }
@@ -748,14 +756,14 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function request(User $user, string $endpoint, array $data = [], string $method = 'POST'): array
+    protected function request(?User $user, string $endpoint, array $data = [], string $method = 'POST'): array
     {
         $connection = $this->resolveConnection($user);
 
         $credentials = $this->integrationService->getCredentials($connection);
 
         if (!$credentials) {
-            Log::warning('DataForSEO API: Keine Credentials für User', ['user_id' => $user->id]);
+            Log::warning('DataForSEO API: Keine Credentials', ['user_id' => $user?->id]);
             throw DataForSeoApiException::unauthorized();
         }
 
