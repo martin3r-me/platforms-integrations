@@ -1378,6 +1378,161 @@
             </div>
         </div>
 
+        {{-- Google Search Console Integration --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-magnifying-glass-circle', 'w-6 h-6 text-orange-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Google Search Console</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Search Analytics, Sitemaps und URL Inspection für deine Websites</p>
+                        </div>
+                    </div>
+                    @if($googleSearchConsoleConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($googleSearchConsoleConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($googleSearchConsoleConnections as $gscConn)
+                            <div class="p-4 {{ $gscConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($gscConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $gscConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $gscConn->name ?? 'Google Search Console' }}
+                                            </p>
+                                            @if($gscConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $gscConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $gscConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $gscConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $gscConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$gscConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $gscConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console', 'connection_id' => $gscConn->id])"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Reconnect</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openShareModal({{ $gscConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $gscConn->id }})"
+                                            wire:confirm="Google Search Console-Verbindung '{{ $gscConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($gscConn->status === 'active')
+                                    {{-- Test-Button --}}
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testGoogleSearchConsoleConnection({{ $gscConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mb-4">
+                            @svg('heroicon-o-magnifying-glass-circle', 'w-8 h-8 text-orange-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Google Search Console noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein Google-Konto für Search Analytics, Sitemaps und URL Inspection</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-link', 'w-5 h-5')
+                                <span>Mit Google Search Console verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Für mich freigegeben --}}
         @if($sharedWithMe->isNotEmpty())
             <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
@@ -1600,6 +1755,14 @@
                                 <span class="text-sm text-green-700">DataForSEO verbunden</span>
                                 <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
                                     {{ $dataforseoConnections->where('status', 'active')->count() }}
+                                </span>
+                            </div>
+                        @endif
+                        @if($googleSearchConsoleConnections->where('status', 'active')->isNotEmpty())
+                            <div class="flex justify-between items-center py-2 px-3 bg-green-50 border border-green-200 rounded-lg">
+                                <span class="text-sm text-green-700">Google Search Console verbunden</span>
+                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                    {{ $googleSearchConsoleConnections->where('status', 'active')->count() }}
                                 </span>
                             </div>
                         @endif

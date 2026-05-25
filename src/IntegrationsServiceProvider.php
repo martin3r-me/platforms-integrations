@@ -584,6 +584,19 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: WhatsApp Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // Google Search Console Tools (Sites, Search Analytics, Sitemaps, URL Inspection)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\ListSitesTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\GetSiteTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\QuerySearchAnalyticsTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\ListSitemapsTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\GetSitemapTool());
+            $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\InspectUrlTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Google Search Console Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

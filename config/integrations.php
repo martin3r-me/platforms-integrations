@@ -143,6 +143,35 @@ return [
                 ],
             ],
 
+            /**
+             * Google Search Console OAuth2 Konfiguration
+             *
+             * Google OAuth2 Authorization Code Flow mit offline access.
+             * Read-Only-Zugriff auf Sites, Search Analytics, Sitemaps und URL Inspection.
+             *
+             * Benötigte ENV-Variablen:
+             * - GOOGLE_CLIENT_ID: Google OAuth2 Client ID (geteilt mit anderen Google-Integrationen)
+             * - GOOGLE_CLIENT_SECRET: Google OAuth2 Client Secret
+             * - GOOGLE_OAUTH_REDIRECT_DOMAIN: Optional - Domain für Redirect URI
+             *
+             * @see https://developers.google.com/webmaster-tools/v3/how-tos/authorizing
+             */
+            'google_search_console' => [
+                'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+                'token_url' => 'https://oauth2.googleapis.com/token',
+                'client_id' => env('GOOGLE_CLIENT_ID'),
+                'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+                'redirect_domain' => env('GOOGLE_OAUTH_REDIRECT_DOMAIN'),
+                'scopes' => [
+                    'https://www.googleapis.com/auth/webmasters.readonly',
+                ],
+                // Google-spezifisch: access_type=offline für Refresh-Token, prompt=consent erzwingt Consent-Screen
+                'extra_params' => [
+                    'access_type' => 'offline',
+                    'prompt' => 'consent',
+                ],
+            ],
+
             // Lexware/Lexoffice hat KEIN OAuth! Verwendet API-Key Authentifizierung
             // Der API-Token wird manuell vom Benutzer eingegeben
         ],
@@ -277,6 +306,33 @@ return [
      * - SIPGATE_RETRY_INITIAL_DELAY: Initiale Wartezeit in ms (Standard: 1000)
      * - SIPGATE_RETRY_MAX_DELAY: Maximale Wartezeit in ms (Standard: 10000)
      */
+    /**
+     * Google Search Console API Konfiguration
+     *
+     * Zwei Base-URLs:
+     * - webmasters/v3: Sites, Search Analytics, Sitemaps
+     * - searchconsole/v1: URL Inspection
+     *
+     * ENV-Variablen:
+     * - GOOGLE_CLIENT_ID: OAuth2 Client ID (gemeinsam für alle Google-Integrationen)
+     * - GOOGLE_CLIENT_SECRET: OAuth2 Client Secret (gemeinsam für alle Google-Integrationen)
+     * - GOOGLE_OAUTH_REDIRECT_DOMAIN: Optional - Domain für OAuth Callback
+     * - GOOGLE_SEARCH_CONSOLE_API_BASE_URL: Base URL für Sites/Analytics/Sitemaps
+     * - GOOGLE_SEARCH_CONSOLE_INSPECTION_BASE_URL: Base URL für URL Inspection
+     *
+     * @see https://developers.google.com/webmaster-tools/v3/
+     */
+    'google_search_console' => [
+        'api_base_url' => env('GOOGLE_SEARCH_CONSOLE_API_BASE_URL', 'https://www.googleapis.com/webmasters/v3'),
+        'inspection_base_url' => env('GOOGLE_SEARCH_CONSOLE_INSPECTION_BASE_URL', 'https://searchconsole.googleapis.com/v1'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => 30,
+            'connect' => 10,
+        ],
+    ],
+
     'sipgate' => [
         'api_base_url' => env('SIPGATE_API_BASE_URL', 'https://api.sipgate.com/v2'),
 

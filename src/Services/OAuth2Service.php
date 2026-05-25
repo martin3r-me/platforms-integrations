@@ -36,6 +36,11 @@ class OAuth2Service
             'state' => $state,
         ];
 
+        // Extra-Parameter aus Config anhängen (z.B. access_type=offline, prompt=consent für Google)
+        if (!empty($cfg['extra_params']) && is_array($cfg['extra_params'])) {
+            $params = array_merge($params, $cfg['extra_params']);
+        }
+
         return rtrim($authorizeUrl, '?') . '?' . http_build_query($params);
     }
 

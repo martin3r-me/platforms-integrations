@@ -29,6 +29,7 @@ use Platform\Integrations\Services\MossIntegrationService;
 use Platform\Integrations\Services\HubspotIntegrationService;
 use Platform\Integrations\Services\HubspotCrmSyncService;
 use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
+use Platform\Integrations\Services\GoogleSearchConsoleIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -178,6 +179,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $googleSearchConsoleConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'google_search_console'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -218,6 +227,7 @@ class Index extends Component
             'hubspotConnections' => $hubspotConnections,
             'mossConnections' => $mossConnections,
             'buchhaltungsbutlerConnections' => $buchhaltungsbutlerConnections,
+            'googleSearchConsoleConnections' => $googleSearchConsoleConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1242,6 +1252,39 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'BuchhaltungsButler-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== GOOGLE SEARCH CONSOLE METHODS ====================
+
+    public function testGoogleSearchConsoleConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $gscConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$gscConnection) {
+                $this->syncError = 'Keine Google Search Console-Connection gefunden.';
+                return;
+            }
+
+            $service = app(GoogleSearchConsoleIntegrationService::class);
+            $result = $service->testConnection($gscConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'Google Search Console-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
