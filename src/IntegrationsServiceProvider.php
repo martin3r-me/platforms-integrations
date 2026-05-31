@@ -584,6 +584,30 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: WhatsApp Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // RingCentral Tools (Call Logs, Extensions, Account Info)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\GetUserInfoTool());
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\GetAccountInfoTool());
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\GetCallLogTool());
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\GetActiveCallsTool());
+            $registry->register(new \Platform\Integrations\Tools\RingCentral\ListExtensionsTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: RingCentral Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // Plausible Analytics Tools (Sites, Realtime, Aggregate, Timeseries, Breakdown)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Plausible\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\Plausible\ListSitesTool());
+            $registry->register(new \Platform\Integrations\Tools\Plausible\GetRealtimeVisitorsTool());
+            $registry->register(new \Platform\Integrations\Tools\Plausible\GetAggregateStatsTool());
+            $registry->register(new \Platform\Integrations\Tools\Plausible\GetTimeseriesTool());
+            $registry->register(new \Platform\Integrations\Tools\Plausible\GetBreakdownTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Plausible Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
         // Google Search Console Tools (Sites, Search Analytics, Sitemaps, URL Inspection)
         try {
             $registry->register(new \Platform\Integrations\Tools\GoogleSearchConsole\TestConnectionTool());

@@ -144,6 +144,31 @@ return [
             ],
 
             /**
+             * RingCentral OAuth2 Konfiguration
+             *
+             * RingCentral OAuth2 Authorization Code Flow.
+             * Read-Only-Zugriff auf Call Logs, Extensions und Account-Informationen.
+             *
+             * Benötigte ENV-Variablen:
+             * - RINGCENTRAL_CLIENT_ID: OAuth2 Client ID
+             * - RINGCENTRAL_CLIENT_SECRET: OAuth2 Client Secret
+             * - RINGCENTRAL_OAUTH_REDIRECT_DOMAIN: Optional - Domain für Redirect URI
+             *
+             * @see https://developers.ringcentral.com/api-reference
+             */
+            'ringcentral' => [
+                'authorize_url' => 'https://platform.ringcentral.com/restapi/oauth/authorize',
+                'token_url' => 'https://platform.ringcentral.com/restapi/oauth/token',
+                'client_id' => env('RINGCENTRAL_CLIENT_ID'),
+                'client_secret' => env('RINGCENTRAL_CLIENT_SECRET'),
+                'redirect_domain' => env('RINGCENTRAL_OAUTH_REDIRECT_DOMAIN'),
+                'scopes' => [
+                    'ReadCallLog',
+                    'ReadAccounts',
+                ],
+            ],
+
+            /**
              * Google Search Console OAuth2 Konfiguration
              *
              * Google OAuth2 Authorization Code Flow mit offline access.
@@ -330,6 +355,54 @@ return [
         'timeout' => [
             'default' => 30,
             'connect' => 10,
+        ],
+    ],
+
+    /**
+     * RingCentral API Konfiguration
+     *
+     * RingCentral Cloud-Telefonie Platform.
+     * Verwendet OAuth2 Authorization Code Flow.
+     *
+     * ENV-Variablen:
+     * - RINGCENTRAL_CLIENT_ID: OAuth2 Client ID (siehe oauth2.providers.ringcentral)
+     * - RINGCENTRAL_CLIENT_SECRET: OAuth2 Client Secret
+     * - RINGCENTRAL_OAUTH_REDIRECT_DOMAIN: Domain für OAuth Callback
+     * - RINGCENTRAL_API_BASE_URL: Base URL für API-Aufrufe
+     *
+     * @see https://developers.ringcentral.com/api-reference
+     */
+    'ringcentral' => [
+        'api_base_url' => env('RINGCENTRAL_API_BASE_URL', 'https://platform.ringcentral.com/restapi/v1.0'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('RINGCENTRAL_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('RINGCENTRAL_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
+     * Plausible Analytics API Konfiguration
+     *
+     * Plausible Analytics (Self-Hosted oder Cloud).
+     * Verwendet API-Key (Bearer Token) Authentifizierung.
+     * Base-URL ist pro Connection konfigurierbar für Self-Hosted-Instanzen.
+     *
+     * ENV-Variablen:
+     * - PLAUSIBLE_API_BASE_URL: Standard-Base-URL (kann pro Connection überschrieben werden)
+     * - PLAUSIBLE_DEFAULT_TIMEOUT: Request-Timeout in Sekunden
+     * - PLAUSIBLE_CONNECT_TIMEOUT: Connect-Timeout in Sekunden
+     *
+     * @see https://plausible.io/docs/stats-api
+     */
+    'plausible' => [
+        'api_base_url' => env('PLAUSIBLE_API_BASE_URL', 'https://plausible.io'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('PLAUSIBLE_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('PLAUSIBLE_CONNECT_TIMEOUT', 10),
         ],
     ],
 
