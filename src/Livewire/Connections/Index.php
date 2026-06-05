@@ -30,6 +30,7 @@ use Platform\Integrations\Services\HubspotIntegrationService;
 use Platform\Integrations\Services\HubspotCrmSyncService;
 use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
 use Platform\Integrations\Services\GoogleSearchConsoleIntegrationService;
+use Platform\Integrations\Services\DatevIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -187,6 +188,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $datevConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'datev'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -228,6 +237,7 @@ class Index extends Component
             'mossConnections' => $mossConnections,
             'buchhaltungsbutlerConnections' => $buchhaltungsbutlerConnections,
             'googleSearchConsoleConnections' => $googleSearchConsoleConnections,
+            'datevConnections' => $datevConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1294,6 +1304,39 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'Google Search Console-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== DATEV METHODS ====================
+
+    public function testDatevConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $datevConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$datevConnection) {
+                $this->syncError = 'Keine DATEV-Connection gefunden.';
+                return;
+            }
+
+            $service = app(DatevIntegrationService::class);
+            $result = $service->testConnection($datevConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'DATEV-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

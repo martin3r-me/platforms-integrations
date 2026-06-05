@@ -181,6 +181,23 @@ class OAuth2Service
                 \Log::info('OAuth2 GitHub Integration Auto-Created', [
                     'integration_id' => $integration->id,
                 ]);
+            } elseif ($integrationKey === 'datev') {
+                $integration = Integration::updateOrCreate(
+                    ['key' => 'datev'],
+                    [
+                        'name' => 'DATEV',
+                        'is_enabled' => true,
+                        'supported_auth_schemes' => json_encode(['oauth2'], JSON_THROW_ON_ERROR),
+                        'meta' => json_encode([
+                            'description' => 'DATEV Integration für Buchhaltung, Rechnungswesen und Mandantenverwaltung',
+                            'icon' => 'heroicon-o-calculator',
+                        ], JSON_THROW_ON_ERROR),
+                    ]
+                );
+
+                \Log::info('OAuth2 DATEV Integration Auto-Created', [
+                    'integration_id' => $integration->id,
+                ]);
             } else {
                 \Log::error('OAuth2 Integration Not Found', [
                     'integration_key' => $integrationKey,
