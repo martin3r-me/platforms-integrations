@@ -197,6 +197,41 @@ return [
                 ],
             ],
 
+            /**
+             * DATEV OAuth2 (OpenID Connect) Konfiguration
+             *
+             * DATEV verwendet OpenID Connect Authorization Code Flow.
+             * Client Type: Confidential (Dauertoken 2 Jahre, gleitend).
+             *
+             * Benötigte ENV-Variablen:
+             * - DATEV_CLIENT_ID: OAuth2 Client ID (aus DATEV Developer Portal)
+             * - DATEV_CLIENT_SECRET: OAuth2 Client Secret
+             * - DATEV_OAUTH_REDIRECT_DOMAIN: Optional - Domain für Redirect URI
+             *
+             * Scopes werden je nach benötigten DATEV-Diensten konfiguriert.
+             *
+             * @see https://developer.datev.de/
+             */
+            'datev' => [
+                'authorize_url' => env('DATEV_AUTHORIZE_URL', 'https://login.datev.de/openid/authorize'),
+                'token_url' => env('DATEV_TOKEN_URL', 'https://sandbox-api.datev.de/token'),
+                'client_id' => env('DATEV_CLIENT_ID'),
+                'client_secret' => env('DATEV_CLIENT_SECRET'),
+                'redirect_domain' => env('DATEV_OAUTH_REDIRECT_DOMAIN'),
+                'scopes' => [
+                    // OpenID Connect Basis
+                    'openid',
+
+                    // Buchhaltung & Rechnungswesen
+                    'accounting:clients',       // Mandanten auflisten/abrufen
+                    'accounting:documents',      // Belege hochladen (Belege online)
+                    'accounting:extf-files',     // Buchungsdaten (EXTF/CSV) übertragen
+                ],
+                'extra_params' => [
+                    'prompt' => 'consent',
+                ],
+            ],
+
             // Lexware/Lexoffice hat KEIN OAuth! Verwendet API-Key Authentifizierung
             // Der API-Token wird manuell vom Benutzer eingegeben
         ],
@@ -403,6 +438,30 @@ return [
         'timeout' => [
             'default' => (int) env('PLAUSIBLE_DEFAULT_TIMEOUT', 30),
             'connect' => (int) env('PLAUSIBLE_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
+     * DATEV API Konfiguration
+     *
+     * DATEV Plattform für Buchhaltung, Steuerberatung und Mandantenverwaltung.
+     * Verwendet OpenID Connect (Authorization Code Flow, Confidential Client).
+     *
+     * ENV-Variablen:
+     * - DATEV_CLIENT_ID: OAuth2 Client ID (siehe oauth2.providers.datev)
+     * - DATEV_CLIENT_SECRET: OAuth2 Client Secret
+     * - DATEV_OAUTH_REDIRECT_DOMAIN: Domain für OAuth Callback
+     * - DATEV_API_BASE_URL: Base URL für API-Aufrufe (Standard: Sandbox)
+     *
+     * @see https://developer.datev.de/
+     */
+    'datev' => [
+        'api_base_url' => env('DATEV_API_BASE_URL', 'https://sandbox-api.datev.de'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('DATEV_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('DATEV_CONNECT_TIMEOUT', 10),
         ],
     ],
 
