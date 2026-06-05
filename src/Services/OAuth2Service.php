@@ -218,6 +218,13 @@ class OAuth2Service
         if ($integrationKey === 'meta' && ($cfg['client_secret'] ?? null)) {
             $tokenParams['client_secret'] = $cfg['client_secret'];
             $resp = Http::get($tokenUrl, $tokenParams); // GET für Meta
+        } elseif (!empty($cfg['token_auth_method']) && $cfg['token_auth_method'] === 'basic') {
+            // OIDC Confidential Clients (z.B. DATEV): Basic Auth Header statt client_secret im Body
+            // client_id nicht im Body wenn Basic Auth verwendet wird
+            unset($tokenParams['client_id']);
+            $resp = Http::withBasicAuth($cfg['client_id'], $cfg['client_secret'])
+                ->asForm()
+                ->post($tokenUrl, $tokenParams);
         } else {
             // Andere Provider (z.B. GitHub) verwenden POST
             // GitHub benötigt client_secret als POST-Parameter
@@ -457,12 +464,21 @@ class OAuth2Service
             throw new \RuntimeException("token_url fehlt für '{$integrationKey}'.");
         }
 
-        $resp = Http::asForm()->post($tokenUrl, [
+        $refreshParams = [
             'grant_type' => 'refresh_token',
             'refresh_token' => $refreshToken,
-            'client_id' => $cfg['client_id'],
-            'client_secret' => $cfg['client_secret'] ?? null,
-        ]);
+        ];
+
+        if (!empty($cfg['token_auth_method']) && $cfg['token_auth_method'] === 'basic') {
+            // OIDC Confidential Clients: Basic Auth Header
+            $resp = Http::withBasicAuth($cfg['client_id'], $cfg['client_secret'])
+                ->asForm()
+                ->post($tokenUrl, $refreshParams);
+        } else {
+            $refreshParams['client_id'] = $cfg['client_id'];
+            $refreshParams['client_secret'] = $cfg['client_secret'] ?? null;
+            $resp = Http::asForm()->post($tokenUrl, $refreshParams);
+        }
 
         if (!$resp->successful()) {
             throw new \RuntimeException('Token Refresh fehlgeschlagen: ' . $resp->body());

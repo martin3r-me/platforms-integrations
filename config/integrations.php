@@ -218,6 +218,7 @@ return [
                 'client_id' => env('DATEV_CLIENT_ID'),
                 'client_secret' => env('DATEV_CLIENT_SECRET'),
                 'redirect_domain' => env('DATEV_OAUTH_REDIRECT_DOMAIN'),
+                'token_auth_method' => 'basic', // OIDC Confidential Client: Basic Auth für Token-Endpoint
                 'scopes' => [
                     // OpenID Connect Basis
                     'openid',
