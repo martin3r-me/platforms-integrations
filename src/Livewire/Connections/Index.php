@@ -298,16 +298,27 @@ class Index extends Component
             }
             $this->assertCanManage($connection);
         } else {
-            // Neue Connection erstellen
-            $isFirst = !IntegrationConnection::query()
+            // Prüfen ob eine soft-deleted Connection existiert und ggf. wiederherstellen
+            $trashedConnection = IntegrationConnection::withTrashed()
                 ->where('integration_id', $integration->id)
                 ->where('owner_user_id', $ownerUserId)
-                ->exists();
+                ->first();
 
-            $connection = new IntegrationConnection([
-                'name' => IntegrationConnection::generateName($integration->id, $ownerUserId, $integration->name),
-                'is_default' => $isFirst,
-            ]);
+            if ($trashedConnection && $trashedConnection->trashed()) {
+                $trashedConnection->restore();
+                $connection = $trashedConnection;
+            } else {
+                // Neue Connection erstellen
+                $isFirst = !IntegrationConnection::query()
+                    ->where('integration_id', $integration->id)
+                    ->where('owner_user_id', $ownerUserId)
+                    ->exists();
+
+                $connection = new IntegrationConnection([
+                    'name' => IntegrationConnection::generateName($integration->id, $ownerUserId, $integration->name),
+                    'is_default' => $isFirst,
+                ]);
+            }
         }
 
         $connection->integration_id = $integration->id;
