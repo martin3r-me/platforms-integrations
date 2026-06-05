@@ -621,6 +621,14 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: Google Search Console Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // DATEV Tools (Mandanten, Buchhaltung)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Datev\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\Datev\ListTenantsTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: DATEV Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void
