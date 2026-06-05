@@ -352,7 +352,7 @@ class Index extends Component
             return;
         }
 
-        $url = route('integrations.oauth2.start', ['integrationKey' => $integrationKey]);
+        $url = route('integrations.oauth2.start', ['integrationKey' => $integrationKey, 'connection_id' => $connectionId]);
         $this->redirect($url);
     }
 
