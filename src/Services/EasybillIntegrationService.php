@@ -46,7 +46,8 @@ class EasybillIntegrationService
     public function getApiToken(IntegrationConnection $connection): ?string
     {
         $credentials = $connection->credentials ?? [];
-        return $credentials['api_key'] ?? null;
+        $token = $credentials['api_key'] ?? null;
+        return $token !== null ? trim($token) : null;
     }
 
     public function hasValidApiToken(IntegrationConnection $connection): bool
@@ -57,6 +58,10 @@ class EasybillIntegrationService
 
     public function updateApiToken(IntegrationConnection $connection, string $apiToken): void
     {
+        // Trim — copy-paste aus Easybill-UI bringt oft trailing whitespace mit;
+        // führt sonst zu 401 "Wrong Authorization".
+        $apiToken = trim($apiToken);
+
         $credentials = $connection->credentials ?? [];
         $credentials['api_key'] = $apiToken;
 
@@ -178,19 +183,40 @@ class EasybillIntegrationService
                 ];
             }
 
+            $status = $response->status();
             $body = $response->json();
             $error = is_array($body)
-                ? ($body['message'] ?? $body['error'] ?? 'Unbekannter Fehler')
-                : 'Unbekannter Fehler';
+                ? ($body['message'] ?? $body['error'] ?? null)
+                : null;
+
+            if (!$error) {
+                // Fallback: Raw-Body, falls easybill HTML/Text statt JSON liefert.
+                $raw = trim((string) $response->body());
+                $error = $raw !== '' ? mb_substr($raw, 0, 300) : 'Unbekannter Fehler';
+            }
+
+            // Spezifischer Hint bei 401 — häufigste User-Ursachen.
+            $hint = '';
+            if ($status === 401) {
+                $hint = ' Hinweis: API muss in easybill unter Einstellungen → API aktiviert sein '
+                      . '(ab PLUS-Tarif). Prüfe, ob du den korrekten API-Key kopiert hast und keine '
+                      . 'Leerzeichen mit übernommen wurden.';
+            }
 
             $connection->status = 'error';
             $connection->last_error = is_string($error) ? $error : json_encode($error);
             $connection->last_tested_at = now();
             $connection->save();
 
+            Log::warning('easybill testConnection failed', [
+                'connection_id' => $connection->id,
+                'http_status' => $status,
+                'response_body' => is_array($body) ? $body : ['raw' => mb_substr((string) $response->body(), 0, 500)],
+            ]);
+
             return [
                 'success' => false,
-                'message' => 'API-Fehler (HTTP ' . $response->status() . '): ' . (is_string($error) ? $error : json_encode($error)),
+                'message' => 'API-Fehler (HTTP ' . $status . '): ' . (is_string($error) ? $error : json_encode($error)) . $hint,
             ];
         } catch (\Exception $e) {
             Log::error('easybill connection test failed', [
