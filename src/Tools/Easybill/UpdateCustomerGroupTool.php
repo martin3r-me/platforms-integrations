@@ -18,7 +18,22 @@ class UpdateCustomerGroupTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /customer-groups/{id} — Kundengruppe aktualisieren.';
+        return <<<TXT
+PUT /customer-groups/{id} — Kundengruppe aktualisieren.
+
+Voll-Update: easybill ersetzt die Gruppe mit dem Payload — am sichersten zuerst GET /customer-groups/{id}, anpassen, komplettes Objekt zurückschicken.
+
+WICHTIG: discount bei discount_type=AMOUNT ist Integer-Cent; bei PERCENT Prozentwert (1–100).
+
+Häufige data-Felder (selbe Struktur wie POST):
+- Stamm: name, archived
+- Zahlung: due_in_days, cash_allowance, cash_allowance_days, payment_options
+- Preise/Rabatt: sale_price_level, discount, discount_type
+- Verknüpfung: text_template_ids[], additional_groups_ids[]
+- Custom: buyer_reference, info_1, info_2
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -36,7 +51,8 @@ class UpdateCustomerGroupTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Update.',
+              'description' => 'Gruppen-Daten — vollständiger Stand, nicht diff. Siehe Tool-Description für alle Felder.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

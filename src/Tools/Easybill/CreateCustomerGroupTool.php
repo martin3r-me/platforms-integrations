@@ -18,7 +18,24 @@ class CreateCustomerGroupTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /customer-groups — Kundengruppe anlegen.';
+        return <<<TXT
+POST /customer-groups — Kundengruppe anlegen.
+
+Kundengruppen bündeln gemeinsame Defaults (Zahlungsziel, Rabatt, Preisstufe, Textvorlagen). Ein Kunde kann genau eine Hauptgruppe (group_id) und zusätzliche Gruppen (additional_groups_ids) haben.
+
+PFLICHT: name.
+
+WICHTIG: discount bei discount_type=AMOUNT ist Integer-Cent; bei PERCENT Prozentwert (1–100).
+
+Häufige data-Felder:
+- Stamm: name (Pflicht), archived (false)
+- Zahlung: due_in_days (Zahlungsziel in Tagen), cash_allowance, cash_allowance_days, payment_options
+- Preise/Rabatt: sale_price_level (1-5 — verweist auf Preisstufe der Positionen), discount, discount_type (AMOUNT|PERCENT)
+- Verknüpfung: text_template_ids[] (Standard-Textvorlagen für Belege), additional_groups_ids[] (weitere Gruppen, die mit dieser kombiniert werden)
+- Custom: buyer_reference, info_1, info_2
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -32,7 +49,8 @@ class CreateCustomerGroupTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Create.',
+              'description' => 'Gruppen-Daten. Siehe Tool-Description. Beispiel: {"name": "Premium-Kunden", "due_in_days": 7, "sale_price_level": 2, "discount": 5, "discount_type": "PERCENT"}.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

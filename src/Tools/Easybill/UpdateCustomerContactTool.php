@@ -18,7 +18,20 @@ class UpdateCustomerContactTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /customers/{customerId}/contacts/{id} — Kontakt aktualisieren.';
+        return <<<TXT
+PUT /customers/{customerId}/contacts/{id} — Ansprechpartner/Kontakt zu einem Kunden aktualisieren.
+
+Voll-Update: easybill ersetzt den Kontakt mit dem Payload — am sichersten zuerst GET /customers/{customerId}/contacts/{id}, anpassen, komplettes Objekt zurückschicken.
+
+Häufige data-Felder (selbe Struktur wie POST):
+- Identität: salutation (0/1/2), title, first_name, last_name, suffix_1, suffix_2, position
+- Kontakt: email, phone, mobile, fax
+- Persönlich: birth_date (YYYY-MM-DD)
+- Flags: usable_for_documents, main_address
+- Custom: note
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -40,7 +53,8 @@ class UpdateCustomerContactTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Update.',
+              'description' => 'Kontakt-Daten — vollständiger Stand, nicht diff. Siehe Tool-Description für alle Felder.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

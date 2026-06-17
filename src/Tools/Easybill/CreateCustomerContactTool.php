@@ -18,7 +18,22 @@ class CreateCustomerContactTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /customers/{customerId}/contacts — Kontakt zu Kunde anlegen.';
+        return <<<TXT
+POST /customers/{customerId}/contacts — Ansprechpartner/Kontakt zu einem Kunden anlegen.
+
+Ein Kunde (z.B. Firma) kann beliebig viele Kontaktpersonen haben (Geschäftsführung, Buchhaltung, technischer Ansprechpartner …). Pro Beleg kann genau einer als `contact_id` referenziert werden.
+
+EMPFOHLEN: mindestens first_name und last_name (oder email).
+
+Häufige data-Felder:
+- Identität: salutation (0/1/2 = unbestimmt/Herr/Frau), title, first_name, last_name, suffix_1, suffix_2, position (Funktion im Unternehmen, z.B. "Geschäftsführer", "Einkauf")
+- Kontakt: email, phone, mobile, fax
+- Persönlich: birth_date (YYYY-MM-DD)
+- Flags: usable_for_documents (true = darf auf Belegen als Ansprechpartner gesetzt werden), main_address (true = Hauptansprechpartner)
+- Custom: note (interne Notiz)
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -36,7 +51,8 @@ class CreateCustomerContactTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Create.',
+              'description' => 'Kontakt-Daten. Siehe Tool-Description. Beispiel: {"salutation": 1, "first_name": "Max", "last_name": "Mustermann", "position": "Geschäftsführer", "email": "max@muster.de", "phone": "+49 211 1234567", "usable_for_documents": true}.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [
