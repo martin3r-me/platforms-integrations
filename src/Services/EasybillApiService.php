@@ -799,10 +799,19 @@ class EasybillApiService
             return $data;
         }
 
+        $errorMsg = $data['message'] ?? $data['error'] ?? null;
+        if (is_array($errorMsg)) {
+            // easybill liefert bei Validierungsfehlern manchmal Arrays —
+            // wir flatten für die last_error-Spalte zu JSON.
+            $errorMsg = json_encode($errorMsg, JSON_UNESCAPED_UNICODE);
+        } elseif ($errorMsg !== null && !is_string($errorMsg)) {
+            $errorMsg = (string) $errorMsg;
+        }
+
         $this->updateConnectionStatus(
             $connection,
             $statusCode === 401 ? 'error' : 'active',
-            $data['message'] ?? $data['error'] ?? null
+            $errorMsg
         );
 
         Log::warning('easybill API: Fehler-Response', [
@@ -859,10 +868,16 @@ class EasybillApiService
 
             if (!$response->successful()) {
                 $data = $response->json() ?? [];
+                $errorMsg = $data['message'] ?? $data['error'] ?? null;
+                if (is_array($errorMsg)) {
+                    $errorMsg = json_encode($errorMsg, JSON_UNESCAPED_UNICODE);
+                } elseif ($errorMsg !== null && !is_string($errorMsg)) {
+                    $errorMsg = (string) $errorMsg;
+                }
                 $this->updateConnectionStatus(
                     $connection,
                     $response->status() === 401 ? 'error' : 'active',
-                    $data['message'] ?? $data['error'] ?? null
+                    $errorMsg
                 );
 
                 throw EasybillApiException::fromResponse($response->status(), $data);
