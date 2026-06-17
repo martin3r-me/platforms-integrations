@@ -18,7 +18,7 @@ class CreatePositionDiscountTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /discounts/position — Positions-Rabatt anlegen.';
+        return 'POST /discounts/position — Positions-Rabatt anlegen. Bei `discount_type=AMOUNT` ist `discount` Integer-Cent; bei `PERCENT` Prozentwert (1–100).';
     }
 
     public function getSchema(): array

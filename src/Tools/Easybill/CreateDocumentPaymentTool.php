@@ -18,7 +18,7 @@ class CreateDocumentPaymentTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /document-payments — Zahlungseingang erfassen.';
+        return 'POST /document-payments — Zahlungseingang erfassen. WICHTIG: amount ist Integer-Cent (2499000 = 24.990,00 €).';
     }
 
     public function getSchema(): array

@@ -18,7 +18,7 @@ class CreatePositionGroupDiscountTool implements ToolContract, ToolMetadataContr
 
     public function getDescription(): string
     {
-        return 'POST /discounts/position-group — Gruppen-Rabatt anlegen.';
+        return 'POST /discounts/position-group — Gruppen-Rabatt anlegen. Bei `discount_type=AMOUNT` ist `discount` Integer-Cent; bei `PERCENT` Prozentwert (1–100).';
     }
 
     public function getSchema(): array

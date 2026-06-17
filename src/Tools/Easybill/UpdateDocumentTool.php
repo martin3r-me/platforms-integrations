@@ -18,7 +18,7 @@ class UpdateDocumentTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /documents/{id} — Beleg aktualisieren.';
+        return 'PUT /documents/{id} — Beleg aktualisieren. WICHTIG: Alle Geldbeträge sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.';
     }
 
     public function getSchema(): array

@@ -34,6 +34,7 @@ class EasybillOverviewTool implements ToolContract, ToolMetadataContract
             'base_url' => 'https://api.easybill.de/rest/v1',
             'auth' => 'Bearer Token (api_key in IntegrationConnection.credentials)',
             'rate_limits' => ['PLUS' => '10 req/min', 'BUSINESS' => '60 req/min'],
+            'money_format' => 'Alle Geldbeträge sind Integer-Cent (185000 = 1.850,00 €). Gilt für single_price_net/single_price_gross/total_*/amount/sale_price/purchase_price/discount(AMOUNT). Niemals Euro/Float senden — easybill rechnet sonst 100× zu klein.',
             'resources' => [
                 'customers' => ['list', 'get', 'create', 'update', 'delete'],
                 'customer-contacts' => ['list', 'get', 'create', 'update', 'delete'],

@@ -18,7 +18,7 @@ class UpdatePositionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /positions/{id} — Artikel aktualisieren.';
+        return 'PUT /positions/{id} — Artikel aktualisieren. WICHTIG: sale_price und purchase_price sind Integer-Cent.';
     }
 
     public function getSchema(): array

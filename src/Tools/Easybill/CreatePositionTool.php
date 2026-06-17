@@ -18,7 +18,7 @@ class CreatePositionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /positions — Artikel anlegen.';
+        return 'POST /positions — Artikel anlegen. WICHTIG: sale_price und purchase_price sind Integer-Cent (185000 = 1.850,00 €).';
     }
 
     public function getSchema(): array

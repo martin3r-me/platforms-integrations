@@ -18,7 +18,7 @@ class CreateDocumentTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /documents — Beleg erstellen. `type` ist Pflicht (INVOICE/OFFER/CREDIT/DELIVERY_NOTE/ORDER_CONFIRMATION/…). is_draft=false finalisiert direkt.';
+        return 'POST /documents — Beleg erstellen. `type` ist Pflicht (INVOICE/OFFER/CREDIT/DELIVERY_NOTE/ORDER_CONFIRMATION/…). is_draft=false finalisiert direkt. WICHTIG: Alle Geldbeträge sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.';
     }
 
     public function getSchema(): array
