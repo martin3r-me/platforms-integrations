@@ -18,7 +18,25 @@ class UpdatePositionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /positions/{id} — Artikel aktualisieren. WICHTIG: sale_price und purchase_price sind Integer-Cent.';
+        return <<<TXT
+PUT /positions/{id} — Stamm-Artikel aktualisieren.
+
+Voll-Update: easybill ersetzt den Artikel mit dem Payload — am sichersten zuerst GET /positions/{id}, anpassen, komplettes Objekt zurückschicken.
+
+WICHTIG: sale_price und purchase_price sind Integer-Cent (185000 = 1.850,00 €).
+
+Häufige data-Felder (selbe Struktur wie POST /positions):
+- Stammdaten: type (PRODUCT|SERVICE|TEXT), number, description, description_intern, group_id, bundle_id
+- Preise: sale_price (Cent), sale_price_gross (Cent), sale_price_brutto_or_net_type (NET|GROSS), purchase_price (Cent), vat_percent
+- Einheit: unit, unit_factor
+- Lager: stock_initial, stock_min, stock_keeping, weight, ean
+- Buchhaltung: booking_account, tax_account, cost_center_1, cost_center_2, export_cost_1, export_cost_2
+- Rabatt: discount, discount_type (AMOUNT|PERCENT)
+- Partner: partner_id
+- Custom: info_1, info_2
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -36,7 +54,8 @@ class UpdatePositionTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Update.',
+              'description' => 'Artikel-Daten — vollständiger Stand, nicht diff. Siehe Tool-Description für alle Felder.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

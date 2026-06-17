@@ -18,7 +18,27 @@ class UpdateCustomerTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /customers/{id} — Kunden aktualisieren.';
+        return <<<TXT
+PUT /customers/{id} — Kunden aktualisieren.
+
+Voll-Update: easybill ersetzt den Datensatz mit dem Payload — am sichersten zuerst GET /customers/{id}, gewünschte Felder anpassen, komplettes Objekt zurückschicken. Felder, die nicht im Payload stehen, werden auf Default zurückgesetzt.
+
+Häufige data-Felder (selbe Struktur wie POST /customers):
+- Identität: company_name, first_name, last_name, salutation, title, suffix_1, suffix_2, personal, birth_date
+- Rechnungsadresse: street, zip_code, city, state, country
+- Lieferadresse: delivery_company_name, delivery_first_name, delivery_last_name, delivery_street, delivery_zip_code, delivery_city, delivery_state, delivery_country, delivery_salutation, delivery_title, delivery_suffix_1/2, delivery_personal
+- Postfach: postbox, postbox_zip_code, postbox_city, postbox_state, postbox_country
+- Kontakt: emails[], phone_1, phone_2, mobile, fax, internet
+- Steuer: tax_number, vat_identifier, tax_options
+- Bank: bank_account_owner, bank_iban, bank_bic, bank_name, sepa_agreement, sepa_mandate_reference
+- Zahlung: due_in_days, grace_period, cash_discount, cash_discount_type, cash_allowance, cash_allowance_days, sale_price_level, payment_options
+- Handelsregister: court, court_registry_number, since_date
+- Gruppierung: group_id, additional_groups_ids[]
+- Lieferant: supplier_number, foreign_supplier_number
+- Custom: number, display_name, note, info_1, info_2, buyer_reference, document_pdf_type, archived
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -36,7 +56,8 @@ class UpdateCustomerTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Update.',
+              'description' => 'Kunden-Daten — vollständiger Stand, nicht diff. Siehe Tool-Description für alle Felder.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

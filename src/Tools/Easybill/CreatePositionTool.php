@@ -18,7 +18,24 @@ class CreatePositionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /positions — Artikel anlegen. WICHTIG: sale_price und purchase_price sind Integer-Cent (185000 = 1.850,00 €).';
+        return <<<TXT
+POST /positions — Stamm-Artikel anlegen.
+
+WICHTIG: sale_price und purchase_price sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.
+EMPFOHLEN: mindestens description und sale_price.
+
+Häufige data-Felder:
+- Stammdaten: type (PRODUCT|SERVICE|TEXT), number (Artikelnummer, auto wenn leer), description, description_intern, group_id (Position-Group), bundle_id
+- Preise: sale_price (Netto-VK in Cent), sale_price_gross (Brutto-VK in Cent), sale_price_brutto_or_net_type (NET|GROSS — welcher Preis maßgeblich ist), purchase_price (Einkaufspreis in Cent), vat_percent (z.B. 19 / 7 / 0)
+- Einheit: unit (z.B. "Stück", "h", "kg"), unit_factor
+- Lager: stock_initial, stock_min, stock_keeping (true = Bestandsführung), weight, ean
+- Buchhaltung: booking_account (Sachkonto), tax_account, cost_center_1, cost_center_2, export_cost_1, export_cost_2
+- Rabatt (default): discount, discount_type (AMOUNT|PERCENT)
+- Partner: partner_id (Lieferant)
+- Custom: info_1, info_2
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -32,7 +49,8 @@ class CreatePositionTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Create.',
+              'description' => 'Artikel-Daten. Siehe Tool-Description. Beispiel: {"type": "SERVICE", "description": "Beratungsstunde", "sale_price": 12500, "vat_percent": 19, "unit": "h"}.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [

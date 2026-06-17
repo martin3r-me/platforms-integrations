@@ -18,7 +18,24 @@ class CreateDocumentPaymentTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'POST /document-payments — Zahlungseingang erfassen. WICHTIG: amount ist Integer-Cent (2499000 = 24.990,00 €).';
+        return <<<TXT
+POST /document-payments — Zahlungseingang/-ausgang zu einem Beleg erfassen.
+
+PFLICHT: data.document_id (ID des Belegs), data.amount (Integer-Cent), data.date (YYYY-MM-DD).
+WICHTIG: amount ist Integer-Cent (2499000 = 24.990,00 €), niemals Euro/Float.
+Negative amount = Rückzahlung/Erstattung.
+
+Häufige data-Felder:
+- Bezug: document_id (Pflicht), reference (Verwendungszweck/Referenz)
+- Betrag: amount (Cent, Pflicht), date (Pflicht, YYYY-MM-DD)
+- Zahlungsart: payment_type (z.B. BANK_TRANSFER, CASH, CREDIT_CARD, PAYPAL, DIRECT_DEBIT, CHECK, OTHER), type (PAYMENT|REFUND|…)
+- Fremdwährung: foreign_amount (Cent), foreign_currency (z.B. USD), foreign_exchange_rate
+- Custom: notes
+
+Hinweis: easybill aktualisiert paid_amount und ggf. den Status des verknüpften Belegs automatisch.
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -32,7 +49,8 @@ class CreateDocumentPaymentTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Create.',
+              'description' => 'Zahlungs-Daten. Siehe Tool-Description. Beispiel: {"document_id": 123456, "amount": 249900, "date": "2026-06-17", "payment_type": "BANK_TRANSFER", "reference": "Rechnung 2026-001"}.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [
