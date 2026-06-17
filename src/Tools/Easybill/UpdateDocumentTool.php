@@ -18,7 +18,28 @@ class UpdateDocumentTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'PUT /documents/{id} — Beleg aktualisieren. WICHTIG: Alle Geldbeträge sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.';
+        return <<<TXT
+PUT /documents/{id} — Beleg aktualisieren.
+
+Voll-Update: easybill ersetzt das Dokument mit dem übergebenen Payload — sende daher idealerweise zuerst per GET /documents/{id} den aktuellen Stand, ändere die gewünschten Felder, und schicke das komplette Objekt zurück. Bei Item-Listen werden vorhandene Positionen NICHT diff-gemergt; das übergebene items[] ersetzt die alten Positionen vollständig.
+
+WICHTIG: Alle Geldbeträge sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.
+
+Häufige data-Felder (selbe Struktur wie POST /documents):
+- Bezug: type, customer_id, contact_id, project_id, external_id, order_number, ref_id, buyer_reference
+- Datum: document_date, due_in_days, grace_period
+- Text: title, text_prefix, text, text_tax, item_notes
+- Adresse: address {…}; delivery_*, use_shipping_address
+- Items: items[] mit type, description, quantity, single_price_net (Cent), vat_percent, position_id, unit, number, booking_account, cost_price_net, discount, discount_type, document_note
+- Rabatt (Beleg): discount, discount_type=AMOUNT|PERCENT
+- Zahlung: cash_allowance, cash_allowance_days, cash_allowance_text, payment_options, payment_link_enabled, bank_debit_form
+- Status: is_draft, is_archive
+- PDF: pdf_template, file_format_config, attachment_ids[]
+- Steuer/Länder: currency, billing_country, shipping_country, fulfillment_country, vat_country, vat_option, is_oss
+- Custom: advanced_data_fields, info_1, info_2
+
+Volle Feldliste: https://api.easybill.de/rest/v1/ (Swagger).
+TXT;
     }
 
     public function getSchema(): array
@@ -36,7 +57,8 @@ class UpdateDocumentTool implements ToolContract, ToolMetadataContract
             ],
             'data' => [
               'type' => 'object',
-              'description' => 'Payload-Daten für das Update.',
+              'description' => 'Beleg-Daten — vollständiger Stand des Belegs, nicht diff. Siehe Tool-Description für alle Felder.',
+              'additionalProperties' => true,
             ],
           ],
           'required' => [
