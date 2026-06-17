@@ -1689,16 +1689,28 @@
                         </div>
                     </div>
                     @if($datevConnections->isNotEmpty())
-                        <x-ui-button
-                            variant="secondary-outline"
-                            size="sm"
-                            :href="route('integrations.oauth2.start', ['integrationKey' => 'datev'])"
-                        >
-                            <span class="inline-flex items-center gap-2">
-                                @svg('heroicon-o-plus', 'w-4 h-4')
-                                <span>Neue Verbindung</span>
-                            </span>
-                        </x-ui-button>
+                        <div class="flex items-center gap-2">
+                            <x-ui-button
+                                variant="primary"
+                                size="sm"
+                                :href="route('integrations.sync-profiles.index')"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-arrows-right-left', 'w-4 h-4')
+                                    <span>Sync-Profile (Lexoffice ↔ DATEV)</span>
+                                </span>
+                            </x-ui-button>
+                            <x-ui-button
+                                variant="secondary-outline"
+                                size="sm"
+                                :href="route('integrations.oauth2.start', ['integrationKey' => 'datev'])"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-plus', 'w-4 h-4')
+                                    <span>Neue Verbindung</span>
+                                </span>
+                            </x-ui-button>
+                        </div>
                     @endif
                 </div>
 
