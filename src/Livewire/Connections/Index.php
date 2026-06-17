@@ -31,6 +31,7 @@ use Platform\Integrations\Services\HubspotCrmSyncService;
 use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
 use Platform\Integrations\Services\GoogleSearchConsoleIntegrationService;
 use Platform\Integrations\Services\DatevIntegrationService;
+use Platform\Integrations\Services\EasybillIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -85,6 +86,10 @@ class Index extends Component
     public string $buchhaltungsbutlerApiSecret = '';
     public string $buchhaltungsbutlerApiKey = '';
     public ?int $buchhaltungsbutlerEditingConnectionId = null;
+
+    // Easybill Modal
+    public bool $easybillModalShow = false;
+    public string $easybillApiToken = '';
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -196,6 +201,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $easybillConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'easybill'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -238,6 +251,7 @@ class Index extends Component
             'buchhaltungsbutlerConnections' => $buchhaltungsbutlerConnections,
             'googleSearchConsoleConnections' => $googleSearchConsoleConnections,
             'datevConnections' => $datevConnections,
+            'easybillConnections' => $easybillConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1337,6 +1351,94 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'DATEV-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== EASYBILL METHODS ====================
+
+    public function openEasybillModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->easybillApiToken = '';
+        $this->easybillModalShow = true;
+    }
+
+    public function openEasybillModalForEdit(int $connectionId): void
+    {
+        $this->openEasybillModal($connectionId);
+    }
+
+    public function closeEasybillModal(): void
+    {
+        $this->easybillModalShow = false;
+        $this->easybillApiToken = '';
+        $this->editingId = null;
+    }
+
+    public function saveEasybillConnection(): void
+    {
+        $this->validate([
+            'easybillApiToken' => ['required', 'string', 'min:10'],
+        ], [
+            'easybillApiToken.required' => 'Bitte gib deinen easybill API-Token ein.',
+            'easybillApiToken.min' => 'Der API-Token muss mindestens 10 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(EasybillIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->easybillApiToken, $this->editingId);
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->easybillModalShow = false;
+                $this->easybillApiToken = '';
+                $this->editingId = null;
+                session()->flash('status', 'easybill-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('easybillApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('easybillApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('easybill connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testEasybillConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $easybillConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$easybillConnection) {
+                $this->syncError = 'Keine easybill-Connection gefunden.';
+                return;
+            }
+
+            $service = app(EasybillIntegrationService::class);
+            $result = $service->testConnection($easybillConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'easybill-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

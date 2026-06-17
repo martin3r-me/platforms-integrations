@@ -618,6 +618,148 @@
             </div>
         </div>
 
+        {{-- easybill Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500/10 to-sky-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-document-text', 'w-6 h-6 text-sky-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">easybill</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Verbinde dein easybill-Konto für Rechnungen, Belege, Kunden und Positionen</p>
+                        </div>
+                    </div>
+                    @if($easybillConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openEasybillModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($easybillConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($easybillConnections as $ebConn)
+                            <div class="p-4 {{ $ebConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($ebConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $ebConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $ebConn->name ?? 'easybill' }}
+                                            </p>
+                                            @if($ebConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $ebConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $ebConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        <p class="text-xs {{ $ebConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $ebConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($ebConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $ebConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$ebConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $ebConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openShareModal({{ $ebConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openEasybillModalForEdit({{ $ebConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Token aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $ebConn->id }})"
+                                            wire:confirm="easybill-Verbindung '{{ $ebConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($ebConn->status === 'active')
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testEasybillConnection({{ $ebConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-100 mb-4">
+                            @svg('heroicon-o-document-text', 'w-8 h-8 text-sky-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">easybill-Konto noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein easybill-Konto durch Eingabe deines API-Tokens</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openEasybillModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>easybill verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- HubSpot Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -2110,6 +2252,62 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveLexwareConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- easybill Modal (API-Token Eingabe) --}}
+    <x-ui-modal wire:model="easybillModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500/10 to-sky-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-document-text', 'w-5 h-5 text-sky-600')
+                </div>
+                <span>easybill verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-sky-50 border border-sky-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-sky-800">
+                        <p class="font-medium mb-1">API-Token erforderlich</p>
+                        <p>easybill nutzt keinen OAuth-Flow. Du musst deinen API-Token manuell eingeben.</p>
+                        <p class="mt-2">Den API-Token findest du in deinem easybill-Konto unter:</p>
+                        <p class="font-mono text-xs mt-1 bg-sky-100 px-2 py-1 rounded">Mein Konto &rarr; Einstellungen &rarr; API</p>
+                        <p class="mt-2">
+                            <a href="https://login.easybill.de" target="_blank" rel="noopener" class="underline">login.easybill.de</a> öffnen und API-Schlüssel erzeugen.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="easybillApiToken"
+                label="API-Token"
+                wire:model.live="easybillApiToken"
+                type="password"
+                placeholder="Dein easybill API-Token..."
+                :errorKey="'easybillApiToken'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der Token wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeEasybillModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveEasybillConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>
