@@ -629,6 +629,113 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: DATEV Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // easybill Tools (Rechnungen, Belege, Kunden, Positionen, Projekte, Tasks, Time-Tracking, ...)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CancelDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CompleteDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ConvertDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateAttachmentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateCustomerContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateCustomerGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateCustomerTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateDocumentPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionGroupDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateProjectTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateSepaPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateSerialNumberTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateStockTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateTaskTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateTextTemplateTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateTimeTrackingTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateWebhookTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteAttachmentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteCustomerContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteCustomerGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteCustomerTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteDocumentPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeletePositionDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeletePositionGroupDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeletePositionGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeletePositionTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeletePostBoxTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteProjectTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteSepaPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteSerialNumberTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteTaskTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteTextTemplateTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteTimeTrackingTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteWebhookTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DownloadDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\EasybillOverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetAttachmentContentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetAttachmentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetCustomerContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetCustomerGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetCustomerTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentJpgTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentPdfTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetLoginTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionGroupDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetPostBoxTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetProjectTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetSepaPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetSerialNumberTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetStockTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetTaskTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetTextTemplateTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetTimeTrackingTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetWebhookTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListAttachmentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomerContactsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomerGroupsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomersTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListDocumentPaymentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListDocumentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListLoginsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionDiscountsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionGroupDiscountsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionGroupsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListPostBoxesTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListProjectsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListSepaPaymentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListSerialNumbersTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListStocksTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListTasksTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListTextTemplatesTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListTimeTrackingsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListWebhooksTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\SendDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\TestConnectionTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateAttachmentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateCustomerContactTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateCustomerGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateCustomerTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdatePositionDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdatePositionGroupDiscountTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdatePositionGroupTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdatePositionTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateProjectTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateSepaPaymentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateTaskTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateTextTemplateTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateTimeTrackingTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateWebhookTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: easybill Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

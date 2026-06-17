@@ -74,19 +74,621 @@ class EasybillApiService
     }
 
     // =========================================================================
-    // RESOURCE WRAPPERS (Stubs — werden bei Bedarf ausgebaut)
+    // CUSTOMERS
     // =========================================================================
-    //
-    // Folgende Resource-Wrapper sind in folgenden Tickets vorgesehen:
-    //   - Customers:       /customers, /customers/{id}, /customers/{id}/contacts
-    //   - Documents:       /documents, /documents/{id}, /documents/{id}/pdf
-    //   - Positions:       /positions, /positions/{id}
-    //   - Projects:        /projects, /projects/{id}
-    //   - Attachments:     /attachments, /attachments/{id}/content
-    //   - Doc-Payments:    /document-payments, /document-payments/{id}
-    //
-    // Bis dahin nutzen Aufrufer die generischen get/post/put/delete-Methoden.
+
+    /** GET /customers — Listet Kunden (paginiert). Filter z.B. `limit`, `page`, `number`, `company_name`. */
+    public function listCustomers(User $user, array $query = []): array
+    {
+        return $this->get($user, '/customers', $query);
+    }
+
+    /** GET /customers/{id} — Einzelnen Kunden abrufen. */
+    public function getCustomer(User $user, int $customerId): array
+    {
+        return $this->get($user, "/customers/{$customerId}");
+    }
+
+    /** POST /customers — Neuen Kunden anlegen. */
+    public function createCustomer(User $user, array $data): array
+    {
+        return $this->post($user, '/customers', $data);
+    }
+
+    /** PUT /customers/{id} — Kunden aktualisieren. */
+    public function updateCustomer(User $user, int $customerId, array $data): array
+    {
+        return $this->put($user, "/customers/{$customerId}", $data);
+    }
+
+    /** DELETE /customers/{id} — Kunden löschen. */
+    public function deleteCustomer(User $user, int $customerId): array
+    {
+        return $this->delete($user, "/customers/{$customerId}");
+    }
+
     // =========================================================================
+    // CUSTOMER CONTACTS (Subressource je Kunde)
+    // =========================================================================
+
+    public function listCustomerContacts(User $user, int $customerId, array $query = []): array
+    {
+        return $this->get($user, "/customers/{$customerId}/contacts", $query);
+    }
+
+    public function getCustomerContact(User $user, int $customerId, int $contactId): array
+    {
+        return $this->get($user, "/customers/{$customerId}/contacts/{$contactId}");
+    }
+
+    public function createCustomerContact(User $user, int $customerId, array $data): array
+    {
+        return $this->post($user, "/customers/{$customerId}/contacts", $data);
+    }
+
+    public function updateCustomerContact(User $user, int $customerId, int $contactId, array $data): array
+    {
+        return $this->put($user, "/customers/{$customerId}/contacts/{$contactId}", $data);
+    }
+
+    public function deleteCustomerContact(User $user, int $customerId, int $contactId): array
+    {
+        return $this->delete($user, "/customers/{$customerId}/contacts/{$contactId}");
+    }
+
+    // =========================================================================
+    // CUSTOMER GROUPS
+    // =========================================================================
+
+    public function listCustomerGroups(User $user, array $query = []): array
+    {
+        return $this->get($user, '/customer-groups', $query);
+    }
+
+    public function getCustomerGroup(User $user, int $groupId): array
+    {
+        return $this->get($user, "/customer-groups/{$groupId}");
+    }
+
+    public function createCustomerGroup(User $user, array $data): array
+    {
+        return $this->post($user, '/customer-groups', $data);
+    }
+
+    public function updateCustomerGroup(User $user, int $groupId, array $data): array
+    {
+        return $this->put($user, "/customer-groups/{$groupId}", $data);
+    }
+
+    public function deleteCustomerGroup(User $user, int $groupId): array
+    {
+        return $this->delete($user, "/customer-groups/{$groupId}");
+    }
+
+    // =========================================================================
+    // DOCUMENTS (Belege — alle Typen: INVOICE, OFFER, CREDIT, DELIVERY_NOTE,
+    // ORDER_CONFIRMATION, PAID, REMINDER, STORNO, … über `type`-Feld)
+    // =========================================================================
+
+    /**
+     * GET /documents — Listet Belege. Wichtige Filter:
+     *   - `type` (z.B. INVOICE, OFFER, CREDIT)
+     *   - `customer_id`, `document_date_from`, `document_date_to`
+     *   - `is_archive`, `status`, `number`
+     *   - `limit` (default 100, max 1000), `page`
+     */
+    public function listDocuments(User $user, array $query = []): array
+    {
+        return $this->get($user, '/documents', $query);
+    }
+
+    public function getDocument(User $user, int $documentId): array
+    {
+        return $this->get($user, "/documents/{$documentId}");
+    }
+
+    /**
+     * POST /documents — Beleg erstellen. `type` ist Pflicht.
+     * Default-Status ist DRAFT, mit `is_draft=false` direkt finalisiert.
+     */
+    public function createDocument(User $user, array $data): array
+    {
+        return $this->post($user, '/documents', $data);
+    }
+
+    public function updateDocument(User $user, int $documentId, array $data): array
+    {
+        return $this->put($user, "/documents/{$documentId}", $data);
+    }
+
+    public function deleteDocument(User $user, int $documentId): array
+    {
+        return $this->delete($user, "/documents/{$documentId}");
+    }
+
+    /** PUT /documents/{id}/done — Beleg als erledigt markieren. */
+    public function completeDocument(User $user, int $documentId): array
+    {
+        return $this->put($user, "/documents/{$documentId}/done");
+    }
+
+    /** POST /documents/{id}/cancel — Beleg stornieren (erzeugt Storno-Beleg). */
+    public function cancelDocument(User $user, int $documentId): array
+    {
+        return $this->post($user, "/documents/{$documentId}/cancel");
+    }
+
+    /**
+     * POST /documents/{id}/send/{type} — Beleg versenden.
+     * $type: 'email' | 'fax' | 'post' | 'sms' | 'whatsapp'.
+     * $data: optionale Override-Felder (subject, message, to_emails, …).
+     */
+    public function sendDocument(User $user, int $documentId, string $type, array $data = []): array
+    {
+        return $this->post($user, "/documents/{$documentId}/send/{$type}", $data);
+    }
+
+    /**
+     * POST /documents/{id}/{type} — Beleg in anderen Belegtyp umwandeln
+     * (z.B. Angebot → Rechnung). $targetType ist der Ziel-Belegtyp.
+     */
+    public function convertDocument(User $user, int $documentId, string $targetType, array $data = []): array
+    {
+        return $this->post($user, "/documents/{$documentId}/{$targetType}", $data);
+    }
+
+    /** GET /documents/{id}/pdf — Beleg als PDF holen (Binary). */
+    public function getDocumentPdf(User $user, int $documentId): array
+    {
+        return $this->getBinary($user, "/documents/{$documentId}/pdf", 'application/pdf');
+    }
+
+    /** GET /documents/{id}/jpg — Beleg als JPG holen (Binary). */
+    public function getDocumentJpg(User $user, int $documentId): array
+    {
+        return $this->getBinary($user, "/documents/{$documentId}/jpg", 'image/jpeg');
+    }
+
+    /** GET /documents/{id}/download — Beleg-Download (üblicherweise ZIP mit PDF + Anhängen). */
+    public function downloadDocument(User $user, int $documentId): array
+    {
+        return $this->getBinary($user, "/documents/{$documentId}/download", 'application/octet-stream');
+    }
+
+    // =========================================================================
+    // DOCUMENT PAYMENTS (Zahlungseingänge zu Belegen)
+    // =========================================================================
+
+    public function listDocumentPayments(User $user, array $query = []): array
+    {
+        return $this->get($user, '/document-payments', $query);
+    }
+
+    public function getDocumentPayment(User $user, int $paymentId): array
+    {
+        return $this->get($user, "/document-payments/{$paymentId}");
+    }
+
+    public function createDocumentPayment(User $user, array $data): array
+    {
+        return $this->post($user, '/document-payments', $data);
+    }
+
+    public function deleteDocumentPayment(User $user, int $paymentId): array
+    {
+        return $this->delete($user, "/document-payments/{$paymentId}");
+    }
+
+    // =========================================================================
+    // DOCUMENT VERSIONS (read-only)
+    // =========================================================================
+
+    public function listDocumentVersions(User $user, int $documentId, array $query = []): array
+    {
+        return $this->get($user, "/documents/{$documentId}/versions", $query);
+    }
+
+    public function getDocumentVersion(User $user, int $documentId, int $versionId): array
+    {
+        return $this->get($user, "/documents/{$documentId}/versions/{$versionId}");
+    }
+
+    // =========================================================================
+    // POSITIONS (Artikel)
+    // =========================================================================
+
+    public function listPositions(User $user, array $query = []): array
+    {
+        return $this->get($user, '/positions', $query);
+    }
+
+    public function getPosition(User $user, int $positionId): array
+    {
+        return $this->get($user, "/positions/{$positionId}");
+    }
+
+    public function createPosition(User $user, array $data): array
+    {
+        return $this->post($user, '/positions', $data);
+    }
+
+    public function updatePosition(User $user, int $positionId, array $data): array
+    {
+        return $this->put($user, "/positions/{$positionId}", $data);
+    }
+
+    public function deletePosition(User $user, int $positionId): array
+    {
+        return $this->delete($user, "/positions/{$positionId}");
+    }
+
+    // =========================================================================
+    // POSITION GROUPS
+    // =========================================================================
+
+    public function listPositionGroups(User $user, array $query = []): array
+    {
+        return $this->get($user, '/position-groups', $query);
+    }
+
+    public function getPositionGroup(User $user, int $groupId): array
+    {
+        return $this->get($user, "/position-groups/{$groupId}");
+    }
+
+    public function createPositionGroup(User $user, array $data): array
+    {
+        return $this->post($user, '/position-groups', $data);
+    }
+
+    public function updatePositionGroup(User $user, int $groupId, array $data): array
+    {
+        return $this->put($user, "/position-groups/{$groupId}", $data);
+    }
+
+    public function deletePositionGroup(User $user, int $groupId): array
+    {
+        return $this->delete($user, "/position-groups/{$groupId}");
+    }
+
+    // =========================================================================
+    // DISCOUNTS (Position-Rabatte + Position-Group-Rabatte)
+    // =========================================================================
+
+    public function listPositionDiscounts(User $user, array $query = []): array
+    {
+        return $this->get($user, '/discounts/position', $query);
+    }
+
+    public function getPositionDiscount(User $user, int $id): array
+    {
+        return $this->get($user, "/discounts/position/{$id}");
+    }
+
+    public function createPositionDiscount(User $user, array $data): array
+    {
+        return $this->post($user, '/discounts/position', $data);
+    }
+
+    public function updatePositionDiscount(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/discounts/position/{$id}", $data);
+    }
+
+    public function deletePositionDiscount(User $user, int $id): array
+    {
+        return $this->delete($user, "/discounts/position/{$id}");
+    }
+
+    public function listPositionGroupDiscounts(User $user, array $query = []): array
+    {
+        return $this->get($user, '/discounts/position-group', $query);
+    }
+
+    public function getPositionGroupDiscount(User $user, int $id): array
+    {
+        return $this->get($user, "/discounts/position-group/{$id}");
+    }
+
+    public function createPositionGroupDiscount(User $user, array $data): array
+    {
+        return $this->post($user, '/discounts/position-group', $data);
+    }
+
+    public function updatePositionGroupDiscount(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/discounts/position-group/{$id}", $data);
+    }
+
+    public function deletePositionGroupDiscount(User $user, int $id): array
+    {
+        return $this->delete($user, "/discounts/position-group/{$id}");
+    }
+
+    // =========================================================================
+    // PROJECTS
+    // =========================================================================
+
+    public function listProjects(User $user, array $query = []): array
+    {
+        return $this->get($user, '/projects', $query);
+    }
+
+    public function getProject(User $user, int $projectId): array
+    {
+        return $this->get($user, "/projects/{$projectId}");
+    }
+
+    public function createProject(User $user, array $data): array
+    {
+        return $this->post($user, '/projects', $data);
+    }
+
+    public function updateProject(User $user, int $projectId, array $data): array
+    {
+        return $this->put($user, "/projects/{$projectId}", $data);
+    }
+
+    public function deleteProject(User $user, int $projectId): array
+    {
+        return $this->delete($user, "/projects/{$projectId}");
+    }
+
+    // =========================================================================
+    // TASKS
+    // =========================================================================
+
+    public function listTasks(User $user, array $query = []): array
+    {
+        return $this->get($user, '/tasks', $query);
+    }
+
+    public function getTask(User $user, int $taskId): array
+    {
+        return $this->get($user, "/tasks/{$taskId}");
+    }
+
+    public function createTask(User $user, array $data): array
+    {
+        return $this->post($user, '/tasks', $data);
+    }
+
+    public function updateTask(User $user, int $taskId, array $data): array
+    {
+        return $this->put($user, "/tasks/{$taskId}", $data);
+    }
+
+    public function deleteTask(User $user, int $taskId): array
+    {
+        return $this->delete($user, "/tasks/{$taskId}");
+    }
+
+    // =========================================================================
+    // TIME TRACKINGS
+    // =========================================================================
+
+    public function listTimeTrackings(User $user, array $query = []): array
+    {
+        return $this->get($user, '/time-trackings', $query);
+    }
+
+    public function getTimeTracking(User $user, int $id): array
+    {
+        return $this->get($user, "/time-trackings/{$id}");
+    }
+
+    public function createTimeTracking(User $user, array $data): array
+    {
+        return $this->post($user, '/time-trackings', $data);
+    }
+
+    public function updateTimeTracking(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/time-trackings/{$id}", $data);
+    }
+
+    public function deleteTimeTracking(User $user, int $id): array
+    {
+        return $this->delete($user, "/time-trackings/{$id}");
+    }
+
+    // =========================================================================
+    // TEXT TEMPLATES
+    // =========================================================================
+
+    public function listTextTemplates(User $user, array $query = []): array
+    {
+        return $this->get($user, '/text-templates', $query);
+    }
+
+    public function getTextTemplate(User $user, int $id): array
+    {
+        return $this->get($user, "/text-templates/{$id}");
+    }
+
+    public function createTextTemplate(User $user, array $data): array
+    {
+        return $this->post($user, '/text-templates', $data);
+    }
+
+    public function updateTextTemplate(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/text-templates/{$id}", $data);
+    }
+
+    public function deleteTextTemplate(User $user, int $id): array
+    {
+        return $this->delete($user, "/text-templates/{$id}");
+    }
+
+    // =========================================================================
+    // ATTACHMENTS
+    // =========================================================================
+
+    public function listAttachments(User $user, array $query = []): array
+    {
+        return $this->get($user, '/attachments', $query);
+    }
+
+    public function getAttachment(User $user, int $attachmentId): array
+    {
+        return $this->get($user, "/attachments/{$attachmentId}");
+    }
+
+    public function createAttachment(User $user, array $data): array
+    {
+        return $this->post($user, '/attachments', $data);
+    }
+
+    public function updateAttachment(User $user, int $attachmentId, array $data): array
+    {
+        return $this->put($user, "/attachments/{$attachmentId}", $data);
+    }
+
+    public function deleteAttachment(User $user, int $attachmentId): array
+    {
+        return $this->delete($user, "/attachments/{$attachmentId}");
+    }
+
+    /** GET /attachments/{id}/content — Binary-Inhalt des Anhangs. */
+    public function getAttachmentContent(User $user, int $attachmentId): array
+    {
+        return $this->getBinary($user, "/attachments/{$attachmentId}/content");
+    }
+
+    // =========================================================================
+    // POST BOXES (Brief-Versand-Historie, read-only + delete)
+    // =========================================================================
+
+    public function listPostBoxes(User $user, array $query = []): array
+    {
+        return $this->get($user, '/post-boxes', $query);
+    }
+
+    public function getPostBox(User $user, int $id): array
+    {
+        return $this->get($user, "/post-boxes/{$id}");
+    }
+
+    public function deletePostBox(User $user, int $id): array
+    {
+        return $this->delete($user, "/post-boxes/{$id}");
+    }
+
+    // =========================================================================
+    // SEPA PAYMENTS
+    // =========================================================================
+
+    public function listSepaPayments(User $user, array $query = []): array
+    {
+        return $this->get($user, '/sepa-payments', $query);
+    }
+
+    public function getSepaPayment(User $user, int $id): array
+    {
+        return $this->get($user, "/sepa-payments/{$id}");
+    }
+
+    public function createSepaPayment(User $user, array $data): array
+    {
+        return $this->post($user, '/sepa-payments', $data);
+    }
+
+    public function updateSepaPayment(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/sepa-payments/{$id}", $data);
+    }
+
+    public function deleteSepaPayment(User $user, int $id): array
+    {
+        return $this->delete($user, "/sepa-payments/{$id}");
+    }
+
+    // =========================================================================
+    // STOCKS
+    // =========================================================================
+
+    public function listStocks(User $user, array $query = []): array
+    {
+        return $this->get($user, '/stocks', $query);
+    }
+
+    public function getStock(User $user, int $id): array
+    {
+        return $this->get($user, "/stocks/{$id}");
+    }
+
+    public function createStock(User $user, array $data): array
+    {
+        return $this->post($user, '/stocks', $data);
+    }
+
+    // =========================================================================
+    // SERIAL NUMBERS
+    // =========================================================================
+
+    public function listSerialNumbers(User $user, array $query = []): array
+    {
+        return $this->get($user, '/serial-numbers', $query);
+    }
+
+    public function getSerialNumber(User $user, int $id): array
+    {
+        return $this->get($user, "/serial-numbers/{$id}");
+    }
+
+    public function createSerialNumber(User $user, array $data): array
+    {
+        return $this->post($user, '/serial-numbers', $data);
+    }
+
+    public function deleteSerialNumber(User $user, int $id): array
+    {
+        return $this->delete($user, "/serial-numbers/{$id}");
+    }
+
+    // =========================================================================
+    // LOGINS (read-only)
+    // =========================================================================
+
+    public function listLogins(User $user, array $query = []): array
+    {
+        return $this->get($user, '/logins', $query);
+    }
+
+    public function getLogin(User $user, int $id): array
+    {
+        return $this->get($user, "/logins/{$id}");
+    }
+
+    // =========================================================================
+    // WEBHOOKS
+    // =========================================================================
+
+    public function listWebhooks(User $user, array $query = []): array
+    {
+        return $this->get($user, '/webhooks', $query);
+    }
+
+    public function getWebhook(User $user, int $id): array
+    {
+        return $this->get($user, "/webhooks/{$id}");
+    }
+
+    public function createWebhook(User $user, array $data): array
+    {
+        return $this->post($user, '/webhooks', $data);
+    }
+
+    public function updateWebhook(User $user, int $id, array $data): array
+    {
+        return $this->put($user, "/webhooks/{$id}", $data);
+    }
+
+    public function deleteWebhook(User $user, int $id): array
+    {
+        return $this->delete($user, "/webhooks/{$id}");
+    }
 
     // =========================================================================
     // INTERNE HTTP METHODEN
@@ -229,5 +831,66 @@ class EasybillApiService
         }
 
         return '?' . http_build_query($query);
+    }
+
+    /**
+     * Holt eine Binary-Response (PDF/JPG/Download) und gibt sie base64-kodiert zurück.
+     *
+     * @return array{mime: string, data_base64: string, size: int}
+     * @throws EasybillApiException
+     */
+    protected function getBinary(User $user, string $endpoint, string $fallbackMime = 'application/octet-stream'): array
+    {
+        $connection = $this->resolveConnection($user);
+
+        $apiToken = $this->integrationService->getApiToken($connection);
+
+        if (!$apiToken) {
+            throw EasybillApiException::unauthorized();
+        }
+
+        $url = self::BASE_URL . $endpoint;
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Accept' => '*/*',
+            ])->get($url);
+
+            if (!$response->successful()) {
+                $data = $response->json() ?? [];
+                $this->updateConnectionStatus(
+                    $connection,
+                    $response->status() === 401 ? 'error' : 'active',
+                    $data['message'] ?? $data['error'] ?? null
+                );
+
+                throw EasybillApiException::fromResponse($response->status(), $data);
+            }
+
+            $this->updateConnectionStatus($connection, 'active');
+
+            $body = $response->body();
+            $mime = $response->header('Content-Type') ?: $fallbackMime;
+            $mime = trim(explode(';', $mime)[0]);
+
+            return [
+                'mime' => $mime,
+                'data_base64' => base64_encode($body),
+                'size' => strlen($body),
+            ];
+        } catch (EasybillApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('easybill API: Verbindungsfehler (Binary)', [
+                'user_id' => $user->id,
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+
+            throw EasybillApiException::connectionError($e->getMessage());
+        }
     }
 }
