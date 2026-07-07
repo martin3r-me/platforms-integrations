@@ -68,6 +68,27 @@ class FlynkApiService
     }
 
     // =========================================================================
+    // CONTEXT PUSH + FEEDBACK
+    // =========================================================================
+
+    /**
+     * POST /api/projects/{uuid}/context — Kontext-Envelope an FLYNK (Ingest).
+     * Erwartet die push-UUID zurück, z.B. { "push": "<uuid>", "status": "accepted" }.
+     */
+    public function pushProjectContext(IntegrationConnection $connection, string $projectUuid, array $envelope): array
+    {
+        return $this->post($connection, "/projects/{$projectUuid}/context", $envelope);
+    }
+
+    /**
+     * GET /api/pushes/{uuid} — Feedback zu einem Push: Status + was FLYNK erzeugt hat.
+     */
+    public function getPush(IntegrationConnection $connection, string $pushUuid): array
+    {
+        return $this->get($connection, "/pushes/{$pushUuid}");
+    }
+
+    // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
 
