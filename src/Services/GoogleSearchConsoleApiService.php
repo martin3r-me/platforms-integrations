@@ -53,19 +53,34 @@ class GoogleSearchConsoleApiService
     }
 
     /**
-     * Löst die IntegrationConnection für den User auf.
+     * Löst die IntegrationConnection auf.
+     *
+     * Mit gesetzter connectionId (forConnection) kann sie ohne User aufgelöst
+     * werden — nötig für Scheduler/CLI-Kontexte (z.B. SEO-Collectors) ohne
+     * eingeloggten User. Analog zu DataForSeoApiService.
      */
-    protected function resolveConnection(User $user): IntegrationConnection
+    protected function resolveConnection(?User $user): IntegrationConnection
     {
         if ($this->connectionIdOverride) {
-            $resolver = app(IntegrationConnectionResolver::class);
-            $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            if ($user) {
+                $resolver = app(IntegrationConnectionResolver::class);
+                $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            } else {
+                // Scheduler/CLI: direkt per ID laden ohne Access-Check
+                $connection = IntegrationConnection::with('integration')->find($this->connectionIdOverride);
+            }
         } else {
+            if (!$user) {
+                throw GoogleSearchConsoleApiException::noConnection();
+            }
             $connection = $this->integrationService->getConnectionForUser($user);
         }
 
         if (!$connection) {
-            Log::warning('Google Search Console API: Keine Connection für User', ['user_id' => $user->id]);
+            Log::warning('Google Search Console API: Keine Connection', [
+                'user_id' => $user?->id,
+                'connection_override' => $this->connectionIdOverride,
+            ]);
             throw GoogleSearchConsoleApiException::noConnection();
         }
 
@@ -81,7 +96,7 @@ class GoogleSearchConsoleApiService
      *
      * @throws GoogleSearchConsoleApiException
      */
-    public function getSites(User $user): array
+    public function getSites(?User $user = null): array
     {
         return $this->get($user, '/sites');
     }
@@ -102,7 +117,7 @@ class GoogleSearchConsoleApiService
      * @param array $params Request-Body (startDate, endDate, dimensions, etc.)
      * @throws GoogleSearchConsoleApiException
      */
-    public function querySearchAnalytics(User $user, string $siteUrl, array $params): array
+    public function querySearchAnalytics(?User $user, string $siteUrl, array $params): array
     {
         return $this->post($user, '/sites/' . urlencode($siteUrl) . '/searchAnalytics/query', $params);
     }
@@ -151,7 +166,7 @@ class GoogleSearchConsoleApiService
      *
      * @throws GoogleSearchConsoleApiException
      */
-    protected function get(User $user, string $path, array $query = []): array
+    protected function get(?User $user, string $path, array $query = []): array
     {
         return $this->request($user, 'GET', $path, $query);
     }
@@ -161,7 +176,7 @@ class GoogleSearchConsoleApiService
      *
      * @throws GoogleSearchConsoleApiException
      */
-    protected function post(User $user, string $path, array $body = []): array
+    protected function post(?User $user, string $path, array $body = []): array
     {
         return $this->request($user, 'POST', $path, [], $body);
     }
@@ -172,14 +187,14 @@ class GoogleSearchConsoleApiService
      * @param bool $useInspectionApi Verwendet die Inspection-API Base-URL statt webmasters/v3
      * @throws GoogleSearchConsoleApiException
      */
-    protected function request(User $user, string $method, string $path, array $query = [], array $body = [], bool $useInspectionApi = false): array
+    protected function request(?User $user, string $method, string $path, array $query = [], array $body = [], bool $useInspectionApi = false): array
     {
         $connection = $this->resolveConnection($user);
 
         $token = $this->integrationService->getValidAccessToken($connection);
 
         if (!$token) {
-            Log::warning('Google Search Console API: Kein gültiger Token für User', ['user_id' => $user->id]);
+            Log::warning('Google Search Console API: Kein gültiger Token', ['user_id' => $user?->id]);
             throw GoogleSearchConsoleApiException::unauthorized();
         }
 
@@ -209,7 +224,7 @@ class GoogleSearchConsoleApiService
             throw $e;
         } catch (\Exception $e) {
             Log::error('Google Search Console API: Verbindungsfehler', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'path' => $path,
                 'error' => $e->getMessage(),
             ]);
