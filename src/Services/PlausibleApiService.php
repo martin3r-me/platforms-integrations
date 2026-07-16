@@ -51,19 +51,34 @@ class PlausibleApiService
     }
 
     /**
-     * Löst die IntegrationConnection für den User auf.
+     * Löst die IntegrationConnection auf.
+     *
+     * Mit gesetzter connectionId (forConnection) kann sie ohne User aufgelöst
+     * werden — nötig für Scheduler/CLI-Kontexte (z.B. SEO-Collectors) ohne
+     * eingeloggten User. Analog zu DataForSeoApiService.
      */
-    protected function resolveConnection(User $user): IntegrationConnection
+    protected function resolveConnection(?User $user): IntegrationConnection
     {
         if ($this->connectionIdOverride) {
-            $resolver = app(IntegrationConnectionResolver::class);
-            $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            if ($user) {
+                $resolver = app(IntegrationConnectionResolver::class);
+                $connection = $resolver->resolveById($this->connectionIdOverride, $user);
+            } else {
+                // Scheduler/CLI: direkt per ID laden ohne Access-Check
+                $connection = IntegrationConnection::with('integration')->find($this->connectionIdOverride);
+            }
         } else {
+            if (!$user) {
+                throw PlausibleApiException::noConnection();
+            }
             $connection = $this->integrationService->getConnectionForUser($user);
         }
 
         if (!$connection) {
-            Log::warning('Plausible API: Keine Connection für User', ['user_id' => $user->id]);
+            Log::warning('Plausible API: Keine Connection', [
+                'user_id' => $user?->id,
+                'connection_override' => $this->connectionIdOverride,
+            ]);
             throw PlausibleApiException::noConnection();
         }
 
@@ -79,7 +94,7 @@ class PlausibleApiService
      *
      * @throws PlausibleApiException
      */
-    public function getSites(User $user): array
+    public function getSites(?User $user = null): array
     {
         return $this->get($user, '/api/v1/sites');
     }
@@ -168,7 +183,7 @@ class PlausibleApiService
      * @param array $params site_id (required), property (required), period, date, metrics, limit, page, filters
      * @throws PlausibleApiException
      */
-    public function getBreakdown(User $user, array $params): array
+    public function getBreakdown(?User $user, array $params): array
     {
         return $this->get($user, '/api/v1/stats/breakdown', $params);
     }
@@ -182,7 +197,7 @@ class PlausibleApiService
      *
      * @throws PlausibleApiException
      */
-    protected function get(User $user, string $path, array $query = []): array
+    protected function get(?User $user, string $path, array $query = []): array
     {
         return $this->request($user, 'GET', $path, $query);
     }
@@ -192,14 +207,14 @@ class PlausibleApiService
      *
      * @throws PlausibleApiException
      */
-    protected function request(User $user, string $method, string $path, array $query = [], array $body = []): array
+    protected function request(?User $user, string $method, string $path, array $query = [], array $body = []): array
     {
         $connection = $this->resolveConnection($user);
 
         $apiKey = $this->integrationService->getApiKey($connection);
 
         if (!$apiKey) {
-            Log::warning('Plausible API: Kein API-Key für User', ['user_id' => $user->id]);
+            Log::warning('Plausible API: Kein API-Key', ['user_id' => $user?->id]);
             throw PlausibleApiException::unauthorized();
         }
 
@@ -227,7 +242,7 @@ class PlausibleApiService
             throw $e;
         } catch (\Exception $e) {
             Log::error('Plausible API: Verbindungsfehler', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'path' => $path,
                 'error' => $e->getMessage(),
             ]);
