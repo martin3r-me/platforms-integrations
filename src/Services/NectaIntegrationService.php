@@ -58,9 +58,12 @@ class NectaIntegrationService
     }
 
     /**
-     * Liefert die normalisierte Base-URL der necta.one-Instanz (ohne trailing
-     * Slash, ohne ein evtl. mitgegebenes /rawapi-Suffix — das setzt der
-     * ApiService selbst).
+     * Liefert die normalisierte Base-URL (nur scheme://host[:port], OHNE Pfad).
+     *
+     * Robust gegen versehentlich mitgegebene Pfade: egal ob jemand
+     * "https://api.necta.one", ".../rawapi" oder ".../api/v1/42/customers"
+     * einträgt — wir reduzieren immer auf den Host-Root. Die API-Prefixe
+     * (/rawapi bzw. /api/v1/{tenantId}) setzen die jeweiligen ApiServices selbst.
      */
     public function getBaseUrl(IntegrationConnection $connection): ?string
     {
@@ -70,14 +73,45 @@ class NectaIntegrationService
             return null;
         }
 
-        $baseUrl = rtrim(trim($baseUrl), '/');
+        return self::normalizeHost($baseUrl);
+    }
 
-        // Falls jemand die URL inkl. /rawapi hinterlegt hat: normalisieren.
-        if (str_ends_with($baseUrl, '/rawapi')) {
-            $baseUrl = substr($baseUrl, 0, -7);
+    /**
+     * Reduziert eine URL auf scheme://host[:port]. Fällt zurück auf simples
+     * Trimmen, falls kein Host geparst werden kann.
+     */
+    public static function normalizeHost(string $url): string
+    {
+        $url = trim($url);
+        // Ohne Schema kann parse_url den Host nicht zuverlässig lesen.
+        $withScheme = preg_match('#^https?://#i', $url) ? $url : 'https://' . $url;
+        $parts = parse_url($withScheme);
+
+        if (!empty($parts['host'])) {
+            $scheme = $parts['scheme'] ?? 'https';
+            $host = $parts['host'];
+            $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+
+            return "{$scheme}://{$host}{$port}";
         }
 
-        return $baseUrl;
+        // Fallback: bekannte Suffixe abschneiden.
+        $url = rtrim($url, '/');
+        $url = preg_replace('#/api/v1(/.*)?$#', '', $url);
+        $url = preg_replace('#/rawapi(/.*)?$#', '', $url);
+
+        return rtrim($url, '/');
+    }
+
+    /**
+     * Tenant-ID für die necta.one API (v1, /api/v1/{tenantId}/…). Für die
+     * Raw-API nicht nötig (Tenant steckt im Key).
+     */
+    public function getTenantId(IntegrationConnection $connection): ?string
+    {
+        $tenant = ($connection->credentials ?? [])['tenant_id'] ?? null;
+
+        return ($tenant !== null && trim((string) $tenant) !== '') ? trim((string) $tenant) : null;
     }
 
     public function hasValidCredentials(IntegrationConnection $connection): bool
@@ -86,13 +120,21 @@ class NectaIntegrationService
     }
 
     /**
-     * Schreibt api_key + base_url in die Connection-Credentials.
+     * Schreibt api_key + base_url (+ optional tenant_id) in die Credentials.
      */
-    public function updateCredentials(IntegrationConnection $connection, string $apiKey, string $baseUrl): void
-    {
+    public function updateCredentials(
+        IntegrationConnection $connection,
+        string $apiKey,
+        string $baseUrl,
+        ?string $tenantId = null
+    ): void {
         $credentials = $connection->credentials ?? [];
         $credentials['api_key'] = trim($apiKey);
-        $credentials['base_url'] = rtrim(trim($baseUrl), '/');
+        $credentials['base_url'] = self::normalizeHost($baseUrl);
+        if ($tenantId !== null) {
+            $tenantId = trim($tenantId);
+            $credentials['tenant_id'] = $tenantId !== '' ? $tenantId : null;
+        }
 
         $connection->credentials = $credentials;
         $connection->auth_scheme = 'api_key';
@@ -110,6 +152,7 @@ class NectaIntegrationService
         User $user,
         string $apiKey,
         string $baseUrl,
+        ?string $tenantId = null,
         ?int $connectionId = null
     ): IntegrationConnection {
         $integration = Integration::firstOrCreate(
@@ -119,7 +162,8 @@ class NectaIntegrationService
                 'is_enabled' => true,
                 'supported_auth_schemes' => ['api_key'],
                 'meta' => [
-                    'description' => 'necta.one Warenwirtschaft — Raw-API (Read-Only, API-Key via X-Api-Key).',
+                    'description' => 'necta.one — Raw-API (/rawapi, read-only) UND necta.one API '
+                        . '(/api/v1/{tenantId}, CRUD). Auth via X-Api-Key.',
                     'icon' => 'heroicon-o-cube',
                 ],
             ]
@@ -170,7 +214,7 @@ class NectaIntegrationService
             }
         }
 
-        $this->updateCredentials($connection, $apiKey, $baseUrl);
+        $this->updateCredentials($connection, $apiKey, $baseUrl, $tenantId);
 
         Log::info('necta.one connection created/updated', [
             'connection_id' => $connection->id,

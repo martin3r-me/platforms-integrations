@@ -97,6 +97,7 @@ class Index extends Component
     public bool $nectaModalShow = false;
     public string $nectaApiKey = '';
     public string $nectaBaseUrl = '';
+    public string $nectaTenantId = '';
 
     // DedeFleet Modal
     public bool $dedefleetModalShow = false;
@@ -1485,6 +1486,7 @@ class Index extends Component
         $this->editingId = $connectionId;
         $this->nectaApiKey = '';
         $this->nectaBaseUrl = '';
+        $this->nectaTenantId = '';
 
         if ($connectionId) {
             $connection = IntegrationConnection::query()
@@ -1493,8 +1495,10 @@ class Index extends Component
                 ->first();
 
             if ($connection) {
-                // API-Key aus Sicherheitsgründen nicht vorbefüllen; Base-URL schon.
-                $this->nectaBaseUrl = app(NectaIntegrationService::class)->getBaseUrl($connection) ?? '';
+                // API-Key aus Sicherheitsgründen nicht vorbefüllen; Host + Tenant schon.
+                $svc = app(NectaIntegrationService::class);
+                $this->nectaBaseUrl = $svc->getBaseUrl($connection) ?? '';
+                $this->nectaTenantId = $svc->getTenantId($connection) ?? '';
             }
         }
 
@@ -1511,19 +1515,26 @@ class Index extends Component
         $this->nectaModalShow = false;
         $this->nectaApiKey = '';
         $this->nectaBaseUrl = '';
+        $this->nectaTenantId = '';
         $this->editingId = null;
     }
 
     public function saveNectaConnection(): void
     {
+        // Host-Default, falls leer gelassen (necta-Standardhost).
+        if (trim($this->nectaBaseUrl) === '') {
+            $this->nectaBaseUrl = 'https://api.necta.one';
+        }
+
         $this->validate([
             'nectaApiKey' => ['required', 'string', 'min:10'],
             'nectaBaseUrl' => ['required', 'string', 'url'],
+            'nectaTenantId' => ['nullable', 'string', 'max:64'],
         ], [
             'nectaApiKey.required' => 'Bitte gib deinen necta.one API-Key ein.',
             'nectaApiKey.min' => 'Der API-Key muss mindestens 10 Zeichen lang sein.',
-            'nectaBaseUrl.required' => 'Bitte gib die URL deiner necta.one-Instanz ein.',
-            'nectaBaseUrl.url' => 'Bitte gib eine gültige URL an (z.B. https://firma.necta.one).',
+            'nectaBaseUrl.required' => 'Bitte gib den Host deiner necta-Instanz ein.',
+            'nectaBaseUrl.url' => 'Bitte gib eine gültige URL an (z.B. https://api.necta.one).',
         ]);
 
         try {
@@ -1535,6 +1546,7 @@ class Index extends Component
                 $user,
                 $this->nectaApiKey,
                 $this->nectaBaseUrl,
+                $this->nectaTenantId !== '' ? $this->nectaTenantId : null,
                 $this->editingId
             );
 
@@ -1544,6 +1556,7 @@ class Index extends Component
                 $this->nectaModalShow = false;
                 $this->nectaApiKey = '';
                 $this->nectaBaseUrl = '';
+                $this->nectaTenantId = '';
                 $this->editingId = null;
                 session()->flash('status', 'necta.one-Verbindung erfolgreich hergestellt.');
             } else {

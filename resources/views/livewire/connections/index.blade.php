@@ -2604,19 +2604,23 @@
                 <div class="flex items-start gap-2">
                     @svg('heroicon-o-information-circle', 'w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5')
                     <div class="text-sm text-emerald-800">
-                        <p class="font-medium mb-1">Instanz-URL &amp; API-Key erforderlich</p>
-                        <p>necta.one nutzt eine Read-Only Raw-API mit API-Key-Authentifizierung (Header <span class="font-mono">X-Api-Key</span>).</p>
-                        <p class="mt-2">Den API-Key erhältst du von deinem <strong>necta-Systemadmin</strong>. Die Instanz-URL ist die Root-Adresse deiner necta.one-Umgebung (ohne <span class="font-mono">/rawapi</span>).</p>
+                        <p class="font-medium mb-1">Host, API-Key &amp; (für v1) Tenant-ID</p>
+                        <p>Eine Verbindung bedient <strong>beide</strong> necta-APIs (Auth: Header <span class="font-mono">X-Api-Key</span>):
+                           die <strong>Raw-API</strong> (<span class="font-mono">/rawapi</span>, read-only) und die <strong>necta.one API v1</strong>
+                           (<span class="font-mono">/api/v1/&#123;tenantId&#125;</span>, CRUD).</p>
+                        <p class="mt-2"><strong>Host</strong>: nur der Root deiner necta-Umgebung (z.B. <span class="font-mono">https://api.necta.one</span>) —
+                           <strong>ohne</strong> <span class="font-mono">/rawapi</span> oder <span class="font-mono">/api/v1/…</span> (wird automatisch bereinigt).
+                           <strong>Tenant-ID</strong>: nur für die v1-API nötig; leer lassen, wenn du nur die Raw-API nutzt.</p>
                     </div>
                 </div>
             </div>
 
             <x-ui-input-text
                 name="nectaBaseUrl"
-                label="Instanz-URL"
+                label="Host (Base-URL)"
                 wire:model.live="nectaBaseUrl"
                 type="text"
-                placeholder="https://firma.necta.one"
+                placeholder="https://api.necta.one"
                 :errorKey="'nectaBaseUrl'"
             />
 
@@ -2629,8 +2633,17 @@
                 :errorKey="'nectaApiKey'"
             />
 
+            <x-ui-input-text
+                name="nectaTenantId"
+                label="Tenant-ID (optional, nur necta.one API v1)"
+                wire:model.live="nectaTenantId"
+                type="text"
+                placeholder="z.B. 42"
+                :errorKey="'nectaTenantId'"
+            />
+
             <div class="text-xs text-gray-500">
-                Der API-Key wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+                Der API-Key wird verschlüsselt gespeichert und ist nur für dich sichtbar. Der Verbindungstest prüft die Raw-API.
             </div>
         </div>
 

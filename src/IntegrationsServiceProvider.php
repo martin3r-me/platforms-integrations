@@ -757,6 +757,20 @@ class IntegrationsServiceProvider extends ServiceProvider
         }
 
         // ---------------------------------------------------------------------
+        // necta.one API v1 Tools (REST/CRUD, /api/v1/{tenantId}) — Test-Set
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            $registry->register(new \Platform\Integrations\Tools\NectaV1\CallTool());
+            $registry->register(new \Platform\Integrations\Tools\NectaV1\ListCustomersTool());
+            $registry->register(new \Platform\Integrations\Tools\NectaV1\ListInvoicesTool());
+            $registry->register(new \Platform\Integrations\Tools\NectaV1\ListOrdersTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: necta.one API v1 Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // ---------------------------------------------------------------------
         // DedeFleet Tools (Ortung & Tourenplanung, RPC /data/api/2)
         // ---------------------------------------------------------------------
         try {
