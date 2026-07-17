@@ -89,6 +89,34 @@ class FlynkApiService
     }
 
     // =========================================================================
+    // TASKS  (inbound: Rückfragen = Tasks vom Typ "question")
+    // =========================================================================
+
+    /** GET /api/tasks — Tasks auflisten (Filter z.B. project_id, type, status). */
+    public function listTasks(IntegrationConnection $connection, array $query = []): array
+    {
+        return $this->get($connection, '/tasks', $query);
+    }
+
+    /** GET /api/tasks/{uuid} — Einzelnen Task abrufen. */
+    public function getTask(IntegrationConnection $connection, string $taskUuid): array
+    {
+        return $this->get($connection, "/tasks/{$taskUuid}");
+    }
+
+    /** PUT /api/tasks/{uuid} — Task aktualisieren (z.B. Status nach Antwort). */
+    public function updateTask(IntegrationConnection $connection, string $taskUuid, array $data): array
+    {
+        return $this->put($connection, "/tasks/{$taskUuid}", $data);
+    }
+
+    /** POST /api/tasks/{uuid}/comments — Kommentar/Antwort an einen Task. */
+    public function addTaskComment(IntegrationConnection $connection, string $taskUuid, array $data): array
+    {
+        return $this->post($connection, "/tasks/{$taskUuid}/comments", $data);
+    }
+
+    // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
 

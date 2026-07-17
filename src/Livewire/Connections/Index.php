@@ -32,6 +32,7 @@ use Platform\Integrations\Services\BuchhaltungsbutlerIntegrationService;
 use Platform\Integrations\Services\GoogleSearchConsoleIntegrationService;
 use Platform\Integrations\Services\DatevIntegrationService;
 use Platform\Integrations\Services\EasybillIntegrationService;
+use Platform\Integrations\Services\NectaIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -90,6 +91,11 @@ class Index extends Component
     // Easybill Modal
     public bool $easybillModalShow = false;
     public string $easybillApiToken = '';
+
+    // necta.one Modal
+    public bool $nectaModalShow = false;
+    public string $nectaApiKey = '';
+    public string $nectaBaseUrl = '';
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -209,6 +215,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $nectaConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'necta'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -252,6 +266,7 @@ class Index extends Component
             'googleSearchConsoleConnections' => $googleSearchConsoleConnections,
             'datevConnections' => $datevConnections,
             'easybillConnections' => $easybillConnections,
+            'nectaConnections' => $nectaConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1439,6 +1454,118 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'easybill-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== NECTA.ONE METHODS ====================
+
+    public function openNectaModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->nectaApiKey = '';
+        $this->nectaBaseUrl = '';
+
+        if ($connectionId) {
+            $connection = IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if ($connection) {
+                // API-Key aus Sicherheitsgründen nicht vorbefüllen; Base-URL schon.
+                $this->nectaBaseUrl = app(NectaIntegrationService::class)->getBaseUrl($connection) ?? '';
+            }
+        }
+
+        $this->nectaModalShow = true;
+    }
+
+    public function openNectaModalForEdit(int $connectionId): void
+    {
+        $this->openNectaModal($connectionId);
+    }
+
+    public function closeNectaModal(): void
+    {
+        $this->nectaModalShow = false;
+        $this->nectaApiKey = '';
+        $this->nectaBaseUrl = '';
+        $this->editingId = null;
+    }
+
+    public function saveNectaConnection(): void
+    {
+        $this->validate([
+            'nectaApiKey' => ['required', 'string', 'min:10'],
+            'nectaBaseUrl' => ['required', 'string', 'url'],
+        ], [
+            'nectaApiKey.required' => 'Bitte gib deinen necta.one API-Key ein.',
+            'nectaApiKey.min' => 'Der API-Key muss mindestens 10 Zeichen lang sein.',
+            'nectaBaseUrl.required' => 'Bitte gib die URL deiner necta.one-Instanz ein.',
+            'nectaBaseUrl.url' => 'Bitte gib eine gültige URL an (z.B. https://firma.necta.one).',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(NectaIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->nectaApiKey,
+                $this->nectaBaseUrl,
+                $this->editingId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->nectaModalShow = false;
+                $this->nectaApiKey = '';
+                $this->nectaBaseUrl = '';
+                $this->editingId = null;
+                session()->flash('status', 'necta.one-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('nectaApiKey', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('nectaApiKey', 'Fehler: ' . $e->getMessage());
+            \Log::error('necta.one connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testNectaConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $nectaConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$nectaConnection) {
+                $this->syncError = 'Keine necta.one-Connection gefunden.';
+                return;
+            }
+
+            $service = app(NectaIntegrationService::class);
+            $result = $service->testConnection($nectaConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'necta.one-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

@@ -842,6 +842,154 @@ class EasybillApiService
         return '?' . http_build_query($query);
     }
 
+    // =========================================================================
+    // FREITEXT-SUCHE (client-seitig)
+    //
+    // easybill bietet auf den Listen-Endpunkten KEINEN Freitext-Filter, nur
+    // exakte Feld-Filter (company_name, number, emails, …). Wird ein Suchbegriff
+    // erwartet, paginieren wir die Ressource (server-seitige Feld-Filter aus
+    // $query werden respektiert) und filtern client-seitig per Substring, damit
+    // der Aufrufer nur Treffer statt der ganzen Liste erhält.
+    // =========================================================================
+
+    /**
+     * Freitext-Suche über Kunden (company_name, Name, Nummer, E-Mail …).
+     *
+     * @return array{search: string, total_matched: int, scanned: int, truncated: bool, items: array<int, mixed>, note: string}
+     * @throws EasybillApiException
+     */
+    public function searchCustomers(User $user, string $search, array $query = [], int $maxScan = 5000): array
+    {
+        return $this->searchListResource(
+            $user,
+            '/customers',
+            $search,
+            ['number', 'company_name', 'first_name', 'last_name', 'display_name', 'suffix_1', 'suffix_2', 'emails', 'notes'],
+            $query,
+            $maxScan
+        );
+    }
+
+    /**
+     * Freitext-Suche über Belege (Nummer, Titel, Textfelder …).
+     * Hinweis: Belege lassen sich meist präziser server-seitig filtern
+     * (customer_id, number, type, document_date) — nutze dafür direkt die Liste.
+     *
+     * @return array{search: string, total_matched: int, scanned: int, truncated: bool, items: array<int, mixed>, note: string}
+     * @throws EasybillApiException
+     */
+    public function searchDocuments(User $user, string $search, array $query = [], int $maxScan = 5000): array
+    {
+        return $this->searchListResource(
+            $user,
+            '/documents',
+            $search,
+            ['number', 'title', 'text', 'external_id', 'order_number', 'ref_id'],
+            $query,
+            $maxScan
+        );
+    }
+
+    /**
+     * Generische client-seitige Substring-Suche über eine paginierte
+     * easybill-Listenressource.
+     *
+     * @param array<int, string> $fields Felder, über die per Substring gesucht wird
+     * @return array{search: string, total_matched: int, scanned: int, truncated: bool, items: array<int, mixed>, note: string}
+     * @throws EasybillApiException
+     */
+    protected function searchListResource(
+        User $user,
+        string $endpoint,
+        string $search,
+        array $fields,
+        array $query = [],
+        int $maxScan = 5000
+    ): array {
+        $needle = mb_strtolower(trim($search));
+        $limit = 1000; // easybill-Maximum pro Seite
+        $page = 1;
+        $scanned = 0;
+        $matched = [];
+        $truncated = false;
+
+        do {
+            $response = $this->get($user, $endpoint, array_merge($query, [
+                'limit' => $limit,
+                'page' => $page,
+            ]));
+
+            $items = $this->extractListItems($response);
+            $totalPages = (int) ($response['pages'] ?? 1);
+
+            foreach ($items as $item) {
+                $scanned++;
+                if (is_array($item) && ($needle === '' || $this->itemMatchesSearch($item, $needle, $fields))) {
+                    $matched[] = $item;
+                }
+            }
+
+            if ($scanned >= $maxScan) {
+                $truncated = $page < $totalPages;
+                break;
+            }
+
+            $page++;
+        } while ($page <= $totalPages && !empty($items));
+
+        return [
+            'search' => $search,
+            'total_matched' => count($matched),
+            'scanned' => $scanned,
+            'truncated' => $truncated,
+            'items' => $matched,
+            'note' => 'Client-seitige Substring-Suche über ' . implode(', ', $fields)
+                . '. easybill hat server-seitig keinen Freitext-Filter — für exakte Filter query nutzen '
+                . '(z.B. company_name, number, emails, customer_id).'
+                . ($truncated ? ' ACHTUNG: maxScan erreicht, Ergebnis evtl. unvollständig — Suche per query eingrenzen.' : ''),
+        ];
+    }
+
+    /**
+     * @param array<int, mixed>|array<string, mixed> $response
+     * @return array<int, mixed>
+     */
+    protected function extractListItems(array $response): array
+    {
+        if (isset($response['items']) && is_array($response['items'])) {
+            return $response['items'];
+        }
+
+        return array_is_list($response) ? $response : [];
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @param array<int, string> $fields
+     */
+    protected function itemMatchesSearch(array $item, string $needle, array $fields): bool
+    {
+        foreach ($fields as $field) {
+            if (!array_key_exists($field, $item) || $item[$field] === null) {
+                continue;
+            }
+
+            $value = $item[$field];
+            if (is_array($value)) {
+                $value = implode(' ', array_map(
+                    static fn ($x) => is_scalar($x) ? (string) $x : json_encode($x, JSON_UNESCAPED_UNICODE),
+                    $value
+                ));
+            }
+
+            if (str_contains(mb_strtolower((string) $value), $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Holt eine Binary-Response (PDF/JPG/Download) und gibt sie base64-kodiert zurück.
      *

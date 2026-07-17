@@ -760,6 +760,153 @@
             </div>
         </div>
 
+        {{-- necta.one Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-cube', 'w-6 h-6 text-emerald-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">necta.one</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Verbinde deine necta.one-Warenwirtschaft (Read-Only Raw-API) für Produkte, Kunden, Bestellungen & Rechnungen</p>
+                        </div>
+                    </div>
+                    @if($nectaConnections->isNotEmpty())
+                        <x-ui-button
+                            variant="secondary-outline"
+                            size="sm"
+                            wire:click="openNectaModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($nectaConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($nectaConnections as $nectaConn)
+                            <div class="p-4 {{ $nectaConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($nectaConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $nectaConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $nectaConn->name ?? 'necta.one' }}
+                                            </p>
+                                            @if($nectaConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $nectaConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $nectaConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        @if(($nectaConn->credentials['base_url'] ?? null))
+                                            <p class="text-xs font-mono {{ $nectaConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                                {{ $nectaConn->credentials['base_url'] }}
+                                            </p>
+                                        @endif
+                                        <p class="text-xs {{ $nectaConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $nectaConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($nectaConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $nectaConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$nectaConn->is_default)
+                                            <x-ui-button
+                                                variant="secondary-outline"
+                                                size="sm"
+                                                wire:click="setDefaultConnection({{ $nectaConn->id }})"
+                                                title="Als Standard setzen"
+                                            >
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openShareModal({{ $nectaConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="secondary"
+                                            size="sm"
+                                            wire:click="openNectaModalForEdit({{ $nectaConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Key aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button
+                                            variant="danger-outline"
+                                            size="sm"
+                                            wire:click="deleteConnection({{ $nectaConn->id }})"
+                                            wire:confirm="necta.one-Verbindung '{{ $nectaConn->name }}' wirklich löschen?"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($nectaConn->status === 'active')
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button
+                                            variant="secondary-outline"
+                                            size="sm"
+                                            wire:click="testNectaConnection({{ $nectaConn->id }})"
+                                        >
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 mb-4">
+                            @svg('heroicon-o-cube', 'w-8 h-8 text-emerald-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">necta.one noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde deine necta.one-Instanz mit Instanz-URL und API-Key</p>
+                        <x-ui-button
+                            variant="primary"
+                            size="md"
+                            wire:click="openNectaModal"
+                        >
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>necta.one verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- HubSpot Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -2320,6 +2467,67 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveEasybillConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- necta.one Modal (Instanz-URL + API-Key Eingabe) --}}
+    <x-ui-modal wire:model="nectaModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-cube', 'w-5 h-5 text-emerald-600')
+                </div>
+                <span>necta.one verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-emerald-800">
+                        <p class="font-medium mb-1">Instanz-URL &amp; API-Key erforderlich</p>
+                        <p>necta.one nutzt eine Read-Only Raw-API mit API-Key-Authentifizierung (Header <span class="font-mono">X-Api-Key</span>).</p>
+                        <p class="mt-2">Den API-Key erhältst du von deinem <strong>necta-Systemadmin</strong>. Die Instanz-URL ist die Root-Adresse deiner necta.one-Umgebung (ohne <span class="font-mono">/rawapi</span>).</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="nectaBaseUrl"
+                label="Instanz-URL"
+                wire:model.live="nectaBaseUrl"
+                type="text"
+                placeholder="https://firma.necta.one"
+                :errorKey="'nectaBaseUrl'"
+            />
+
+            <x-ui-input-text
+                name="nectaApiKey"
+                label="API-Key"
+                wire:model.live="nectaApiKey"
+                type="password"
+                placeholder="Dein necta.one API-Key..."
+                :errorKey="'nectaApiKey'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der API-Key wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeNectaModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveNectaConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>

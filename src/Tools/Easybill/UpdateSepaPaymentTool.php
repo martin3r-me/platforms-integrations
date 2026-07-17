@@ -8,9 +8,12 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\EasybillApiService;
 use Platform\Integrations\Exceptions\EasybillApiException;
+use Platform\Integrations\Tools\Easybill\Concerns\GuardsArguments;
 
 class UpdateSepaPaymentTool implements ToolContract, ToolMetadataContract
 {
+    use GuardsArguments;
+
     public function getName(): string
     {
         return 'integrations.easybill.sepa-payment.PUT';
@@ -50,6 +53,10 @@ class UpdateSepaPaymentTool implements ToolContract, ToolMetadataContract
     {
         if (!$context->user) {
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
+        }
+
+        if ($guard = $this->guardRequired($arguments, ['sepa_payment_id', 'data'])) {
+            return $guard;
         }
 
         try {

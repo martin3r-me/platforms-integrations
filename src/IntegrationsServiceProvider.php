@@ -736,6 +736,26 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: easybill Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // ---------------------------------------------------------------------
+        // necta.one Raw-API Tools (read-only, uniform GET /rawapi/{resource})
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Discovery + generischer Zugriff (deckt alle 417 Ressourcen ab)
+            $registry->register(new \Platform\Integrations\Tools\Necta\ResourcesTool());
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListTool());
+
+            // Komfort-Tools für Kernressourcen
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListProductsTool());
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListCustomersTool());
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListOrdersTool());
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListSuppliersTool());
+            $registry->register(new \Platform\Integrations\Tools\Necta\ListInvoicesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: necta.one Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

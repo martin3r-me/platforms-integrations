@@ -407,6 +407,36 @@ class DataForSeoApiService
     }
 
     /**
+     * Backlinks für ein Ziel (Domain, Subdomain oder Seiten-URL) abrufen.
+     *
+     * @param string $target Ziel — Domain ohne Schema oder absolute Seiten-URL
+     * @param int $limit Max. Anzahl Zeilen (Default 1000)
+     * @param string $mode as_is | one_per_domain | one_per_anchor
+     * @return array Erstes Result-Objekt (enthält total_count + items[])
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getBacklinks(
+        ?User $user,
+        string $target,
+        int $limit = 1000,
+        string $mode = 'one_per_domain',
+    ): array {
+        $payload = [
+            [
+                'target' => $target,
+                'limit' => $limit,
+                'mode' => $mode,
+                'backlinks_status_type' => 'live',
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/backlinks/backlinks/live', $payload);
+
+        return $response['tasks'][0]['result'][0] ?? [];
+    }
+
+    /**
      * Google Business Info für ein Keyword abrufen
      *
      * @param User $user

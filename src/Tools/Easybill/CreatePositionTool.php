@@ -8,9 +8,12 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\EasybillApiService;
 use Platform\Integrations\Exceptions\EasybillApiException;
+use Platform\Integrations\Tools\Easybill\Concerns\GuardsArguments;
 
 class CreatePositionTool implements ToolContract, ToolMetadataContract
 {
+    use GuardsArguments;
+
     public function getName(): string
     {
         return 'integrations.easybill.position.POST';
@@ -63,6 +66,10 @@ TXT;
     {
         if (!$context->user) {
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
+        }
+
+        if ($guard = $this->guardRequired($arguments, ['data'])) {
+            return $guard;
         }
 
         try {

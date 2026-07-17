@@ -18,7 +18,18 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'GET /customers — Listet Kunden (paginiert).';
+        return <<<TXT
+        GET /customers — Listet Kunden (paginiert).
+
+        SUCHE: Nutze den Parameter `search` für eine Freitext-Suche — dann werden nur Treffer
+        zurückgegeben (client-seitig über number, company_name, first_name, last_name, display_name,
+        emails, notes gefiltert). easybill hat server-seitig KEINEN Freitext-Filter; ohne `search`
+        kommt die komplette Liste zurück.
+
+        EXAKTE FILTER server-seitig via `query` (kombinierbar mit search):
+        limit, page, number, company_name, first_name, last_name, emails, country, zip_code,
+        group_id, additional_group_id, created_at.
+        TXT;
     }
 
     public function getSchema(): array
@@ -30,9 +41,16 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
               'type' => 'integer',
               'description' => 'Optional: ID einer spezifischen easybill-Connection.',
             ],
+            'search' => [
+              'type' => 'string',
+              'description' => 'Freitext-Suchbegriff. Gibt nur Treffer zurück (client-seitige Substring-Suche über '
+                . 'number, company_name, first_name, last_name, display_name, emails, notes). '
+                . 'Bevorzugt gegenüber dem Durchscannen der Gesamtliste.',
+            ],
             'query' => [
               'type' => 'object',
-              'description' => 'Query-Parameter (z.B. limit, page, sortierende Filter wie customer_id, type, document_date_from).',
+              'description' => 'Server-seitige easybill-Feldfilter, z.B. {"company_name":"Foodsolutions"} oder '
+                . '{"number":"K-1001"}, sowie limit/page. Wird mit `search` kombiniert (erst server-seitig filtern, dann client-seitig suchen).',
             ],
           ],
           'required' => [
@@ -48,7 +66,13 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
 
         try {
             $svc = app(EasybillApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listCustomers($context->user, $arguments['query'] ?? []);
+            $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+            $search = trim((string) ($arguments['search'] ?? ''));
+
+            $result = $search !== ''
+                ? $svc->searchCustomers($context->user, $search, $query)
+                : $svc->listCustomers($context->user, $query);
+
             return ToolResult::success($result);
         } catch (EasybillApiException $e) {
             return ToolResult::error($e->getEasybillErrorCode() ?? 'EASYBILL_ERROR', $e->getMessage());

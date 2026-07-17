@@ -18,7 +18,16 @@ class ListDocumentsTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'GET /documents — Belege listen. Filter z.B. type (INVOICE/OFFER/CREDIT/…), customer_id, document_date_from, status, is_archive.';
+        return <<<TXT
+        GET /documents — Belege listen (paginiert).
+
+        FILTER server-seitig via `query` (bevorzugt, da easybill hier präzise filtert): type
+        (INVOICE/OFFER/CREDIT/DELIVERY_NOTE/ORDER_CONFIRMATION/…), customer_id, project_id, number,
+        title, status, is_draft, is_archive, document_date, paid_at, ref_id, limit, page.
+
+        SUCHE: `search` filtert client-seitig über number, title, text, external_id, order_number, ref_id
+        und gibt nur Treffer zurück. easybill hat server-seitig keinen Freitext-Filter.
+        TXT;
     }
 
     public function getSchema(): array
@@ -30,9 +39,15 @@ class ListDocumentsTool implements ToolContract, ToolMetadataContract
               'type' => 'integer',
               'description' => 'Optional: ID einer spezifischen easybill-Connection.',
             ],
+            'search' => [
+              'type' => 'string',
+              'description' => 'Freitext-Suchbegriff (client-seitige Substring-Suche über number, title, text, '
+                . 'external_id, order_number, ref_id). Gibt nur Treffer zurück. Für präzise Treffer besser `query` nutzen.',
+            ],
             'query' => [
               'type' => 'object',
-              'description' => 'Query-Parameter (z.B. limit, page, sortierende Filter wie customer_id, type, document_date_from).',
+              'description' => 'Server-seitige easybill-Feldfilter, z.B. {"type":"INVOICE","customer_id":12345} '
+                . 'oder {"number":"RE-2026-001"}, sowie limit/page. Wird mit `search` kombiniert.',
             ],
           ],
           'required' => [
@@ -48,7 +63,13 @@ class ListDocumentsTool implements ToolContract, ToolMetadataContract
 
         try {
             $svc = app(EasybillApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listDocuments($context->user, $arguments['query'] ?? []);
+            $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+            $search = trim((string) ($arguments['search'] ?? ''));
+
+            $result = $search !== ''
+                ? $svc->searchDocuments($context->user, $search, $query)
+                : $svc->listDocuments($context->user, $query);
+
             return ToolResult::success($result);
         } catch (EasybillApiException $e) {
             return ToolResult::error($e->getEasybillErrorCode() ?? 'EASYBILL_ERROR', $e->getMessage());
