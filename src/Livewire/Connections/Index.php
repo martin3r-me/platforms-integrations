@@ -33,6 +33,7 @@ use Platform\Integrations\Services\GoogleSearchConsoleIntegrationService;
 use Platform\Integrations\Services\DatevIntegrationService;
 use Platform\Integrations\Services\EasybillIntegrationService;
 use Platform\Integrations\Services\NectaIntegrationService;
+use Platform\Integrations\Services\DedefleetIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -96,6 +97,10 @@ class Index extends Component
     public bool $nectaModalShow = false;
     public string $nectaApiKey = '';
     public string $nectaBaseUrl = '';
+
+    // DedeFleet Modal
+    public bool $dedefleetModalShow = false;
+    public string $dedefleetApiToken = '';
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -223,6 +228,14 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $dedefleetConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'dedefleet'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -267,6 +280,7 @@ class Index extends Component
             'datevConnections' => $datevConnections,
             'easybillConnections' => $easybillConnections,
             'nectaConnections' => $nectaConnections,
+            'dedefleetConnections' => $dedefleetConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1566,6 +1580,94 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'necta.one-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== DEDEFLEET METHODS ====================
+
+    public function openDedefleetModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->dedefleetApiToken = '';
+        $this->dedefleetModalShow = true;
+    }
+
+    public function openDedefleetModalForEdit(int $connectionId): void
+    {
+        $this->openDedefleetModal($connectionId);
+    }
+
+    public function closeDedefleetModal(): void
+    {
+        $this->dedefleetModalShow = false;
+        $this->dedefleetApiToken = '';
+        $this->editingId = null;
+    }
+
+    public function saveDedefleetConnection(): void
+    {
+        $this->validate([
+            'dedefleetApiToken' => ['required', 'string', 'min:10'],
+        ], [
+            'dedefleetApiToken.required' => 'Bitte gib deinen DedeFleet-Dauertoken ein.',
+            'dedefleetApiToken.min' => 'Der Token muss mindestens 10 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(DedefleetIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->dedefleetApiToken, $this->editingId);
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->dedefleetModalShow = false;
+                $this->dedefleetApiToken = '';
+                $this->editingId = null;
+                session()->flash('status', 'DedeFleet-Verbindung erfolgreich hergestellt.');
+            } else {
+                $this->addError('dedefleetApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('dedefleetApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('DedeFleet connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testDedefleetConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $dedefleetConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$dedefleetConnection) {
+                $this->syncError = 'Keine DedeFleet-Connection gefunden.';
+                return;
+            }
+
+            $service = app(DedefleetIntegrationService::class);
+            $result = $service->testConnection($dedefleetConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = 'DedeFleet-Verbindung erfolgreich getestet.';
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

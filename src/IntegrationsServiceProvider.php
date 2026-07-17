@@ -756,6 +756,42 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: necta.one Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // ---------------------------------------------------------------------
+        // DedeFleet Tools (Ortung & Tourenplanung, RPC /data/api/2)
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Referenz + generischer RPC-Zugriff (deckt alle Endpunkte ab)
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CallTool());
+
+            // Komfort-Read-Tools (Stammdaten / Listen)
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListCustomersTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListLocationsTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListEmployeesTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListVehicleProfilesTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListUnassignedOrdersTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListToursTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ListTrackingCurrentDataTool());
+
+            // Tourenplanung Workflow (Wiki Steps 1–5) — schreibende Aktionen
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CreateOrderTool());          // Step 1
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CreateTourTool());           // Step 2
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CreateTourFromTemplateTool()); // Step 2 (Vorlage)
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\AssignOrderTool());          // Step 3
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\AssignOrdersBulkTool());     // Step 3
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ReorderTourTool());          // Step 4
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OptimizeTourTool());         // Step 4
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ChangeTourStatusTool());     // Step 4
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\SetTourLockStateTool());     // Step 4
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\UpdateOrderTool());          // Step 5
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\UnassignOrderTool());        // Step 5
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\DeleteOrderTool());          // Step 5
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: DedeFleet Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void
