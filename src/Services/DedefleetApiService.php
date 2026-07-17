@@ -249,6 +249,11 @@ class DedefleetApiService
 
         $url = self::BASE_URL . '/' . ltrim($endpoint, '/');
 
+        // Konsistenz zur Plattform: Aufrufer geben ISO-8601-Datumsangaben; hier
+        // werden sie ins DedeFleet-Format (DD.MM.YYYY [HH:mm[:ss]]) übersetzt.
+        $query = self::convertIsoDatesDeep($query);
+        $data = self::convertIsoDatesDeep($data);
+
         try {
             $request = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiToken,
@@ -341,5 +346,50 @@ class DedefleetApiService
         }
 
         return $query;
+    }
+
+    /**
+     * Wandelt ISO-8601-Datums-/Zeitstrings rekursiv ins DedeFleet-Format um.
+     * Die Präzision des Eingabewerts bleibt erhalten:
+     *   2026-07-23              → 23.07.2026
+     *   2026-07-23T09:00        → 23.07.2026 09:00
+     *   2026-07-23T09:00:00(Z)  → 23.07.2026 09:00:00
+     * Nicht-ISO-Strings (z.B. reine Zeiten "HH:MM") bleiben unverändert.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    protected static function convertIsoDatesDeep(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $k => $v) {
+                $value[$k] = self::convertIsoDatesDeep($v);
+            }
+
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return self::isoToDedefleetDate($value);
+        }
+
+        return $value;
+    }
+
+    protected static function isoToDedefleetDate(string $s): string
+    {
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/', $s, $m)) {
+            return $s;
+        }
+
+        $date = "{$m[3]}.{$m[2]}.{$m[1]}";
+
+        if (!isset($m[4])) {
+            return $date;
+        }
+
+        $time = "{$m[4]}:{$m[5]}" . (isset($m[6]) && $m[6] !== '' ? ":{$m[6]}" : '');
+
+        return "{$date} {$time}";
     }
 }

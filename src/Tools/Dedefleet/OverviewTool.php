@@ -42,6 +42,9 @@ class OverviewTool implements ToolContract, ToolMetadataContract
                 . 'Systemeinstellungen → Benutzer (Typ "Api Vollzugriff", "Permanent").',
             'style' => 'RPC — /{Resource}/{Action}. List-Endpunkte teils GET, teils POST (Filter im Body); '
                 . 'schreibende Aktionen (Create/Update/Delete/Assign/…) sind POST.',
+            'datumsformat' => 'Gib Datumsangaben als ISO 8601 an (yyyy-MM-dd bzw. yyyy-MM-ddTHH:mm[:ss]) — '
+                . 'konsistent mit den übrigen Plattform-Tools. Sie werden automatisch ins DedeFleet-Format '
+                . '(DD.MM.YYYY [HH:mm[:ss]]) konvertiert. Reine Uhrzeiten (HH:MM, z.B. Zeitfenster) bleiben unverändert.',
             'generic_tool' => 'integrations.dedefleet.call — method + endpoint (z.B. "Tour/Optimize") + payload für '
                 . 'jede Ressource/Aktion, die kein dediziertes Tool hat.',
             'convenience_tools' => [

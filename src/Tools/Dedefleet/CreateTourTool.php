@@ -32,7 +32,7 @@ class CreateTourTool implements ToolContract, ToolMetadataContract
         HÄUFIGE data-Felder:
         - tour (string): Name/Bezeichnung der Tour
         - vehicleApiID (string): Fahrzeug-API-ID (aus DedeFleet), driver (string): Mitarbeiter-Nr, trailer (string): Anhänger-ID
-        - departure (object): { date "DD.MM.YYYY", time "HH:MM", location {…wie bei order.location…} }
+        - departure (object): { date (ISO yyyy-MM-dd, auto-konvertiert), time "HH:MM", location {…wie bei order.location…} }
         - return (object): { latestReturnTime "HH:MM", toDepot (bool; true = Depot statt expliziter Location), location {…} }
         - status (int): 0=Planning, 1=Released, 2=Completed
         - skills[] (string; müssen in DedeFleet existieren)
@@ -50,7 +50,7 @@ class CreateTourTool implements ToolContract, ToolMetadataContract
                 'data' => [
                     'type' => 'object',
                     'description' => 'Tour-Daten. Beispiel: {"tour":"Tour Nord","driver":"M-12","departure":'
-                        . '{"date":"18.07.2026","time":"07:00","location":{"type":0,"id":"DEPOT-1"}},'
+                        . '{"date":"2026-07-18","time":"07:00","location":{"type":0,"id":"DEPOT-1"}},'
                         . '"return":{"toDepot":true},"status":0}. Feldliste siehe Tool-Description.',
                     'additionalProperties' => true,
                 ],

@@ -32,8 +32,8 @@ class ListToursTool implements ToolContract, ToolMetadataContract
           0=Open, 1=Read, 2=Active, 3=Done, 4=Deleted, 5=In Navigation. Alles orderStatus=3 ⇒ Tour erledigt.
           metrics: distancePlanned vs distanceDriven, actualDuration, fuel. Pro Stopp: tourArrival, eta, waitingTime.
 
-        Parameter start/end (Datum/Datetime des Abfragezeitraums). Format wie in DedeFleet (i.d.R. "DD.MM.YYYY" bzw.
-        "DD.MM.YYYY HH:MM"); im Zweifel Tagesgrenzen setzen. Zusätzliche Felder via `params` (überschreibt start/end nicht).
+        Parameter start/end (Abfragezeitraum) als ISO 8601 (yyyy-MM-dd bzw. yyyy-MM-ddTHH:mm) — wird automatisch
+        ins DedeFleet-Format konvertiert. Für "heute" Tagesgrenzen setzen. Zusätzliche Felder via `params`.
 
         Ergänzend: order.list-status.GET (Statuswechsel + Rückmeldungen/Nachweise als formdata), tracking.GET (Live-GPS).
         TXT;
@@ -46,11 +46,11 @@ class ListToursTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'start' => [
                     'type' => 'string',
-                    'description' => 'Beginn des Abfragezeitraums, z.B. "17.07.2026" oder "17.07.2026 00:00". Für "heute" den heutigen Tag.',
+                    'description' => 'Beginn des Abfragezeitraums als ISO 8601, z.B. "2026-07-17" oder "2026-07-17T00:00". Für "heute" den heutigen Tag.',
                 ],
                 'end' => [
                     'type' => 'string',
-                    'description' => 'Ende des Abfragezeitraums, z.B. "17.07.2026 23:59".',
+                    'description' => 'Ende des Abfragezeitraums als ISO 8601, z.B. "2026-07-17T23:59".',
                 ],
                 'params' => [
                     'type' => 'object',
