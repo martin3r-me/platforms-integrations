@@ -22,13 +22,13 @@ class CompanyearningsturnoverGetTool implements ToolContract, ToolMetadataContra
 
     public function getDescription(): string
     {
-        return 'Unternehmensumsatz abrufen
+        return 'Unternehmensumsatz (Zeitreihe: Ist vs. Vorperiode) abrufen. Parameter unter `query`. dateFrom muss < dateTo sein (ISO yyyy-MM-dd).
 
 Query-Parameter (`query`):
-- dateFrom: string [REQUIRED] — Datumsbereich von
-- dateTo: string [REQUIRED] — Datumsbereich bis
-- aggregateBy: string [REQUIRED]
-- costCenterIds: string — (Optional) Gewünschte Kostenstellen-IDs (kommagetrennt)
+- dateFrom: string [REQUIRED] — ISO yyyy-MM-dd, Bereich von (muss < dateTo)
+- dateTo: string [REQUIRED] — ISO yyyy-MM-dd, Bereich bis
+- aggregateBy: integer [REQUIRED] — DateAggregation-Enum: 1=Tag, 2=Woche, 3=Monat, 4=Quartal, 5=Jahr
+- costCenterIds: string — (Optional) Kostenstellen-IDs, kommagetrennt
 
 Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
     }

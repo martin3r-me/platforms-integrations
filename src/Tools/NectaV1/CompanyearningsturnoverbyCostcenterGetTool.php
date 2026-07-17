@@ -22,13 +22,14 @@ class CompanyearningsturnoverbyCostcenterGetTool implements ToolContract, ToolMe
 
     public function getDescription(): string
     {
-        return 'Unternehmensumsatz nach Kostenstellen abrufen
+        return 'Umsatz je Kostenstelle (Baum mit costCenterId + name/[code]). Parameter unter `query`. dateFrom muss < dateTo sein (ISO yyyy-MM-dd).
+TIPP: Auch der schnellste Weg an die Kostenstellen-Stammdaten (id, Name inkl. [code]) — es gibt keinen separaten cost-centers-Endpunkt.
 
 Query-Parameter (`query`):
-- dateFrom: string [REQUIRED] — Datumsbereich von
-- dateTo: string [REQUIRED] — Datumsbereich bis
-- costCenterIds: string — (Optional) Gewünschte Kostenstellen-IDs (kommagetrennt)
-- includeChildren: boolean [REQUIRED] — Wenn gesetzt, werden auch die Unterkostenstellen mitgeladen und übergeben
+- dateFrom: string [REQUIRED] — ISO yyyy-MM-dd, Bereich von (muss < dateTo)
+- dateTo: string [REQUIRED] — ISO yyyy-MM-dd, Bereich bis
+- includeChildren: boolean [REQUIRED] — true = Unterkostenstellen als Baum mitliefern
+- costCenterIds: string — (Optional) Kostenstellen-IDs, kommagetrennt
 
 Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
     }
