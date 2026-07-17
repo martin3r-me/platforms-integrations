@@ -285,7 +285,7 @@ class NectaApiV1Service
             'status_code' => $statusCode,
         ]);
 
-        throw NectaApiException::fromResponse($statusCode, is_array($data) ? $data : []);
+        throw NectaApiException::fromResponse($statusCode, is_array($data) ? $data : [], $response->body());
     }
 
     protected function updateConnectionStatus(IntegrationConnection $connection, string $status, ?string $error = null): void

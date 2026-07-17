@@ -44,25 +44,24 @@ class NectaApiException extends Exception
         $this->responseData = $responseData;
     }
 
-    public static function fromResponse(int $httpStatusCode, ?array $responseData = null): self
+    public static function fromResponse(int $httpStatusCode, ?array $responseData = null, ?string $rawBody = null): self
     {
         $responseData ??= [];
 
-        // ASP.NET/necta liefert message/error teils als String, teils als Array
-        // (ProblemDetails). Immer sicher zu String machen — sonst "Array to string".
+        // Strukturierte Meldung (ProblemDetails: message/error/title als String ODER Array).
         $raw = $responseData['message'] ?? $responseData['error'] ?? $responseData['title'] ?? null;
+        $message = null;
         if (is_string($raw) && $raw !== '') {
             $message = $raw;
         } elseif (is_array($raw)) {
             $message = json_encode($raw, JSON_UNESCAPED_UNICODE);
-        } else {
-            $message = self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
         }
 
         $errorCode = $responseData['code'] ?? $responseData['error_code'] ?? null;
 
+        // Feld-Details (errors) sammeln.
+        $details = [];
         if (!empty($responseData['errors']) && is_array($responseData['errors'])) {
-            $details = [];
             foreach ($responseData['errors'] as $field => $issue) {
                 if (is_array($issue)) {
                     $issueText = implode(', ', array_map(
@@ -74,10 +73,26 @@ class NectaApiException extends Exception
                 }
                 $details[] = is_string($field) && $field !== '' ? "{$field}: {$issueText}" : $issueText;
             }
-            if ($details) {
-                $message .= ' Details: ' . implode('; ', $details);
+        }
+
+        // Fallback: wenn keine strukturierte Meldung gefunden wurde, den ROHEN
+        // Response-Body 1:1 durchreichen (necta schickt Feldfehler manchmal als
+        // reinen Text oder in einer nicht erkannten JSON-Form). Nichts verschlucken.
+        if ($message === null || $message === '') {
+            $body = is_string($rawBody) ? trim($rawBody) : '';
+            if ($body !== '' && $body !== '[]' && $body !== '{}') {
+                $message = mb_substr($body, 0, 800);
+            } else {
+                $message = self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
             }
         }
+
+        if ($details) {
+            $message .= ' | Details: ' . implode('; ', $details);
+        }
+
+        // Statuscode immer sichtbar voranstellen.
+        $message = 'HTTP ' . $httpStatusCode . ': ' . $message;
 
         return new self($message, $httpStatusCode, is_string($errorCode) ? $errorCode : null, $responseData);
     }

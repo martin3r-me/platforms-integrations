@@ -316,7 +316,7 @@ class DedefleetApiService
             'status_code' => $statusCode,
         ]);
 
-        throw DedefleetApiException::fromResponse($statusCode, is_array($data) ? $data : []);
+        throw DedefleetApiException::fromResponse($statusCode, is_array($data) ? $data : [], $response->body());
     }
 
     protected function updateConnectionStatus(

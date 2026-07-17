@@ -46,24 +46,23 @@ class DedefleetApiException extends Exception
         $this->responseData = $responseData;
     }
 
-    public static function fromResponse(int $httpStatusCode, ?array $responseData = null): self
+    public static function fromResponse(int $httpStatusCode, ?array $responseData = null, ?string $rawBody = null): self
     {
         $responseData ??= [];
 
-        // message/error/Message/title können String ODER Array (ProblemDetails) sein.
+        // Strukturierte Meldung (message/error/Message/title als String ODER Array).
         $raw = $responseData['message'] ?? $responseData['error'] ?? $responseData['Message'] ?? $responseData['title'] ?? null;
+        $message = null;
         if (is_string($raw) && $raw !== '') {
             $message = $raw;
         } elseif (is_array($raw)) {
             $message = json_encode($raw, JSON_UNESCAPED_UNICODE);
-        } else {
-            $message = self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
         }
 
         $errorCode = $responseData['code'] ?? $responseData['error_code'] ?? null;
 
+        $details = [];
         if (!empty($responseData['errors']) && is_array($responseData['errors'])) {
-            $details = [];
             foreach ($responseData['errors'] as $field => $issue) {
                 if (is_array($issue)) {
                     $issueText = implode(', ', array_map(
@@ -75,10 +74,23 @@ class DedefleetApiException extends Exception
                 }
                 $details[] = is_string($field) && $field !== '' ? "{$field}: {$issueText}" : $issueText;
             }
-            if ($details) {
-                $message .= ' Details: ' . implode('; ', $details);
+        }
+
+        // Fallback: kompletten Rohbody durchreichen, wenn keine strukturierte Meldung da ist.
+        if ($message === null || $message === '') {
+            $body = is_string($rawBody) ? trim($rawBody) : '';
+            if ($body !== '' && $body !== '[]' && $body !== '{}') {
+                $message = mb_substr($body, 0, 800);
+            } else {
+                $message = self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
             }
         }
+
+        if ($details) {
+            $message .= ' | Details: ' . implode('; ', $details);
+        }
+
+        $message = 'HTTP ' . $httpStatusCode . ': ' . $message;
 
         return new self($message, $httpStatusCode, is_string($errorCode) ? $errorCode : null, $responseData);
     }

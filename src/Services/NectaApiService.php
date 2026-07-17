@@ -296,7 +296,7 @@ class NectaApiService
             'status_code' => $statusCode,
         ]);
 
-        throw NectaApiException::fromResponse($statusCode, is_array($data) ? $data : []);
+        throw NectaApiException::fromResponse($statusCode, is_array($data) ? $data : [], $response->body());
     }
 
     /**
