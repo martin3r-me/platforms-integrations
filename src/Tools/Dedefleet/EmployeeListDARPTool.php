@@ -10,24 +10,23 @@ use Platform\Integrations\Services\DedefleetApiService;
 use Platform\Integrations\Exceptions\DedefleetApiException;
 
 /**
- * GET /TrackingObject/ListCurrentData — aktuelle GPS-Positionen (DedeFleet, read-only).
+ * DedeFleet GET /Employee/ListDARP — Returns employees relevant for DARP scenarios.
+ * Auto-generiert aus der v2-Swagger-Spec; delegiert an DedefleetApiService::call().
  */
-class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
+class EmployeeListDARPTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.dedefleet.tracking.GET';
+        return 'integrations.dedefleet.employee.list-darp.GET';
     }
 
     public function getDescription(): string
     {
-        return <<<TXT
-        GET /TrackingObject/ListCurrentData — aktuelle Live-Daten aller Ortungsobjekte. Beantwortet "Wo ist der Fahrer/das Fahrzeug gerade?".
-        Je Objekt u.a.: name, licenseNumber (Kennzeichen), vehicleApiID, latitude/longitude, speed (km/h), direction (Grad),
-        lastDataUpdate (Zeitpunkt der letzten Meldung — Aktualität!), mileage (km), acc (Zündung), input1..3,
-        temp1..6 (Kühlkette in °C), vext/vint (Bordspannung), evBatterySoC/rangeRemaining (E-Fahrzeug).
-        Verknüpfung zur Tour über vehicleApiID (auch in tours.GET je Tour vorhanden). Optionale Filter via `params`.
-        TXT;
+        return 'Returns employees relevant for DARP scenarios.
+
+Optionale Query-Parameter via `params`.
+
+Vollständige Feld-/Response-Details: https://ortung.dedefleet.de/swagger (Spec /swagger/data/api/2).';
     }
 
     public function getSchema(): array
@@ -37,7 +36,8 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
             'properties' => [
                 'params' => [
                     'type' => 'object',
-                    'description' => 'Optionale Query-Parameter bzw. Filter (siehe Swagger /swagger/data/api/2).',
+                    'description' => 'Query-Parameter (siehe Swagger).',
+                    'additionalProperties' => true,
                 ],
                 'connection_id' => [
                     'type' => 'integer',
@@ -54,11 +54,11 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+        $payload = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
 
         try {
             $svc = app(DedefleetApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listTrackingCurrentData($context->user, $params);
+            $result = $svc->call($context->user, 'GET', '/Employee/ListDARP', $payload);
 
             return ToolResult::success($result);
         } catch (DedefleetApiException $e) {
@@ -72,7 +72,7 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['dedefleet', 'tracking', 'list'],
+            'tags' => ['dedefleet', 'employee'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',

@@ -788,6 +788,57 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Dedefleet\UpdateOrderTool());          // Step 5
             $registry->register(new \Platform\Integrations\Tools\Dedefleet\UnassignOrderTool());        // Step 5
             $registry->register(new \Platform\Integrations\Tools\Dedefleet\DeleteOrderTool());          // Step 5
+
+            // Übrige v2-Endpunkte — vollständige Abdeckung (auto-generiert aus Swagger v2)
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\AddressSearchTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ArchiveImportTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CalculateDistanceAndTimeTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CustomerDeleteAllTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CustomerCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CustomerDeleteTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CustomerAddDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\CustomerDeleteDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\DriveBookListTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\DriveBookModifyTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EmployeeListDARPTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EmployeeCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EmployeeAssignTokenTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EmployeeWorkTimeStopTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EmployeeWorkTimeStartTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EventListTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EventCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EventDeleteTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\EventUpdateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ItemGetStatusTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\ItemListStatusTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\LocationCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\LocationDeleteTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\LocationUpdateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\MonitorSetDataTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OrderGetTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OrderFindSlotTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OrderGetStatusTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OrderListStatusTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\OrderGetStatusBulkTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourListTemplatesTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourGetTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourDeleteTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourGetBulkTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourCalculateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourOptimizeManyTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourCalculateTollTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TourOptimizeTourDepartureTimeTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TrackingObjectListTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TrackingObjectCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TrackingObjectSendMsgTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TrackingObjectSetMileageTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\TrailerObjectListCurrentDataTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\UserLogoutTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\UserLoginTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\UserNotifyTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\VehicleProfileCreateTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\VehicleProfileDeleteTool());
+            $registry->register(new \Platform\Integrations\Tools\Dedefleet\VehicleProfileUpdateTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: DedeFleet Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }

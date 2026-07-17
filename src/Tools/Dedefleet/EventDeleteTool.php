@@ -10,24 +10,24 @@ use Platform\Integrations\Services\DedefleetApiService;
 use Platform\Integrations\Exceptions\DedefleetApiException;
 
 /**
- * GET /TrackingObject/ListCurrentData — aktuelle GPS-Positionen (DedeFleet, read-only).
+ * DedeFleet POST /Event/Delete — Deletes an event.
+ * Auto-generiert aus der v2-Swagger-Spec; delegiert an DedefleetApiService::call().
  */
-class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
+class EventDeleteTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.dedefleet.tracking.GET';
+        return 'integrations.dedefleet.event.delete.POST';
     }
 
     public function getDescription(): string
     {
-        return <<<TXT
-        GET /TrackingObject/ListCurrentData — aktuelle Live-Daten aller Ortungsobjekte. Beantwortet "Wo ist der Fahrer/das Fahrzeug gerade?".
-        Je Objekt u.a.: name, licenseNumber (Kennzeichen), vehicleApiID, latitude/longitude, speed (km/h), direction (Grad),
-        lastDataUpdate (Zeitpunkt der letzten Meldung — Aktualität!), mileage (km), acc (Zündung), input1..3,
-        temp1..6 (Kühlkette in °C), vext/vint (Bordspannung), evBatterySoC/rangeRemaining (E-Fahrzeug).
-        Verknüpfung zur Tour über vehicleApiID (auch in tours.GET je Tour vorhanden). Optionale Filter via `params`.
-        TXT;
+        return 'Deletes an event.
+
+REQUEST-Felder (`data`):
+- guid: string — The GUID of an event you created before.
+
+Vollständige Feld-/Response-Details: https://ortung.dedefleet.de/swagger (Spec /swagger/data/api/2).';
     }
 
     public function getSchema(): array
@@ -35,9 +35,10 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'params' => [
+                'data' => [
                     'type' => 'object',
-                    'description' => 'Optionale Query-Parameter bzw. Filter (siehe Swagger /swagger/data/api/2).',
+                    'description' => 'Request-Body (Felder siehe Tool-Description / Swagger).',
+                    'additionalProperties' => true,
                 ],
                 'connection_id' => [
                     'type' => 'integer',
@@ -54,11 +55,11 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+        $payload = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
             $svc = app(DedefleetApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listTrackingCurrentData($context->user, $params);
+            $result = $svc->call($context->user, 'POST', '/Event/Delete', $payload);
 
             return ToolResult::success($result);
         } catch (DedefleetApiException $e) {
@@ -71,11 +72,11 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
     public function getMetadata(): array
     {
         return [
-            'category' => 'query',
-            'tags' => ['dedefleet', 'tracking', 'list'],
-            'read_only' => true,
+            'category' => 'action',
+            'tags' => ['dedefleet', 'event'],
+            'read_only' => false,
             'requires_auth' => true,
-            'risk_level' => 'safe',
+            'risk_level' => 'high',
         ];
     }
 }

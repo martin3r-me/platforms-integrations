@@ -53,6 +53,16 @@ class OverviewTool implements ToolContract, ToolMetadataContract
                 'integrations.dedefleet.tours.GET',
                 'integrations.dedefleet.tracking.GET',
             ],
+            'operative_fragen' => [
+                'wer_faehrt_heute' => 'tours.GET mit start/end=heute → je Tour driverName, vehicleApiID, departure, return.calculatedReturnTime.',
+                'ist_alles_gelaufen' => 'tours.GET → Tour.status (0 Planning/1 Released/2 Completed) + orders[].orderStatus '
+                    . '(0 Open,1 Read,2 Active,3 Done,4 Deleted,5 In Navigation); alle=3 ⇒ erledigt. Detaillierte '
+                    . 'Statusverläufe/Rückmeldungen: order.list-status.POST (start/end).',
+                'wo_ist_der_fahrer' => 'tracking.GET → Live lat/lng, speed, lastDataUpdate, licenseNumber, temp1..6 (Kühlkette). '
+                    . 'Verknüpfung zur Tour über vehicleApiID.',
+                'offene_auftraege' => 'orders-unassigned.GET → noch keiner Tour zugewiesene Aufträge.',
+                'wer_ist_verfuegbar' => 'employees.GET → Fahrer inkl. workingDays, hasTourPlanningLicense, vehicleApiID.',
+            ],
             'tourenplanung_workflow' => [
                 'step_1_auftrag_anlegen' => 'integrations.dedefleet.order.POST',
                 'step_2_tour_anlegen' => 'integrations.dedefleet.tour.POST (oder .tour.from-template.POST)',
@@ -81,7 +91,11 @@ class OverviewTool implements ToolContract, ToolMetadataContract
                 'Monitor' => ['POST SetData'],
                 'User' => ['POST Login', 'GET Logout', 'POST Notify'],
             ],
-            'note' => 'Es gibt API v1 (55 Endpunkte) und v2 (68 Endpunkte). Diese Integration nutzt v2. '
+            'coverage' => 'Alle 68 v2-Endpunkte haben ein dediziertes Tool. Namensschema: '
+                . 'integrations.dedefleet.<resource>.<action>.<VERB> (kebab-case), z.B. '
+                . '"customer.create.POST", "tour.get.POST", "location.update.POST", "employee.list-darp.GET". '
+                . 'Für Endpunkte ohne passendes Tool bleibt integrations.dedefleet.call als Fallback.',
+            'note' => 'Es gibt API v1 (55 Endpunkte), v2 (68 Endpunkte) und PushCurrentData. Diese Integration nutzt v2. '
                 . 'Vollständige Feld-/Schemadetails: https://ortung.dedefleet.de/swagger '
                 . '(Spec: /swagger/data/api/2). Doku/Workflows: https://wiki.dedefleet.de/books/tourenplanung.',
         ]);

@@ -10,24 +10,30 @@ use Platform\Integrations\Services\DedefleetApiService;
 use Platform\Integrations\Exceptions\DedefleetApiException;
 
 /**
- * GET /TrackingObject/ListCurrentData — aktuelle GPS-Positionen (DedeFleet, read-only).
+ * DedeFleet POST /Order/ListStatus — Returns order status changes within a given time range.
+ * Auto-generiert aus der v2-Swagger-Spec; delegiert an DedefleetApiService::call().
  */
-class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
+class OrderListStatusTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.dedefleet.tracking.GET';
+        return 'integrations.dedefleet.order.list-status.POST';
     }
 
     public function getDescription(): string
     {
-        return <<<TXT
-        GET /TrackingObject/ListCurrentData — aktuelle Live-Daten aller Ortungsobjekte. Beantwortet "Wo ist der Fahrer/das Fahrzeug gerade?".
-        Je Objekt u.a.: name, licenseNumber (Kennzeichen), vehicleApiID, latitude/longitude, speed (km/h), direction (Grad),
-        lastDataUpdate (Zeitpunkt der letzten Meldung — Aktualität!), mileage (km), acc (Zündung), input1..3,
-        temp1..6 (Kühlkette in °C), vext/vint (Bordspannung), evBatterySoC/rangeRemaining (E-Fahrzeug).
-        Verknüpfung zur Tour über vehicleApiID (auch in tours.GET je Tour vorhanden). Optionale Filter via `params`.
-        TXT;
+        return 'POST /Order/ListStatus — Auftrags-Statuswechsel + Rückmeldungen in einem Zeitraum ("Was ist gelaufen?").
+
+REQUEST-Felder (`data`):
+- start: string [REQUIRED] — Beginn des Intervalls (z.B. "17.07.2026 00:00").
+- end: string [REQUIRED] — Ende des Intervalls (z.B. "17.07.2026 23:59").
+
+RESPONSE: statusList[] je Auftrag mit tourGuid, orderGuid, orderState
+(0=Open, 1=Read, 2=Active, 3=Done, 4=Deleted, 5=In Navigation), tourArrival, eta (aktuelle Ankunftsprognose)
+sowie formdata[] = im Fahrer-App erfasste Rückmeldungen/Nachweise (Werte, Unterschrift/Foto via file_Data).
+
+Für den Tages-Gesamtblick pro Tour ist tours.GET (start/end) meist praktischer; dieses Tool ist ideal für
+Statusverläufe/Rückmeldungen über alle Aufträge hinweg. Vollständige Details: https://ortung.dedefleet.de/swagger.';
     }
 
     public function getSchema(): array
@@ -35,9 +41,10 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'params' => [
+                'data' => [
                     'type' => 'object',
-                    'description' => 'Optionale Query-Parameter bzw. Filter (siehe Swagger /swagger/data/api/2).',
+                    'description' => 'Request-Body (Felder siehe Tool-Description / Swagger).',
+                    'additionalProperties' => true,
                 ],
                 'connection_id' => [
                     'type' => 'integer',
@@ -54,11 +61,11 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+        $payload = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
             $svc = app(DedefleetApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listTrackingCurrentData($context->user, $params);
+            $result = $svc->call($context->user, 'POST', '/Order/ListStatus', $payload);
 
             return ToolResult::success($result);
         } catch (DedefleetApiException $e) {
@@ -72,7 +79,7 @@ class ListTrackingCurrentDataTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['dedefleet', 'tracking', 'list'],
+            'tags' => ['dedefleet', 'order'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',
