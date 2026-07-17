@@ -51,6 +51,7 @@ Query-Parameter:
                 'search' => ['type' => 'string', 'description' => 'Query-Parameter search'],
                 'filters' => ['type' => 'string', 'description' => 'Spaltenfilter als JSON-String (PrimeNG-Format) {"name": { "value": "Max", "matchMode": "contains" },"age":  { "value": 30,    "matchMode": "equals" }}'],
                 'changedSince' => ['type' => 'string', 'description' => 'Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.'],
+                'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -80,7 +81,9 @@ Query-Parameter:
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
-
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = NectaApiV1Service::projectFields($result, $arguments['fields']);
+            }
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
             return ToolResult::error($e->getNectaErrorCode() ?? 'NECTA_ERROR', $e->getMessage());

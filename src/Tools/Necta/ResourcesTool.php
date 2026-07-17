@@ -64,6 +64,10 @@ class ResourcesTool implements ToolContract, ToolMetadataContract
 
         return ToolResult::success([
             'total' => count($resources),
+            'auth_hinweis' => 'ACHTUNG: Dies sind Ressourcen der necta RAW-API (/rawapi, read-only). Sie sind nur '
+                . 'erreichbar, wenn der API-Key für die Raw-API FREIGESCHALTET ist — sonst liefert der Datenabruf '
+                . 'HTTP 401 (Unauthorized). Ist nur ein normaler necta.one-API-Key vorhanden, nutze stattdessen die '
+                . 'integrations.necta.v1.* Tools (customers, orders, invoices, supplier-items, companyearnings …).',
             'resources' => $resources,
         ]);
     }

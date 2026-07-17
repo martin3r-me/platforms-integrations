@@ -73,6 +73,7 @@ Query-Parameter:
                 'classificationAndOperator' => ['type' => 'boolean', 'description' => 'UND-Verknüpfung (true) oder ODER-Verknüpfung (false) für Klassifizierungsbegriffe'],
                 'type' => ['type' => 'integer', 'enum' => [1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], 'description' => 'Bewegungstyp (Correction, ManuallyEntry, etc.)'],
                 'reducedList' => ['type' => 'boolean', 'description' => 'Reduzierte Liste (true) oder vollständige Daten (false)'],
+                'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -102,7 +103,9 @@ Query-Parameter:
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
-
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = NectaApiV1Service::projectFields($result, $arguments['fields']);
+            }
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
             return ToolResult::error($e->getNectaErrorCode() ?? 'NECTA_ERROR', $e->getMessage());

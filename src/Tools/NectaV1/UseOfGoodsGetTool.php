@@ -45,6 +45,7 @@ Query-Parameter:
                 'dateTo' => ['type' => 'string', 'description' => 'Datumsbereich bis'],
                 'aggregateBy' => ['type' => 'integer', 'enum' => [1, 2, 3, 4, 5], 'description' => 'DateAggregation-Enum: 1=Tag, 2=Woche, 3=Monat, 4=Quartal, 5=Jahr.'],
                 'groupType' => ['type' => 'integer', 'enum' => [1, 2], 'description' => 'Query-Parameter groupType'],
+                'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => ['dateFrom', 'dateTo', 'aggregateBy', 'groupType'],
@@ -84,7 +85,9 @@ Query-Parameter:
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
-
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = NectaApiV1Service::projectFields($result, $arguments['fields']);
+            }
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
             return ToolResult::error($e->getNectaErrorCode() ?? 'NECTA_ERROR', $e->getMessage());
