@@ -22,7 +22,9 @@ class CreatePositionTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return <<<TXT
-POST /positions — Stamm-Artikel anlegen.
+POST /positions — Stamm-Artikel (Artikelstamm) anlegen.
+
+ABGRENZUNG: Dies legt einen wiederverwendbaren Stamm-Artikel an — NICHT eine Position auf einem konkreten Beleg. Belegpositionen sind in easybill im Beleg eingebettet (data.items[]) und werden über integrations.easybill.document.POST/PUT gepflegt. Ein einzelnes Item eines bestehenden Belegs lässt sich API-seitig nicht separat anlegen/ändern — dazu den ganzen Beleg per PUT mit vollständigem items[] senden (items[] ersetzt die alte Liste komplett).
 
 WICHTIG: sale_price und purchase_price sind Integer-Cent (185000 = 1.850,00 €), niemals Euro/Float.
 EMPFOHLEN: mindestens description und sale_price.
