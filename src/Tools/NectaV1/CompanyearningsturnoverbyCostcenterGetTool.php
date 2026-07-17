@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class CompanyearningsturnoverbyCostcenterGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['dateFrom', 'dateTo', 'costCenterIds', 'includeChildren'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.companyearnings.turnover.by-costcenter.GET';
@@ -22,16 +25,16 @@ class CompanyearningsturnoverbyCostcenterGetTool implements ToolContract, ToolMe
 
     public function getDescription(): string
     {
-        return 'Umsatz je Kostenstelle (Baum mit costCenterId + name/[code]). Parameter unter `query`. dateFrom muss < dateTo sein (ISO yyyy-MM-dd).
-TIPP: Auch der schnellste Weg an die Kostenstellen-Stammdaten (id, Name inkl. [code]) — es gibt keinen separaten cost-centers-Endpunkt.
+        return 'Unternehmensumsatz nach Kostenstellen abrufen
+Auch der schnellste Weg an die Kostenstellen-Stammdaten (id + name/[code]) — es gibt keinen separaten cost-centers-Endpunkt. dateFrom muss < dateTo sein.
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
-- dateFrom: string [REQUIRED] — ISO yyyy-MM-dd, Bereich von (muss < dateTo)
-- dateTo: string [REQUIRED] — ISO yyyy-MM-dd, Bereich bis
-- includeChildren: boolean [REQUIRED] — true = Unterkostenstellen als Baum mitliefern
-- costCenterIds: string — (Optional) Kostenstellen-IDs, kommagetrennt
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+Query-Parameter:
+- dateFrom: string [REQUIRED] — Datumsbereich von
+- dateTo: string [REQUIRED] — Datumsbereich bis
+- costCenterIds: string — (Optional) Gewünschte Kostenstellen-IDs (kommagetrennt)
+- includeChildren: boolean [REQUIRED] — Wenn gesetzt, werden auch die Unterkostenstellen mitgeladen und übergeben true = Unterkostenstellen als Baum mitliefern.
+';
     }
 
     public function getSchema(): array
@@ -39,10 +42,13 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: dateFrom, dateTo, includeChildren. Siehe Tool-Description.'],
+                'dateFrom' => ['type' => 'string', 'description' => 'Datumsbereich von'],
+                'dateTo' => ['type' => 'string', 'description' => 'Datumsbereich bis'],
+                'costCenterIds' => ['type' => 'string', 'description' => '(Optional) Gewünschte Kostenstellen-IDs (kommagetrennt)'],
+                'includeChildren' => ['type' => 'boolean', 'description' => 'Wenn gesetzt, werden auch die Unterkostenstellen mitgeladen und übergeben true = Unterkostenstellen als Baum mitliefern.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
-            'required' => [],
+            'required' => ['dateFrom', 'dateTo', 'includeChildren'],
         ];
     }
 
@@ -52,10 +58,24 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
+        if (!isset($arguments['dateFrom']) || $arguments['dateFrom'] === '' || $arguments['dateFrom'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "dateFrom" fehlt.');
+        }
+        if (!isset($arguments['dateTo']) || $arguments['dateTo'] === '' || $arguments['dateTo'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "dateTo" fehlt.');
+        }
+        if (!isset($arguments['includeChildren']) || $arguments['includeChildren'] === '' || $arguments['includeChildren'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "includeChildren" fehlt.');
+        }
 
         $path = '/api/v1/{tenantId}/companyearnings/turnover/by-costcenter';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

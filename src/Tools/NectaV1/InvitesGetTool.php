@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class InvitesGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.invites.GET';
@@ -23,8 +26,8 @@ class InvitesGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle necta.one Einladungen laden
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
+';
     }
 
     public function getSchema(): array
@@ -47,7 +50,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/invites';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

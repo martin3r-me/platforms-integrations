@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class PurchaseOrdersGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'designationOrReferalNumber', 'dateFrom', 'dateUntil', 'isOrderDate', 'isDeliveryPeriodExceeded', 'state', 'referenceState', 'supplierId', 'itemNumberOrDesignation', 'costCenterIds', 'assortmentIdentifier', 'changedSince'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.purchase-orders.GET';
@@ -23,8 +26,9 @@ class PurchaseOrdersGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle Bestellungen
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer — Seitennummer für die Paginierung (1-basiert)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - designationOrReferalNumber: string — Filter für Bezeichnung oder Referenz der Bestellung
@@ -32,15 +36,14 @@ Query-Parameter (`query`):
 - dateUntil: string — Bestellungen bis zu diesem Datum. Gilt für das Lieferdatum, wenn IsDeliveryDate=true, ansonsten für das Bestelldatum
 - isOrderDate: boolean — Wenn true (Standard), werden die Datumsfilter auf das Lieferdatum angewendet. Wenn false, werden die Filter auf das Bestelldatum angewendet
 - isDeliveryPeriodExceeded: boolean — Kennzeichen, ob der Lieferzeitraum überschritten wurde (true = überschritten).
-- state: string — Bestellstatus (gültige Werte: 1–10)
-- referenceState: string — Bestellreferenz Status (gültige Werte: 0-8
+- state: integer enum[1|2|3|4|5|6|7|8|9|10] — Bestellstatus (gültige Werte: 1–10)
+- referenceState: integer enum[0|1|2|3|4|5|6|7|8] — Bestellreferenz Status (gültige Werte: 0-8
 - supplierId: integer — Lieferanten ID
 - itemNumberOrDesignation: string — Artikelbezeichnung oder -nummer
 - costCenterIds: string — Kostenstellen-IDs (kommagetrennt)
-- assortmentIdentifier: string — Sortimentskennung (gülitge Werte: 0,10,20,30,40
+- assortmentIdentifier: integer enum[0|10|20|30|40] — Sortimentskennung (gülitge Werte: 0,10,20,30,40
 - changedSince: string — Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -48,7 +51,20 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keine. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'designationOrReferalNumber' => ['type' => 'string', 'description' => 'Filter für Bezeichnung oder Referenz der Bestellung'],
+                'dateFrom' => ['type' => 'string', 'description' => 'Bestellungen ab diesem Datum. Gilt für das Lieferdatum, wenn IsDeliveryDate=true, ansonsten für das Bestelldatum'],
+                'dateUntil' => ['type' => 'string', 'description' => 'Bestellungen bis zu diesem Datum. Gilt für das Lieferdatum, wenn IsDeliveryDate=true, ansonsten für das Bestelldatum'],
+                'isOrderDate' => ['type' => 'boolean', 'description' => 'Wenn true (Standard), werden die Datumsfilter auf das Lieferdatum angewendet. Wenn false, werden die Filter auf das Bestelldatum angewendet'],
+                'isDeliveryPeriodExceeded' => ['type' => 'boolean', 'description' => 'Kennzeichen, ob der Lieferzeitraum überschritten wurde (true = überschritten).'],
+                'state' => ['type' => 'integer', 'enum' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'description' => 'Bestellstatus (gültige Werte: 1–10)'],
+                'referenceState' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6, 7, 8], 'description' => 'Bestellreferenz Status (gültige Werte: 0-8'],
+                'supplierId' => ['type' => 'integer', 'description' => 'Lieferanten ID'],
+                'itemNumberOrDesignation' => ['type' => 'string', 'description' => 'Artikelbezeichnung oder -nummer'],
+                'costCenterIds' => ['type' => 'string', 'description' => 'Kostenstellen-IDs (kommagetrennt)'],
+                'assortmentIdentifier' => ['type' => 'integer', 'enum' => [0, 10, 20, 30, 40], 'description' => 'Sortimentskennung (gülitge Werte: 0,10,20,30,40'],
+                'changedSince' => ['type' => 'string', 'description' => 'Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -64,7 +80,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/purchase-orders';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
+        if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

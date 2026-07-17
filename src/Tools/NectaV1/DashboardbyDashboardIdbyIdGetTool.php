@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class DashboardbyDashboardIdbyIdGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.dashboard.by-dashboard-id.by-id.GET';
@@ -23,8 +26,11 @@ class DashboardbyDashboardIdbyIdGetTool implements ToolContract, ToolMetadataCon
     public function getDescription(): string
     {
         return 'Dashboard anhand der ID laden.
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+Pfad-Parameter:
+- dashboardId [REQUIRED]
+';
     }
 
     public function getSchema(): array
@@ -52,7 +58,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         $path = '/api/v1/{tenantId}/dashboard/{dashboardId}/by-id';
         $path = str_replace('{dashboardId}', rawurlencode((string) $arguments['dashboardId']), $path);
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

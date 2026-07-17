@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class NectaModulesbyModuleIdPatchTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.necta-modules.by-module-id.PATCH';
@@ -23,14 +26,17 @@ class NectaModulesbyModuleIdPatchTool implements ToolContract, ToolMetadataContr
     public function getDescription(): string
     {
         return 'Necta Modul aktualisieren (Name + EntryPoint)
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
+
+Pfad-Parameter:
+- moduleId [REQUIRED]
 
 Body (`data`):
 - name: string [REQ] — Anzeigename des Moduls.
 - entryPoint: string [REQ] — Einstiegspunkt des Moduls.
 - icon: string — Optionales Symbol des Moduls.
 - isDisabled: boolean — Gibt an, ob das Modul deaktiviert ist.
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -62,7 +68,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         $path = '/api/v1/{tenantId}/necta-modules/{moduleId}';
         $path = str_replace('{moduleId}', rawurlencode((string) $arguments['moduleId']), $path);
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

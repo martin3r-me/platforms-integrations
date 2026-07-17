@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class NectaModuletokenPostTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.necta-module.token.POST';
@@ -23,11 +26,11 @@ class NectaModuletokenPostTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Modul-Token erzeugen
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
 Body (`data`):
 - moduleId: string:uuid — Eindeutige Kennung des Moduls, für das ein Token erstellt werden soll.
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -54,7 +57,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/necta-module/token';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

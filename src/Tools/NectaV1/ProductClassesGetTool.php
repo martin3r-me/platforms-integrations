@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class ProductClassesGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'ids', 'designation', 'isInactive', 'productMainClassIds', 'productMainClassDesignation', 'inclCostCenterDetails', 'costCenterIds'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.product-classes.GET';
@@ -23,8 +26,9 @@ class ProductClassesGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle Produktklassen laden
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer — Seitennummer für die Paginierung (1-basiert)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - ids: string — Filter nach Produktklassen-IDs (kommagetrennt, z.B. \'1,2,3\')
@@ -34,8 +38,7 @@ Query-Parameter (`query`):
 - productMainClassDesignation: string — Suche nach Hauptproduktklassen-Bezeichnung
 - inclCostCenterDetails: boolean — Wenn true, Finanzkonfigurationen (Kontenpläne und Steuersätze) einbeziehen. Standard: false
 - costCenterIds: string — Filter nach Kostenstellen-IDs (kommagetrennt, z.B. \'1,2,3\'). Gilt nur wenn InclCostCenterDetails=true
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -43,7 +46,15 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keine. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'ids' => ['type' => 'string', 'description' => 'Filter nach Produktklassen-IDs (kommagetrennt, z.B. \'1,2,3\')'],
+                'designation' => ['type' => 'string', 'description' => 'Suche nach Produktklassen-Bezeichnung'],
+                'isInactive' => ['type' => 'boolean', 'description' => 'Wenn true, nur inaktive Produktklassen. Wenn false, nur aktive Produktklassen (Standard: false)'],
+                'productMainClassIds' => ['type' => 'string', 'description' => 'Filter nach Hauptproduktklassen-IDs (kommagetrennt, z.B. \'1,2,3\')'],
+                'productMainClassDesignation' => ['type' => 'string', 'description' => 'Suche nach Hauptproduktklassen-Bezeichnung'],
+                'inclCostCenterDetails' => ['type' => 'boolean', 'description' => 'Wenn true, Finanzkonfigurationen (Kontenpläne und Steuersätze) einbeziehen. Standard: false'],
+                'costCenterIds' => ['type' => 'string', 'description' => 'Filter nach Kostenstellen-IDs (kommagetrennt, z.B. \'1,2,3\'). Gilt nur wenn InclCostCenterDetails=true'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -59,7 +70,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/product-classes';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
+        if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

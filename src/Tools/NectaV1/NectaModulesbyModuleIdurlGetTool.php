@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class NectaModulesbyModuleIdurlGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.necta-modules.by-module-id.url.GET';
@@ -23,8 +26,11 @@ class NectaModulesbyModuleIdurlGetTool implements ToolContract, ToolMetadataCont
     public function getDescription(): string
     {
         return 'Necta-Modul-Url nach ModuleId laden
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+Pfad-Parameter:
+- moduleId [REQUIRED]
+';
     }
 
     public function getSchema(): array
@@ -52,7 +58,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         $path = '/api/v1/{tenantId}/necta-modules/{moduleId}/url';
         $path = str_replace('{moduleId}', rawurlencode((string) $arguments['moduleId']), $path);
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

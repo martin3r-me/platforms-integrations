@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class DashboardbyDashboardIdPutTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.dashboard.by-dashboard-id.PUT';
@@ -23,6 +26,10 @@ class DashboardbyDashboardIdPutTool implements ToolContract, ToolMetadataContrac
     public function getDescription(): string
     {
         return 'Dashboard aktualisieren
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
+
+Pfad-Parameter:
+- dashboardId [REQUIRED]
 
 Body (`data`):
 - id: integer:int32 — Eindeutige Kennung für das Dashboard
@@ -46,8 +53,7 @@ Body (`data`):
     - backgroundColor: string — Ruft die Hintergrundfarbe des Widgets ab oder legt sie fest.  
     - color: string — Ruft die Textfarbe des Widgets ab oder legt sie fest.  
     - contentData: string — Ruft die Inhaltsdaten des Widgets ab, die als Zeichenfolge serialisiert sind, oder legt sie fest.  
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -79,7 +85,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         $path = '/api/v1/{tenantId}/dashboard/{dashboardId}';
         $path = str_replace('{dashboardId}', rawurlencode((string) $arguments['dashboardId']), $path);
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

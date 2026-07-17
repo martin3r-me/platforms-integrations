@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class StocksGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'id', 'designation', 'costCenterId', 'code', 'searchCode', 'isBlocked', 'bookingAccountNumber', 'isNoNegativeStockAllowed'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.stocks.GET';
@@ -23,8 +26,9 @@ class StocksGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle Lager
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer — Seitennummer für die Paginierung (1-basiert, Standard: 1)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - id: integer — Filter nach Lager-ID
@@ -35,8 +39,7 @@ Query-Parameter (`query`):
 - isBlocked: boolean — Filter nach Sperrlager
 - bookingAccountNumber: string — Filter nach Buchungskontonummer
 - isNoNegativeStockAllowed: boolean — Filter nach kein Negativlager erlaubt
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -44,7 +47,16 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keine. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert, Standard: 1)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'id' => ['type' => 'integer', 'description' => 'Filter nach Lager-ID'],
+                'designation' => ['type' => 'string', 'description' => 'Filter nach Bezeichnung'],
+                'costCenterId' => ['type' => 'integer', 'description' => 'Filter nach Kostenstellen-ID'],
+                'code' => ['type' => 'string', 'description' => 'Filter nach Code'],
+                'searchCode' => ['type' => 'string', 'description' => 'Filter nach Suchcode'],
+                'isBlocked' => ['type' => 'boolean', 'description' => 'Filter nach Sperrlager'],
+                'bookingAccountNumber' => ['type' => 'string', 'description' => 'Filter nach Buchungskontonummer'],
+                'isNoNegativeStockAllowed' => ['type' => 'boolean', 'description' => 'Filter nach kein Negativlager erlaubt'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -60,7 +72,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/stocks';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
+        if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

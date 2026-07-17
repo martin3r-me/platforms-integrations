@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class OutInvoicesGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'designationOrNumber', 'customerIds', 'contactNameOrNumber', 'targetCostCenterIds', 'dateFrom', 'dateUntil', 'state', 'isSent', 'isChecked', 'isLocked', 'productDesignationOrNumber', 'classificationIds', 'changedSince'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.out-invoices.GET';
@@ -23,8 +26,9 @@ class OutInvoicesGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle Ausgangsrechnungen laden
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer — Seitennummer für die Paginierung (1-basiert)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - designationOrNumber: string — Suche nach Ausgangsrechnungs-Bezeichnung oder Referenznummer
@@ -33,15 +37,14 @@ Query-Parameter (`query`):
 - targetCostCenterIds: string — Filter nach Ziel-Kostenstellen-IDs (kommagetrennt, z.B. \'1,2,3\')
 - dateFrom: string — Ausgangsrechnungen ab diesem Datum filtern (inklusiv)
 - dateUntil: string — Ausgangsrechnungen bis zu diesem Datum filtern (inklusiv)
-- state: string — Filter nach Status der Ausgangsrechnung
+- state: integer enum[0|1|2|3|4|5|6|7|8] — Filter nach Status der Ausgangsrechnung
 - isSent: boolean — Filter nach Versandstatus (true/false)
 - isChecked: boolean — Filter nach Geprüft-Status (true/false)
 - isLocked: boolean — Filter nach Gesperrt-Status (true/false)
 - productDesignationOrNumber: string — Suche nach Produktbezeichnung oder Artikelnummer in Rechnungspositionen
 - classificationIds: string — Filter nach Klassifizierungs-IDs (kommagetrennt, z.B. \'1,2,3\')
 - changedSince: string — Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -49,7 +52,21 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keine. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'designationOrNumber' => ['type' => 'string', 'description' => 'Suche nach Ausgangsrechnungs-Bezeichnung oder Referenznummer'],
+                'customerIds' => ['type' => 'string', 'description' => 'Filter nach Kunden-IDs (kommagetrennt, z.B. \'1,2,3\')'],
+                'contactNameOrNumber' => ['type' => 'string', 'description' => 'Suche nach Kontaktname oder Kontaktnummer'],
+                'targetCostCenterIds' => ['type' => 'string', 'description' => 'Filter nach Ziel-Kostenstellen-IDs (kommagetrennt, z.B. \'1,2,3\')'],
+                'dateFrom' => ['type' => 'string', 'description' => 'Ausgangsrechnungen ab diesem Datum filtern (inklusiv)'],
+                'dateUntil' => ['type' => 'string', 'description' => 'Ausgangsrechnungen bis zu diesem Datum filtern (inklusiv)'],
+                'state' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6, 7, 8], 'description' => 'Filter nach Status der Ausgangsrechnung'],
+                'isSent' => ['type' => 'boolean', 'description' => 'Filter nach Versandstatus (true/false)'],
+                'isChecked' => ['type' => 'boolean', 'description' => 'Filter nach Geprüft-Status (true/false)'],
+                'isLocked' => ['type' => 'boolean', 'description' => 'Filter nach Gesperrt-Status (true/false)'],
+                'productDesignationOrNumber' => ['type' => 'string', 'description' => 'Suche nach Produktbezeichnung oder Artikelnummer in Rechnungspositionen'],
+                'classificationIds' => ['type' => 'string', 'description' => 'Filter nach Klassifizierungs-IDs (kommagetrennt, z.B. \'1,2,3\')'],
+                'changedSince' => ['type' => 'string', 'description' => 'Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -65,7 +82,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/out-invoices';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
+        if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

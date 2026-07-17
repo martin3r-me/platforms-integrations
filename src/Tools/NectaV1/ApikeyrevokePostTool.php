@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class ApikeyrevokePostTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['keyHash'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.apikey.revoke.POST';
@@ -23,11 +26,11 @@ class ApikeyrevokePostTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'API-Key widerrufen
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - keyHash: string [REQUIRED] — Hash des zu widerrufenden API-Keys
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -35,10 +38,10 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keyHash. Siehe Tool-Description.'],
+                'keyHash' => ['type' => 'string', 'description' => 'Hash des zu widerrufenden API-Keys'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
-            'required' => [],
+            'required' => ['keyHash'],
         ];
     }
 
@@ -48,10 +51,18 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
+        if (!isset($arguments['keyHash']) || $arguments['keyHash'] === '' || $arguments['keyHash'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "keyHash" fehlt.');
+        }
 
         $path = '/api/v1/apikey/revoke';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

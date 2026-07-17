@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class MealsGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'ids', 'designation', 'code', 'type'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.meals.GET';
@@ -23,16 +26,16 @@ class MealsGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Alle Mahlzeiten
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer — Seitennummer für die Paginierung (1-basiert, Standard: 1)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - ids: string — Filter nach IDs (kommagetrennt, z.B. \'1,2,3\').
 - designation: string — Filter nach Bezeichnung
 - code: string — Filter nach Mahlzeitencode
-- type: string — Filter nach Mahlzeitentyp
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+- type: integer enum[0|1|2] — Filter nach Mahlzeitentyp
+';
     }
 
     public function getSchema(): array
@@ -40,7 +43,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: keine. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert, Standard: 1)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'ids' => ['type' => 'string', 'description' => 'Filter nach IDs (kommagetrennt, z.B. \'1,2,3\').'],
+                'designation' => ['type' => 'string', 'description' => 'Filter nach Bezeichnung'],
+                'code' => ['type' => 'string', 'description' => 'Filter nach Mahlzeitencode'],
+                'type' => ['type' => 'integer', 'enum' => [0, 1, 2], 'description' => 'Filter nach Mahlzeitentyp'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -56,7 +64,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/meals';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
+        if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

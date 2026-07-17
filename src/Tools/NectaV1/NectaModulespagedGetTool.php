@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class NectaModulespagedGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'size', 'sort', 'sortDir', 'search', 'filters'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.necta-modules.paged.GET';
@@ -23,16 +26,16 @@ class NectaModulespagedGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Necta-Module laden (paginiert)
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer [REQUIRED] — Seitennummer (0-basiert)
 - size: integer [REQUIRED] — Anzahl der Einträge pro Seite
 - sort: string — Name des Sortierfeldes (z. B. \'name\' oder \'createdAt\')
 - sortDir: string
 - search: string
 - filters: string — Spaltenfilter als JSON-String (PrimeNG-Format) {"name": { "value": "Max", "matchMode": "contains" },"age":  { "value": 30,    "matchMode": "equals" }}
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -40,7 +43,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: page, size. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer (0-basiert)'],
+                'size' => ['type' => 'integer', 'description' => 'Anzahl der Einträge pro Seite'],
+                'sort' => ['type' => 'string', 'description' => 'Name des Sortierfeldes (z. B. \'name\' oder \'createdAt\')'],
+                'sortDir' => ['type' => 'string', 'description' => 'Query-Parameter sortDir'],
+                'search' => ['type' => 'string', 'description' => 'Query-Parameter search'],
+                'filters' => ['type' => 'string', 'description' => 'Spaltenfilter als JSON-String (PrimeNG-Format) {"name": { "value": "Max", "matchMode": "contains" },"age":  { "value": 30,    "matchMode": "equals" }}'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -56,7 +64,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/necta-modules/paged';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
         if (!array_key_exists('page', $query)) { $query['page'] = 1; }
         if (!array_key_exists('size', $query)) { $query['size'] = 100; }
 

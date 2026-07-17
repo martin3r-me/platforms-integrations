@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class InDeliveryNotesGetTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = ['page', 'pageSize', 'costCenterId', 'description', 'deliveryNoteNumber', 'supplierId', 'stockId', 'accountingDateFrom', 'accountingDateTo', 'orderReferenceNumber', 'status', 'isChecked', 'isLocked', 'isCreditRequested', 'changedSince'];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.in-delivery-notes.GET';
@@ -23,8 +26,9 @@ class InDeliveryNotesGetTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Eingangslieferscheine laden
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
-Query-Parameter (`query`):
+Query-Parameter:
 - page: integer [REQUIRED] — Seitennummer für die Paginierung (1-basiert)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
 - costCenterId: integer — Filter nach Kostenstellen-ID
@@ -35,13 +39,12 @@ Query-Parameter (`query`):
 - accountingDateFrom: string — Buchungsdatum von (Format: YYYY-MM-DD)
 - accountingDateTo: string — Buchungsdatum bis (Format: YYYY-MM-DD)
 - orderReferenceNumber: string — Filter nach Bestellreferenznummer
-- status: string — Filter nach Lieferscheinstatus (0-Importiert (\'imorted\'), 1-Gebucht (\'booked\'), 2-Geprüft (\'checked\'))
+- status: integer enum[1|2|3] — Filter nach Lieferscheinstatus (0-Importiert (\'imorted\'), 1-Gebucht (\'booked\'), 2-Geprüft (\'checked\'))
 - isChecked: boolean — Filter nach Geprüft-Status (true/false)
 - isLocked: boolean — Filter nach Gesperrt-Status (true/false)
 - isCreditRequested: boolean — Filter nach Gutschrift-angefordert-Status (true/false)
 - changedSince: string — Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -49,7 +52,21 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
         return [
             'type' => 'object',
             'properties' => [
-                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: page. Siehe Tool-Description.'],
+                'page' => ['type' => 'integer', 'description' => 'Seitennummer für die Paginierung (1-basiert)'],
+                'pageSize' => ['type' => 'integer', 'description' => 'Anzahl der Ergebnisse pro Seite (Standard: 100)'],
+                'costCenterId' => ['type' => 'integer', 'description' => 'Filter nach Kostenstellen-ID'],
+                'description' => ['type' => 'string', 'description' => 'Filter nach Bezeichnung'],
+                'deliveryNoteNumber' => ['type' => 'string', 'description' => 'Filter nach Lieferscheinnummer'],
+                'supplierId' => ['type' => 'integer', 'description' => 'Filter nach Lieferanten-ID'],
+                'stockId' => ['type' => 'integer', 'description' => 'Filter nach Lager-ID'],
+                'accountingDateFrom' => ['type' => 'string', 'description' => 'Buchungsdatum von (Format: YYYY-MM-DD)'],
+                'accountingDateTo' => ['type' => 'string', 'description' => 'Buchungsdatum bis (Format: YYYY-MM-DD)'],
+                'orderReferenceNumber' => ['type' => 'string', 'description' => 'Filter nach Bestellreferenznummer'],
+                'status' => ['type' => 'integer', 'enum' => [1, 2, 3], 'description' => 'Filter nach Lieferscheinstatus (0-Importiert (\'imorted\'), 1-Gebucht (\'booked\'), 2-Geprüft (\'checked\'))'],
+                'isChecked' => ['type' => 'boolean', 'description' => 'Filter nach Geprüft-Status (true/false)'],
+                'isLocked' => ['type' => 'boolean', 'description' => 'Filter nach Gesperrt-Status (true/false)'],
+                'isCreditRequested' => ['type' => 'boolean', 'description' => 'Filter nach Gutschrift-angefordert-Status (true/false)'],
+                'changedSince' => ['type' => 'string', 'description' => 'Gibt nur Datensätze zurück, deren ChangeDate größer oder gleich dem angegebenen Zeitpunkt ist (inklusiv). Format: ISO 8601, z. B. 2024-01-15T08:30:00Z. Optional.'],
                 'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
@@ -65,8 +82,14 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/in-delivery-notes';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
         if (!array_key_exists('page', $query)) { $query['page'] = 1; }
+        if (!array_key_exists('pageSize', $query)) { $query['pageSize'] = 100; }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

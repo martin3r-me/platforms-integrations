@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class LoginPostTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.login.POST';
@@ -23,14 +26,14 @@ class LoginPostTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'necta Session erzeugen
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
 Body (`data`):
 - userId: integer:int32 — ID des Users
 - costCenterId: integer:int32 — ID der Kostenstelle
 - languageId: integer:int32 — ID der Sprache
 - sessionId: string — ID der Session (Output)
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -57,7 +60,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/login';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 

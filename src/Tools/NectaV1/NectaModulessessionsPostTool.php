@@ -15,6 +15,9 @@ use Platform\Integrations\Exceptions\NectaApiException;
  */
 class NectaModulessessionsPostTool implements ToolContract, ToolMetadataContract
 {
+    /** Query-Parameter-Namen dieses Endpunkts (Top-Level-Argumente). */
+    private const QUERY_KEYS = [];
+
     public function getName(): string
     {
         return 'integrations.necta.v1.necta-modules.sessions.POST';
@@ -23,11 +26,11 @@ class NectaModulessessionsPostTool implements ToolContract, ToolMetadataContract
     public function getDescription(): string
     {
         return 'Erstellt eine neue Necta‑Modul‑Session.
+Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
 
 Body (`data`):
 - name: string — Name des Moduls (optional, kann auch erst beim finalize gesetzt werden).
-
-Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
+';
     }
 
     public function getSchema(): array
@@ -54,7 +57,12 @@ Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
 
         $path = '/api/v1/{tenantId}/necta-modules/sessions';
 
-        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+        $query = [];
+        foreach (self::QUERY_KEYS as $k) {
+            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
+                $query[$k] = $arguments[$k];
+            }
+        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
