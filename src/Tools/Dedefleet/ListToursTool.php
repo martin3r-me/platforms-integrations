@@ -8,6 +8,7 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\DedefleetApiService;
 use Platform\Integrations\Exceptions\DedefleetApiException;
+use Platform\Integrations\Support\FieldProjection;
 
 /**
  * POST /Tour/List — Touren eines Zeitraums inkl. Fahrer, Aufträge & Status.
@@ -56,6 +57,7 @@ class ListToursTool implements ToolContract, ToolMetadataContract
                     'type' => 'object',
                     'description' => 'Optionale zusätzliche Filter (siehe Swagger /swagger/data/api/2). Wird mit start/end gemerged.',
                 ],
+                'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => [
                     'type' => 'integer',
                     'description' => 'Optional: ID einer spezifischen DedeFleet-Connection.',
@@ -82,6 +84,10 @@ class ListToursTool implements ToolContract, ToolMetadataContract
         try {
             $svc = app(DedefleetApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->listTours($context->user, $body);
+
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = FieldProjection::apply($result, $arguments['fields']);
+            }
 
             return ToolResult::success($result);
         } catch (DedefleetApiException $e) {

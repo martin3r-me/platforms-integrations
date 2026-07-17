@@ -9,6 +9,7 @@ use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\NectaApiService;
 use Platform\Integrations\Services\NectaResource;
 use Platform\Integrations\Exceptions\NectaApiException;
+use Platform\Integrations\Support\FieldProjection;
 
 /**
  * Generisches Lese-Tool für die necta.one Raw-API.
@@ -56,6 +57,7 @@ class ListTool implements ToolContract, ToolMetadataContract
                     'description' => 'Optionale Query-Filter der Ressource (z.B. Datumsbereiche wie '
                         . 'creationDateFrom/creationDateTo). Erlaubte Filter siehe resources.GET.',
                 ],
+                'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => [
                     'type' => 'integer',
                     'description' => 'Optional: ID einer spezifischen necta.one-Connection.',
@@ -91,6 +93,10 @@ class ListTool implements ToolContract, ToolMetadataContract
                 (int) ($arguments['pageSize'] ?? 50),
                 is_array($arguments['filters'] ?? null) ? $arguments['filters'] : []
             );
+
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = FieldProjection::apply($result, $arguments['fields']);
+            }
 
             return ToolResult::success($result);
         } catch (NectaApiException $e) {

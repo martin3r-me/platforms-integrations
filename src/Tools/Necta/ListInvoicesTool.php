@@ -8,6 +8,7 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\NectaApiService;
 use Platform\Integrations\Exceptions\NectaApiException;
+use Platform\Integrations\Support\FieldProjection;
 
 /**
  * Komfort-Tool: GET /rawapi/invoices — Rechnungen (Ausgangsrechnungen) (paginiert, read-only).
@@ -44,6 +45,7 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
                     "type" => "object",
                     "description" => "Optionale Query-Filter (siehe integrations.necta.resources.GET, resource=\"invoices\").",
                 ],
+                "fields" => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 "connection_id" => [
                     "type" => "integer",
                     "description" => "Optional: ID einer spezifischen necta.one-Connection.",
@@ -68,6 +70,10 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
                 (int) ($arguments["pageSize"] ?? 50),
                 is_array($arguments["filters"] ?? null) ? $arguments["filters"] : []
             );
+
+            if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
+                $result = FieldProjection::apply($result, $arguments['fields']);
+            }
 
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
