@@ -48,25 +48,39 @@ class DedefleetApiException extends Exception
 
     public static function fromResponse(int $httpStatusCode, ?array $responseData = null): self
     {
-        $message = $responseData['message']
-            ?? $responseData['error']
-            ?? $responseData['Message']
-            ?? self::HTTP_STATUS_MESSAGES[$httpStatusCode]
-            ?? 'Unbekannter Fehler';
+        $responseData ??= [];
+
+        // message/error/Message/title können String ODER Array (ProblemDetails) sein.
+        $raw = $responseData['message'] ?? $responseData['error'] ?? $responseData['Message'] ?? $responseData['title'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            $message = $raw;
+        } elseif (is_array($raw)) {
+            $message = json_encode($raw, JSON_UNESCAPED_UNICODE);
+        } else {
+            $message = self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
+        }
+
         $errorCode = $responseData['code'] ?? $responseData['error_code'] ?? null;
 
         if (!empty($responseData['errors']) && is_array($responseData['errors'])) {
             $details = [];
             foreach ($responseData['errors'] as $field => $issue) {
-                $issueText = is_array($issue) ? implode(', ', $issue) : (string) $issue;
-                $details[] = "{$field}: {$issueText}";
+                if (is_array($issue)) {
+                    $issueText = implode(', ', array_map(
+                        static fn ($x) => is_scalar($x) ? (string) $x : json_encode($x, JSON_UNESCAPED_UNICODE),
+                        $issue
+                    ));
+                } else {
+                    $issueText = is_scalar($issue) ? (string) $issue : json_encode($issue, JSON_UNESCAPED_UNICODE);
+                }
+                $details[] = is_string($field) && $field !== '' ? "{$field}: {$issueText}" : $issueText;
             }
             if ($details) {
                 $message .= ' Details: ' . implode('; ', $details);
             }
         }
 
-        return new self(is_string($message) ? $message : json_encode($message), $httpStatusCode, $errorCode, $responseData);
+        return new self($message, $httpStatusCode, is_string($errorCode) ? $errorCode : null, $responseData);
     }
 
     public static function unauthorized(string $message = 'Kein gültiger DedeFleet Bearer-Token vorhanden.'): self
