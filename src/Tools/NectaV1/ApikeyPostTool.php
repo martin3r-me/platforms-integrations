@@ -10,18 +10,24 @@ use Platform\Integrations\Services\NectaApiV1Service;
 use Platform\Integrations\Exceptions\NectaApiException;
 
 /**
- * necta.one API v1 — GET /api/v1/{tenantId}/customers (Kunden).
+ * necta.one API v1 — POST /api/v1/apikey
+ * API-Key erstellen
  */
-class ListCustomersTool implements ToolContract, ToolMetadataContract
+class ApikeyPostTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.necta.v1.customers.GET';
+        return 'integrations.necta.v1.apikey.POST';
     }
 
     public function getDescription(): string
     {
-        return 'GET /api/v1/{tenantId}/customers — Listet Kunden aus der necta.one API v1. Optionale Query via `params`. Benötigt tenant_id in der Connection.';
+        return 'API-Key erstellen
+
+Body (`data`):
+- label: string — Bezeichnung des API-Keys (z. B. "CI/CD Pipeline").
+
+Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
     }
 
     public function getSchema(): array
@@ -29,16 +35,10 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'params' => [
-                    'type' => 'object',
-                    'description' => 'Optionale Query-Parameter (Filter/Paging; siehe spec/necta-one.json).',
-                ],
-                'connection_id' => [
-                    'type' => 'integer',
-                    'description' => 'Optional: ID einer spezifischen necta-Connection.',
-                ],
+                'data' => ['type' => 'object', 'description' => 'Request-Body. Felder siehe Tool-Description.', 'additionalProperties' => true],
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
-            'required' => [],
+            'required' => ['data'],
         ];
     }
 
@@ -48,11 +48,19 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+        if (!isset($arguments['data']) || $arguments['data'] === '' || $arguments['data'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "data" fehlt.');
+        }
+
+        $path = '/api/v1/apikey';
+
+        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+
+        $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listCustomers($context->user, $params);
+            $result = $svc->callSpec($context->user, 'POST', $path, $query, $data);
 
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
@@ -65,11 +73,11 @@ class ListCustomersTool implements ToolContract, ToolMetadataContract
     public function getMetadata(): array
     {
         return [
-            'category' => 'query',
-            'tags' => ['necta', 'v1', 'customers', 'list'],
-            'read_only' => true,
+            'category' => 'action',
+            'tags' => ['necta', 'v1', 'apikey'],
+            'read_only' => false,
             'requires_auth' => true,
-            'risk_level' => 'safe',
+            'risk_level' => 'medium',
         ];
     }
 }

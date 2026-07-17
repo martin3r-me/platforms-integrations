@@ -137,6 +137,74 @@ class NectaApiV1Service
     }
 
     /**
+     * Ruft einen Endpunkt anhand seines vollständigen Spec-Pfad-Templates auf,
+     * z.B. "/api/v1/{tenantId}/customers" oder tenant-los "/api/v1/apikeys".
+     * {tenantId} wird aus den Credentials ersetzt. Basis: {host}{path}.
+     *
+     * @throws NectaApiException
+     */
+    public function callSpec(User $user, string $method, string $pathTemplate, array $query = [], array $data = []): array
+    {
+        $connection = $this->resolveConnection($user);
+
+        $host = $this->integrationService->getBaseUrl($connection);
+        if (!$host) {
+            throw NectaApiException::missingBaseUrl();
+        }
+
+        $path = $pathTemplate;
+        if (str_contains($path, '{tenantId}')) {
+            $tenantId = $this->integrationService->getTenantId($connection);
+            if (!$tenantId) {
+                throw new NectaApiException(
+                    'Keine tenant_id hinterlegt (für diesen v1-Endpunkt erforderlich).',
+                    400,
+                    'MISSING_TENANT_ID'
+                );
+            }
+            $path = str_replace('{tenantId}', rawurlencode($tenantId), $path);
+        }
+
+        $method = strtoupper($method);
+        $url = $host . '/' . ltrim($path, '/');
+
+        $apiKey = $this->integrationService->getApiKey($connection);
+        if (!$apiKey) {
+            throw NectaApiException::unauthorized();
+        }
+
+        try {
+            $request = Http::withHeaders([
+                'X-Api-Key' => $apiKey,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ]);
+
+            $response = match ($method) {
+                'GET' => $request->get($url, $query),
+                'POST' => $request->post($url, $data),
+                'PUT' => $request->put($url, $data),
+                'PATCH' => $request->patch($url, $data),
+                'DELETE' => $request->delete($url, $query),
+                default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
+            };
+
+            return $this->handleResponse($response, $connection);
+        } catch (NectaApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('necta.one API v1: Verbindungsfehler', [
+                'connection_id' => $connection->id,
+                'path' => $pathTemplate,
+                'error' => $e->getMessage(),
+            ]);
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+
+            throw NectaApiException::connectionError($e->getMessage());
+        }
+    }
+
+    /**
      * @throws NectaApiException
      */
     protected function request(User $user, string $method, string $path, array $query = [], array $data = []): array

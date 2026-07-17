@@ -10,18 +10,21 @@ use Platform\Integrations\Services\NectaApiV1Service;
 use Platform\Integrations\Exceptions\NectaApiException;
 
 /**
- * necta.one API v1 — GET /api/v1/{tenantId}/orders (Bestellungen).
+ * necta.one API v1 — GET /api/v1/{tenantId}/in-delivery-notes/{id}
+ * Eingangslieferschein anhand ID laden
  */
-class ListOrdersTool implements ToolContract, ToolMetadataContract
+class InDeliveryNotesbyIdGetTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.necta.v1.orders.GET';
+        return 'integrations.necta.v1.in-delivery-notes.by-id.GET';
     }
 
     public function getDescription(): string
     {
-        return 'GET /api/v1/{tenantId}/orders — Listet Bestellungen aus der necta.one API v1. Optionale Query via `params`. Benötigt tenant_id in der Connection.';
+        return 'Eingangslieferschein anhand ID laden
+
+Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
     }
 
     public function getSchema(): array
@@ -29,16 +32,10 @@ class ListOrdersTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'params' => [
-                    'type' => 'object',
-                    'description' => 'Optionale Query-Parameter (Filter/Paging; siehe spec/necta-one.json).',
-                ],
-                'connection_id' => [
-                    'type' => 'integer',
-                    'description' => 'Optional: ID einer spezifischen necta-Connection.',
-                ],
+                'id' => ['type' => 'string', 'description' => 'Pfad-Parameter id (Pflicht).'],
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
-            'required' => [],
+            'required' => ['id'],
         ];
     }
 
@@ -48,11 +45,20 @@ class ListOrdersTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+        if (!isset($arguments['id']) || $arguments['id'] === '' || $arguments['id'] === null) {
+            return ToolResult::error('VALIDATION_ERROR', 'Pflichtparameter "id" fehlt.');
+        }
+
+        $path = '/api/v1/{tenantId}/in-delivery-notes/{id}';
+        $path = str_replace('{id}', rawurlencode((string) $arguments['id']), $path);
+
+        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+
+        $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listOrders($context->user, $params);
+            $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
 
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
@@ -66,7 +72,7 @@ class ListOrdersTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['necta', 'v1', 'orders', 'list'],
+            'tags' => ['necta', 'v1', 'in-delivery-notes'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',

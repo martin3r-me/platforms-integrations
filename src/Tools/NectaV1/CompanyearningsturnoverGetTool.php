@@ -10,18 +10,27 @@ use Platform\Integrations\Services\NectaApiV1Service;
 use Platform\Integrations\Exceptions\NectaApiException;
 
 /**
- * necta.one API v1 — GET /api/v1/{tenantId}/invoices (Rechnungen).
+ * necta.one API v1 — GET /api/v1/{tenantId}/companyearnings/turnover
+ * Unternehmensumsatz abrufen
  */
-class ListInvoicesTool implements ToolContract, ToolMetadataContract
+class CompanyearningsturnoverGetTool implements ToolContract, ToolMetadataContract
 {
     public function getName(): string
     {
-        return 'integrations.necta.v1.invoices.GET';
+        return 'integrations.necta.v1.companyearnings.turnover.GET';
     }
 
     public function getDescription(): string
     {
-        return 'GET /api/v1/{tenantId}/invoices — Listet Rechnungen aus der necta.one API v1. Optionale Query via `params`. Benötigt tenant_id in der Connection.';
+        return 'Unternehmensumsatz abrufen
+
+Query-Parameter (`query`):
+- dateFrom: string [REQUIRED] — Datumsbereich von
+- dateTo: string [REQUIRED] — Datumsbereich bis
+- aggregateBy: string [REQUIRED]
+- costCenterIds: string — (Optional) Gewünschte Kostenstellen-IDs (kommagetrennt)
+
+Spec: https://docu.necta.one/necta.one-api (spec/necta-one.json).';
     }
 
     public function getSchema(): array
@@ -29,14 +38,8 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
         return [
             'type' => 'object',
             'properties' => [
-                'params' => [
-                    'type' => 'object',
-                    'description' => 'Optionale Query-Parameter (Filter/Paging; siehe spec/necta-one.json).',
-                ],
-                'connection_id' => [
-                    'type' => 'integer',
-                    'description' => 'Optional: ID einer spezifischen necta-Connection.',
-                ],
+                'query' => ['type' => 'object', 'description' => 'Query-Parameter. Erforderlich: dateFrom, dateTo, aggregateBy. Siehe Tool-Description.'],
+                'connection_id' => ['type' => 'integer', 'description' => 'Optional: ID einer spezifischen necta-Connection.'],
             ],
             'required' => [],
         ];
@@ -48,11 +51,16 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-        $params = is_array($arguments['params'] ?? null) ? $arguments['params'] : [];
+
+        $path = '/api/v1/{tenantId}/companyearnings/turnover';
+
+        $query = is_array($arguments['query'] ?? null) ? $arguments['query'] : [];
+
+        $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->listInvoices($context->user, $params);
+            $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
 
             return ToolResult::success($result);
         } catch (NectaApiException $e) {
@@ -66,7 +74,7 @@ class ListInvoicesTool implements ToolContract, ToolMetadataContract
     {
         return [
             'category' => 'query',
-            'tags' => ['necta', 'v1', 'invoices', 'list'],
+            'tags' => ['necta', 'v1', 'companyearnings'],
             'read_only' => true,
             'requires_auth' => true,
             'risk_level' => 'safe',
