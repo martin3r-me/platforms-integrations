@@ -24,6 +24,8 @@ class OrdersGetTool implements ToolContract, ToolMetadataContract
     {
         return 'Alle Bestellungen laden
 
+WICHTIG: Bei Datumsfilterung muss dateFrom ECHT KLEINER als dateUntil sein (necta: Validation.LessThan) — gleiche Werte werden abgelehnt. Für einen einzelnen Tag dateUntil = Folgetag setzen. Datumsangaben als ISO yyyy-MM-dd.
+
 Query-Parameter (`query`):
 - page: integer — Seitennummer für die Paginierung (1-basiert)
 - pageSize: integer — Anzahl der Ergebnisse pro Seite (Standard: 100)
