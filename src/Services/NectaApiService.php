@@ -244,7 +244,7 @@ class NectaApiService
             $response = Http::withHeaders([
                 'X-Api-Key' => $apiKey,
                 'Accept' => 'application/json',
-            ])->get($url, $query);
+            ])->get($url, self::normalizeQuery($query));
 
             return $this->handleResponse($response, $connection);
         } catch (NectaApiException $e) {
@@ -319,6 +319,24 @@ class NectaApiService
         }
 
         return [];
+    }
+
+    /**
+     * Query-Booleans → "true"/"false" (statt Laravels 1/0), damit necta sie
+     * korrekt als bool parst (sonst 400).
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    protected static function normalizeQuery(array $query): array
+    {
+        foreach ($query as $key => $value) {
+            if (is_bool($value)) {
+                $query[$key] = $value ? 'true' : 'false';
+            }
+        }
+
+        return $query;
     }
 
     protected function updateConnectionStatus(

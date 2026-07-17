@@ -257,7 +257,7 @@ class DedefleetApiService
             ]);
 
             $response = match ($method) {
-                'GET' => $request->get($url, $query),
+                'GET' => $request->get($url, self::normalizeQuery($query)),
                 'POST' => $request->post($url, $data),
                 default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
             };
@@ -323,5 +323,23 @@ class DedefleetApiService
         $connection->last_error = $error;
         $connection->last_tested_at = now();
         $connection->save();
+    }
+
+    /**
+     * Query-Booleans → "true"/"false" (statt Laravels 1/0), damit die .NET-basierte
+     * DedeFleet-API sie korrekt als bool parst (sonst 400).
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    protected static function normalizeQuery(array $query): array
+    {
+        foreach ($query as $key => $value) {
+            if (is_bool($value)) {
+                $query[$key] = $value ? 'true' : 'false';
+            }
+        }
+
+        return $query;
     }
 }

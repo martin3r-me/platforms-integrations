@@ -167,6 +167,7 @@ class NectaApiV1Service
 
         $method = strtoupper($method);
         $url = $host . '/' . ltrim($path, '/');
+        $query = self::normalizeQuery($query);
 
         $apiKey = $this->integrationService->getApiKey($connection);
         if (!$apiKey) {
@@ -217,6 +218,7 @@ class NectaApiV1Service
         }
 
         $url = $this->tenantBase($connection) . '/' . ltrim($path, '/');
+        $query = self::normalizeQuery($query);
 
         try {
             $request = Http::withHeaders([
@@ -292,5 +294,23 @@ class NectaApiV1Service
         $connection->last_error = $error;
         $connection->last_tested_at = now();
         $connection->save();
+    }
+
+    /**
+     * Normalisiert Query-Parameter: Booleans → "true"/"false" (statt Laravels 1/0),
+     * damit .NET-basierte APIs wie necta sie korrekt als bool parsen (sonst 400).
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    protected static function normalizeQuery(array $query): array
+    {
+        foreach ($query as $key => $value) {
+            if (is_bool($value)) {
+                $query[$key] = $value ? 'true' : 'false';
+            }
+        }
+
+        return $query;
     }
 }
