@@ -104,10 +104,10 @@ class FlynkApiService
         return $this->get($connection, "/tasks/{$taskUuid}");
     }
 
-    /** PUT /api/tasks/{uuid} — Task aktualisieren (z.B. Status nach Antwort). */
+    /** PATCH /api/tasks/{uuid} — Task aktualisieren (z.B. Status nach Antwort). */
     public function updateTask(IntegrationConnection $connection, string $taskUuid, array $data): array
     {
-        return $this->put($connection, "/tasks/{$taskUuid}", $data);
+        return $this->patch($connection, "/tasks/{$taskUuid}", $data);
     }
 
     /** POST /api/tasks/{uuid}/comments — Kommentar/Antwort an einen Task. */
@@ -136,6 +136,12 @@ class FlynkApiService
     public function put(IntegrationConnection $connection, string $endpoint, array $data = []): array
     {
         return $this->request($connection, 'PUT', $endpoint, [], $data);
+    }
+
+    /** @throws FlynkApiException */
+    public function patch(IntegrationConnection $connection, string $endpoint, array $data = []): array
+    {
+        return $this->request($connection, 'PATCH', $endpoint, [], $data);
     }
 
     /** @throws FlynkApiException */
@@ -177,6 +183,7 @@ class FlynkApiService
                 'GET' => $request->get($url, $query),
                 'POST' => $request->post($url, $data),
                 'PUT' => $request->put($url, $data),
+                'PATCH' => $request->patch($url, $data),
                 'DELETE' => $request->delete($url),
                 default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
             };
