@@ -33,10 +33,13 @@ Häufige data-Felder:
 - Datum: document_date (YYYY-MM-DD), due_in_days, grace_period
 - Text: title, text_prefix, text (Hauptbody), text_tax, item_notes
 - Adresse: address {company_name, first_name, last_name, street, zip_code, city, country, state, salutation, title}; delivery_* und use_shipping_address für abweichende Lieferadresse
-- Items: items[] mit type=POSITION|TEXT|SUBTOTAL, description, quantity, single_price_net (Cent), vat_percent, position_id (Verknüpfung zum Stamm-Artikel), unit, number, booking_account, cost_price_net (Cent), discount, discount_type, document_note
+- Items: items[] mit type=POSITION|TEXT|SUBTOTAL, description, quantity, single_price_net (Cent), vat_percent, position_id, unit, number, booking_account, cost_price_net (Cent), discount, discount_type, document_note
+- BUCHUNGSKONTO/ARTIKEL: booking_account (Sachkonto/Erlöskonto) gehört an die Position. Setzt du position_id (Stamm-Artikel), werden dessen Werte — inkl. booking_account, Preis, Bezeichnung — AUTOMATISCH kopiert; nicht doppelt setzen. Ohne position_id (freie Position) booking_account selbst setzen. Explizit gesetzt überschreibt den kopierten Wert (wichtig für DATEV-Export).
+- Leistungszeitraum: service_date {type=DEFAULT|SERVICE|DELIVERY, date (Einzeltag) ODER date_from + date_to (Zeitraum), text}. Für einen echten Leistungs-/Lieferzeitraum: {type:"SERVICE", date_from:"YYYY-MM-DD", date_to:"YYYY-MM-DD"}.
+- WIEDERKEHREND (Abo-Rechnung): recurring_options {next_date (Zukunft, YYYY-MM-DD), frequency=DAILY|WEEKLY|MONTHLY|YEARLY, frequency_special=LASTDAYOFMONTH, interval (z.B. 1/3), end_date_or_count (Enddatum ODER Anzahl), status=RUNNING|PAUSE|STOP|WAITING, target_type=INVOICE|CREDIT|ORDER|OFFER (Belegtyp der erzeugten Belege, danach fix), as_draft, is_notify, send_as=EMAIL|FAX|POST, is_paid/paid_date_option, is_sepa/sepa_*}. Alternativ das dedizierte Tool integrations.easybill.recurring-invoice.POST.
 - Rabatt (Beleg): discount (Cent oder %), discount_type=AMOUNT|PERCENT
 - Zahlung: cash_allowance, cash_allowance_days, cash_allowance_text, payment_options, payment_link_enabled, bank_debit_form
-- Status: is_draft (false = direkt finalisiert), is_archive
+- Status: is_draft ist READ-ONLY — jeder Beleg wird als ENTWURF angelegt; finalisieren via integrations.easybill.document.done (POST /documents/{id}/done). is_archive setzbar.
 - PDF: pdf_template (DE/EN/…), file_format_config, attachment_ids[]
 - Steuer/Länder: currency (EUR), billing_country, shipping_country, fulfillment_country, vat_country, vat_option, is_oss, calc_vat_from
 - Custom: advanced_data_fields, info_1, info_2

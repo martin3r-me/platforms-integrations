@@ -640,6 +640,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreateCustomerTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreateDocumentPaymentTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreateDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\CreateRecurringInvoiceTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionDiscountTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionGroupDiscountTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\CreatePositionGroupTool());

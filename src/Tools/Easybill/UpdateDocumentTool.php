@@ -33,10 +33,12 @@ Häufige data-Felder (selbe Struktur wie POST /documents):
 - Datum: document_date, due_in_days, grace_period
 - Text: title, text_prefix, text, text_tax, item_notes
 - Adresse: address {…}; delivery_*, use_shipping_address
-- Items: items[] mit type, description, quantity, single_price_net (Cent), vat_percent, position_id, unit, number, booking_account, cost_price_net, discount, discount_type, document_note
+- Items: items[] mit type, description, quantity, single_price_net (Cent), vat_percent, position_id, unit, number, booking_account, cost_price_net, discount, discount_type, document_note. Hinweis: position_id kopiert Artikelwerte inkl. booking_account (Sachkonto); freie Positionen booking_account selbst setzen.
+- Leistungszeitraum: service_date {type=DEFAULT|SERVICE|DELIVERY, date ODER date_from+date_to, text}.
+- WIEDERKEHREND steuern: recurring_options.status = RUNNING|PAUSE|STOP|WAITING (Abo pausieren/stoppen), next_date, interval, frequency, end_date_or_count. target_type ist nach Anlage NICHT änderbar.
 - Rabatt (Beleg): discount, discount_type=AMOUNT|PERCENT
 - Zahlung: cash_allowance, cash_allowance_days, cash_allowance_text, payment_options, payment_link_enabled, bank_debit_form
-- Status: is_draft, is_archive
+- Status: is_draft ist READ-ONLY — finalisieren via integrations.easybill.document.done. is_archive setzbar.
 - PDF: pdf_template, file_format_config, attachment_ids[]
 - Steuer/Länder: currency, billing_country, shipping_country, fulfillment_country, vat_country, vat_option, is_oss
 - Custom: advanced_data_fields, info_1, info_2
