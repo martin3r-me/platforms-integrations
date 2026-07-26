@@ -536,6 +536,8 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Moss\ListDimensionsTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\ListDimensionItemsTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\ListPaymentTermsTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\SearchFilesTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\DownloadFileTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: Moss Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }

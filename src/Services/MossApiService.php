@@ -26,6 +26,8 @@ use Platform\Integrations\Models\IntegrationConnection;
  * - GET /v1/dimensions — Dimensions auflisten
  * - GET /v1/dimensions/{id}/items — Items einer Dimension auflisten
  * - GET /v1/payment-terms — Payment Terms auflisten
+ * - POST /v1/files/search-query — Belege (Files) zu Expenses suchen
+ * - GET /v1/files/{fileId}/content — Beleg-Datei (Binary) herunterladen
  *
  * @see https://public-api.getmoss.com
  */
@@ -199,8 +201,128 @@ class MossApiService
     }
 
     // =========================================================================
+    // FILES / BELEGE
+    // =========================================================================
+
+    /**
+     * Belege (Files) zu Expenses suchen.
+     *
+     * POST /v1/files/search-query — liefert die direkt an die angegebenen
+     * Expenses angehängten Dateien (max. 100 Expense-IDs). Antwort: `data`
+     * = Array aus File-Objekten (id, name, size, createTime, …).
+     *
+     * @param  array<int, string>  $expenseIds  Expense-UUIDs
+     * @throws MossApiException
+     */
+    public function searchFilesByExpenses(User $user, array $expenseIds, array $pagination = []): array
+    {
+        $body = ['filters' => ['expenseIds' => array_values($expenseIds)]];
+        if (!empty($pagination)) {
+            $body['pagination'] = $pagination;
+        }
+
+        return $this->request($user, 'POST', '/v1/files/search-query', [], $body);
+    }
+
+    /**
+     * Beleg-Datei (Binary) herunterladen.
+     *
+     * GET /v1/files/{fileId}/content — liefert den Beleg als Binary (PDF/Bild).
+     * Rückgabe: ['mime' => …, 'data_base64' => …, 'size' => …, 'filename' => …].
+     *
+     * @throws MossApiException
+     */
+    public function downloadFile(User $user, string $fileId, string $fallbackMime = 'application/octet-stream'): array
+    {
+        return $this->getBinary($user, "/v1/files/{$fileId}/content", $fallbackMime);
+    }
+
+    // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
+
+    /**
+     * Binary-Download gegen die Moss API (Belege). Spiegelt request(), gibt aber
+     * den Roh-Body base64-kodiert zurück statt JSON.
+     *
+     * @throws MossApiException
+     */
+    protected function getBinary(User $user, string $path, string $fallbackMime = 'application/octet-stream'): array
+    {
+        $connection = $this->resolveConnection($user);
+        $token = $this->integrationService->getValidAccessToken($connection);
+
+        if (!$token) {
+            Log::warning('Moss API: Kein gültiger Token für User (Binary)', ['user_id' => $user->id]);
+            throw MossApiException::unauthorized();
+        }
+
+        $baseUrl = config('integrations.moss.api_base_url', 'https://public-api.getmoss.com');
+        $url = $baseUrl . $path;
+        $timeout = config('integrations.moss.timeout.default', 30);
+        $connectTimeout = config('integrations.moss.timeout.connect', 10);
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout($timeout)
+                ->connectTimeout($connectTimeout)
+                ->withHeaders(['Accept' => '*/*'])
+                ->get($url);
+
+            if ($response->status() === 401) {
+                $this->integrationService->clearTokenCache($connection);
+                $this->updateConnectionStatus($connection, 'error', 'Ungültige Credentials oder Token abgelaufen');
+                throw MossApiException::unauthorized();
+            }
+
+            if ($response->status() === 429) {
+                $retryAfter = (int) $response->header('Retry-After');
+                throw MossApiException::rateLimited($retryAfter ?: null);
+            }
+
+            if (!$response->successful()) {
+                $this->updateConnectionStatus($connection, 'error', 'HTTP ' . $response->status());
+                throw MossApiException::connectionError('Datei-Download fehlgeschlagen (HTTP ' . $response->status() . ')');
+            }
+
+            $this->updateConnectionStatus($connection, 'active');
+
+            $body = $response->body();
+            $mime = $response->header('Content-Type') ?: $fallbackMime;
+            $mime = trim(explode(';', $mime)[0]);
+
+            return [
+                'mime' => $mime,
+                'data_base64' => base64_encode($body),
+                'size' => strlen($body),
+                'filename' => $this->filenameFromDisposition($response->header('Content-Disposition')),
+            ];
+        } catch (MossApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Moss API: Verbindungsfehler (Binary)', [
+                'user_id' => $user->id,
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+
+            throw MossApiException::connectionError($e->getMessage());
+        }
+    }
+
+    /** Dateiname aus einem Content-Disposition-Header ziehen. */
+    private function filenameFromDisposition(?string $disposition): ?string
+    {
+        if (!$disposition) {
+            return null;
+        }
+
+        return preg_match('/filename\*?=(?:UTF-8\'\')?"?([^";]+)"?/i', $disposition, $m)
+            ? trim($m[1])
+            : null;
+    }
 
     /**
      * GET Request an die Moss API
