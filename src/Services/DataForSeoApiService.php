@@ -437,6 +437,35 @@ class DataForSeoApiService
     }
 
     /**
+     * Domain-/Seiten-level Backlink-Summary für ein Ziel abrufen.
+     *
+     * Ein günstiger Aggregat-Call (/v3/backlinks/summary/live) liefert die
+     * wichtigsten Autoritäts-Signale in einem Rutsch: referring_domains, rank
+     * (0–1000), Spam-Score und broken_backlinks — im Gegensatz zu getBacklinks(),
+     * das die einzelnen verweisenden Seiten zurückgibt.
+     *
+     * @param User|null $user
+     * @param string $target Domain oder URL (z.B. "tm-foodsolutions.de" oder volle URL)
+     * @return array Rohes result[0]-Objekt der DataForSEO-Antwort
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getBacklinksSummary(?User $user, string $target): array
+    {
+        $payload = [
+            [
+                'target' => $target,
+                'internal_list_limit' => 10,
+                'backlinks_status_type' => 'live',
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/backlinks/summary/live', $payload);
+
+        return $response['tasks'][0]['result'][0] ?? [];
+    }
+
+    /**
      * Google Business Info für ein Keyword abrufen
      *
      * @param User $user
