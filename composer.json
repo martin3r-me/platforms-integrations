@@ -19,6 +19,7 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
+    "google/apiclient": "^2.15"
   }
 }
 

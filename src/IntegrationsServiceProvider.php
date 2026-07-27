@@ -17,12 +17,14 @@ class IntegrationsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/integrations.php', 'integrations');
+        $this->mergeConfigFrom(__DIR__ . '/../config/google_search_console.php', 'google_search_console');
     }
 
     public function boot(): void
     {
         // Schritt 1: Config laden (hier nochmals wie in media/printing, damit config()->has() sicher ist)
         $this->mergeConfigFrom(__DIR__ . '/../config/integrations.php', 'integrations');
+        $this->mergeConfigFrom(__DIR__ . '/../config/google_search_console.php', 'google_search_console');
 
         // Schritt 2: Modul registrieren (nur wenn Module-System verfügbar)
         if (
@@ -424,6 +426,7 @@ class IntegrationsServiceProvider extends ServiceProvider
         // Schritt 6: Config publish
         $this->publishes([
             __DIR__ . '/../config/integrations.php' => config_path('integrations.php'),
+            __DIR__ . '/../config/google_search_console.php' => config_path('google_search_console.php'),
         ], 'integrations-config');
     }
 
