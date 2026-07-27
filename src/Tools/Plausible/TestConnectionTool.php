@@ -18,7 +18,7 @@ class TestConnectionTool implements ToolContract, ToolMetadataContract
 
     public function getDescription(): string
     {
-        return 'Testet die Plausible Analytics API-Verbindung (Connectivity-Check). Prüft ob der API-Key gültig ist und Sites abgerufen werden können.';
+        return 'Testet die Plausible Analytics API-Verbindung. Maßgeblich ist die Stats-API (die das SEO-Modul nutzt). Mit site_id wird ein echter Stats-Probe gemacht; ohne site_id wird die Sites-API versucht (auf self-hosted-Instanzen oft nicht verfügbar).';
     }
 
     public function getSchema(): array
@@ -29,6 +29,10 @@ class TestConnectionTool implements ToolContract, ToolMetadataContract
                 'connection_id' => [
                     'type' => 'integer',
                     'description' => 'ID der Plausible-Verbindung.',
+                ],
+                'site_id' => [
+                    'type' => 'string',
+                    'description' => 'Optional: Domain/Site-ID (z.B. "offline-ag.com") für einen echten Stats-API-Check statt der Sites-API.',
                 ],
             ],
             'required' => [],
@@ -56,7 +60,7 @@ class TestConnectionTool implements ToolContract, ToolMetadataContract
                 return ToolResult::error('NO_CONNECTION', 'Keine Plausible-Verbindung konfiguriert. Bitte zuerst unter Integrationen den Plausible API-Key eingeben.');
             }
 
-            $result = $service->testConnection($connection);
+            $result = $service->testConnection($connection, $arguments['site_id'] ?? null);
 
             if ($result['success']) {
                 return ToolResult::success([

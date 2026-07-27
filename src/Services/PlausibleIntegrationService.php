@@ -46,8 +46,13 @@ class PlausibleIntegrationService
     public function getBaseUrl(IntegrationConnection $connection): string
     {
         $credentials = $connection->credentials ?? [];
-        return $credentials['base_url']
+        $baseUrl = $credentials['base_url']
             ?? config('integrations.plausible.api_base_url', 'https://plausible.io');
+
+        // Trailing-Slash entfernen — sonst entsteht beim Anhängen der Pfade
+        // ein doppelter Slash (https://host//api/v1/...), was manche Plausible-
+        // Routen (z.B. /api/v1/sites) mit 404/406 abweisen.
+        return rtrim(trim($baseUrl), '/');
     }
 
     /**
@@ -133,54 +138,76 @@ class PlausibleIntegrationService
      *
      * @return array{success: bool, message: string}
      */
-    public function testConnection(IntegrationConnection $connection): array
+    /**
+     * Prüft die Plausible-Verbindung. Maßgeblich ist die Stats-API, weil das
+     * SEO-Modul ausschließlich diese nutzt.
+     *
+     * - Mit $siteId: echter Stats-Probe (aussagekräftigster Check).
+     * - Ohne $siteId: Sites-API als Bonus. Viele self-hosted-Instanzen
+     *   exponieren die Sites-Provisioning-API nicht (404/406) — das ist dann
+     *   KEIN echter Verbindungsfehler, sondern ein Hinweis, mit site_id zu prüfen.
+     */
+    public function testConnection(IntegrationConnection $connection, ?string $siteId = null): array
     {
         $apiKey = $this->getApiKey($connection);
 
         if (!$apiKey) {
-            return [
-                'success' => false,
-                'message' => 'Kein Plausible API-Key vorhanden.',
-            ];
+            return ['success' => false, 'message' => 'Kein Plausible API-Key vorhanden.'];
         }
 
+        $baseUrl = $this->getBaseUrl($connection);
+
         try {
-            $baseUrl = $this->getBaseUrl($connection);
+            // 1) Stats-API-Vollcheck, wenn eine site_id vorliegt.
+            if ($siteId) {
+                $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
+                    ->timeout(10)
+                    ->withHeaders(['Accept' => 'application/json'])
+                    ->get($baseUrl . '/api/v1/stats/aggregate', [
+                        'site_id' => $siteId,
+                        'period' => '7d',
+                        'metrics' => 'visitors',
+                    ]);
+
+                if ($response->successful()) {
+                    return $this->markTested($connection, true, "Stats-API OK für '{$siteId}'.");
+                }
+
+                return $this->markTested($connection, false,
+                    "Stats-API-Fehler für '{$siteId}': HTTP {$response->status()} — "
+                    . ($response->json()['error'] ?? $response->body()));
+            }
+
+            // 2) Ohne site_id: Sites-API versuchen (nur als Bonus).
             $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
                 ->timeout(10)
+                ->withHeaders(['Accept' => 'application/json'])
                 ->get($baseUrl . '/api/v1/sites');
 
             if ($response->successful()) {
-                $connection->status = 'active';
-                $connection->last_error = null;
-                $connection->last_tested_at = now();
-                $connection->save();
-
-                return [
-                    'success' => true,
-                    'message' => 'Plausible-Verbindung erfolgreich.',
-                ];
+                $count = count($response->json()['sites'] ?? []);
+                return $this->markTested($connection, true, "Verbindung OK — Sites-API verfügbar ({$count} Sites).");
             }
 
-            $connection->status = 'error';
-            $connection->last_error = 'API-Fehler: HTTP ' . $response->status();
-            $connection->last_tested_at = now();
-            $connection->save();
-
-            return [
-                'success' => false,
-                'message' => 'API-Fehler: HTTP ' . $response->status() . ' — ' . ($response->json()['error'] ?? $response->body()),
-            ];
+            return $this->markTested($connection, false,
+                "API-Key gesetzt, aber Sites-API nicht verfügbar (HTTP {$response->status()}). "
+                . "Bei self-hosted-Instanzen ist das normal — für einen echten Check bitte eine site_id "
+                . "angeben; dann wird die Stats-API geprüft, die das SEO-Modul tatsächlich nutzt.");
         } catch (\Exception $e) {
-            $connection->status = 'error';
-            $connection->last_error = $e->getMessage();
-            $connection->last_tested_at = now();
-            $connection->save();
-
-            return [
-                'success' => false,
-                'message' => 'Verbindungsfehler: ' . $e->getMessage(),
-            ];
+            return $this->markTested($connection, false, 'Verbindungsfehler: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Persistiert das Testergebnis auf der Connection und gibt es zurück.
+     */
+    private function markTested(IntegrationConnection $connection, bool $ok, string $message): array
+    {
+        $connection->status = $ok ? 'active' : 'error';
+        $connection->last_error = $ok ? null : $message;
+        $connection->last_tested_at = now();
+        $connection->save();
+
+        return ['success' => $ok, 'message' => $message];
     }
 }
