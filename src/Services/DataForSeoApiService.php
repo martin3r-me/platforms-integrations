@@ -466,6 +466,42 @@ class DataForSeoApiService
     }
 
     /**
+     * LLM-Mentions Target-Metrics für eine Domain (AI-Auffindbarkeit).
+     *
+     * Liefert aggregierte Sichtbarkeit einer Domain in LLM-Antworten
+     * (ChatGPT + Google AI Overview): Gesamt-Mentions, AI-Suchvolumen und
+     * Breakdown je Plattform. Ohne platform-Angabe werden beide berücksichtigt.
+     *
+     * @param User|null $user
+     * @param string $target Domain (z.B. "tm-foodsolutions.de")
+     * @param int|null $locationCode Default 2276 (Deutschland)
+     * @param string|null $languageName Default 'German'
+     * @return array Rohes result[0]-Objekt (u.a. aggregated_metrics)
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getLlmMentionsTargetMetrics(
+        ?User $user,
+        string $target,
+        ?int $locationCode = null,
+        ?string $languageName = null,
+    ): array {
+        $payload = [
+            [
+                'target' => [
+                    ['domain' => $target],
+                ],
+                'location_code' => $locationCode ?? self::DEFAULT_LOCATION_CODE,
+                'language_name' => $languageName ?? self::DEFAULT_LANGUAGE_NAME,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/ai_optimization/llm_mentions/target_metrics/live', $payload);
+
+        return $response['tasks'][0]['result'][0] ?? [];
+    }
+
+    /**
      * Google Business Info für ein Keyword abrufen
      *
      * @param User $user
