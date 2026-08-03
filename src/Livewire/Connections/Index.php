@@ -96,6 +96,7 @@ class Index extends Component
     // necta.one Modal
     public bool $nectaModalShow = false;
     public string $nectaApiKey = '';
+    public string $nectaRawApiKey = '';
     public string $nectaBaseUrl = '';
     public string $nectaTenantId = '';
 
@@ -1485,6 +1486,7 @@ class Index extends Component
         $this->resetValidation();
         $this->editingId = $connectionId;
         $this->nectaApiKey = '';
+        $this->nectaRawApiKey = '';
         $this->nectaBaseUrl = '';
         $this->nectaTenantId = '';
 
@@ -1514,6 +1516,7 @@ class Index extends Component
     {
         $this->nectaModalShow = false;
         $this->nectaApiKey = '';
+        $this->nectaRawApiKey = '';
         $this->nectaBaseUrl = '';
         $this->nectaTenantId = '';
         $this->editingId = null;
@@ -1528,11 +1531,13 @@ class Index extends Component
 
         $this->validate([
             'nectaApiKey' => ['required', 'string', 'min:10'],
+            'nectaRawApiKey' => ['nullable', 'string', 'min:10'],
             'nectaBaseUrl' => ['required', 'string', 'url'],
             'nectaTenantId' => ['nullable', 'string', 'max:64'],
         ], [
-            'nectaApiKey.required' => 'Bitte gib deinen necta.one API-Key ein.',
+            'nectaApiKey.required' => 'Bitte gib deinen necta.one API-Key (v1) ein.',
             'nectaApiKey.min' => 'Der API-Key muss mindestens 10 Zeichen lang sein.',
+            'nectaRawApiKey.min' => 'Der Raw-API-Key muss mindestens 10 Zeichen lang sein.',
             'nectaBaseUrl.required' => 'Bitte gib den Host deiner necta-Instanz ein.',
             'nectaBaseUrl.url' => 'Bitte gib eine gültige URL an (z.B. https://api.necta.one).',
         ]);
@@ -1547,7 +1552,8 @@ class Index extends Component
                 $this->nectaApiKey,
                 $this->nectaBaseUrl,
                 $this->nectaTenantId !== '' ? $this->nectaTenantId : null,
-                $this->editingId
+                $this->editingId,
+                $this->nectaRawApiKey !== '' ? $this->nectaRawApiKey : null
             );
 
             $testResult = $service->testConnection($connection);
@@ -1555,6 +1561,7 @@ class Index extends Component
             if ($testResult['success']) {
                 $this->nectaModalShow = false;
                 $this->nectaApiKey = '';
+                $this->nectaRawApiKey = '';
                 $this->nectaBaseUrl = '';
                 $this->nectaTenantId = '';
                 $this->editingId = null;

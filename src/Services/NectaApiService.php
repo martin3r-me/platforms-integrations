@@ -12,7 +12,7 @@ use Platform\Integrations\Models\IntegrationConnection;
 /**
  * Service für die Kommunikation mit der necta.one Raw-API (/rawapi/*).
  *
- * Auth:      API-Key — Header: X-Api-Key: <api_key>
+ * Auth:      API-Key — Header: X-Api-Key: <raw_api_key> (Fallback: api_key)
  * Base-URL:  pro Connection (credentials.base_url), API-Prefix /rawapi wird hier gesetzt
  * Umfang:    Read-Only — die Raw-API stellt ausschließlich GET-Endpunkte bereit
  *            (300+ Ressourcen: products, customers, orders, suppliers, invoices, …).
@@ -228,7 +228,8 @@ class NectaApiService
     /** @throws NectaApiException */
     public function get(IntegrationConnection $connection, string $endpoint, array $query = []): array
     {
-        $apiKey = $this->integrationService->getApiKey($connection);
+        // Raw-API nutzt den Raw-Key (raw_api_key), mit Fallback auf api_key.
+        $apiKey = $this->integrationService->getRawApiKey($connection);
         if (!$apiKey) {
             throw NectaApiException::unauthorized();
         }

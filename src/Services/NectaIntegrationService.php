@@ -16,10 +16,15 @@ use Platform\Integrations\Models\IntegrationConnection;
  *   X-Api-Key: <api_key>
  *
  * Die necta.one-Instanz ist pro Connection unterschiedlich (jeder Kunde hat
- * seine eigene Subdomain). Daher werden zwei Credential-Keys gespeichert:
- *   - api_key  : der vom necta-Systemadmin ausgestellte API-Key
- *   - base_url : Root-URL der necta.one-Instanz (ohne /rawapi), z.B.
- *                https://firma.necta.one
+ * seine eigene Subdomain). Daher werden folgende Credential-Keys gespeichert:
+ *   - api_key     : v1-API-Key (User-Key, /api/v1/{tenantId}); dient zugleich
+ *                   als Fallback für die Raw-API, wenn kein raw_api_key gesetzt ist
+ *   - raw_api_key : optionaler Raw-API-Key (Sysadmin-Key, /rawapi). necta stellt
+ *                   für Raw- und v1-API getrennte Schlüssel aus — ein Key bedient
+ *                   nie beide APIs. Leer lassen, wenn ein Key beide Zwecke abdeckt.
+ *   - base_url    : Root-URL der necta.one-Instanz (ohne /rawapi), z.B.
+ *                   https://firma.necta.one
+ *   - tenant_id   : nur für die v1-API nötig
  */
 class NectaIntegrationService
 {
@@ -53,6 +58,22 @@ class NectaIntegrationService
     public function getApiKey(IntegrationConnection $connection): ?string
     {
         $key = ($connection->credentials ?? [])['api_key'] ?? null;
+
+        return $key !== null ? trim($key) : null;
+    }
+
+    /**
+     * Liefert den API-Key für die Raw-API (/rawapi). Fällt auf api_key zurück,
+     * wenn kein separater raw_api_key hinterlegt ist (abwärtskompatibel).
+     *
+     * Hintergrund: necta stellt für Raw-API (Sysadmin-Key) und v1-API (User-Key)
+     * unterschiedliche Schlüssel aus — ein Key bedient nie beide APIs. Daher hält
+     * eine Connection optional beide: api_key (v1) + raw_api_key (Raw).
+     */
+    public function getRawApiKey(IntegrationConnection $connection): ?string
+    {
+        $creds = $connection->credentials ?? [];
+        $key = $creds['raw_api_key'] ?? $creds['api_key'] ?? null;
 
         return $key !== null ? trim($key) : null;
     }
@@ -126,7 +147,8 @@ class NectaIntegrationService
         IntegrationConnection $connection,
         string $apiKey,
         string $baseUrl,
-        ?string $tenantId = null
+        ?string $tenantId = null,
+        ?string $rawApiKey = null
     ): void {
         $credentials = $connection->credentials ?? [];
         $credentials['api_key'] = trim($apiKey);
@@ -134,6 +156,12 @@ class NectaIntegrationService
         if ($tenantId !== null) {
             $tenantId = trim($tenantId);
             $credentials['tenant_id'] = $tenantId !== '' ? $tenantId : null;
+        }
+        // Nur überschreiben, wenn explizit übergeben — leer lassen behält den
+        // bestehenden Raw-Key (z.B. beim Bearbeiten ohne Neueingabe).
+        if ($rawApiKey !== null) {
+            $rawApiKey = trim($rawApiKey);
+            $credentials['raw_api_key'] = $rawApiKey !== '' ? $rawApiKey : null;
         }
 
         $connection->credentials = $credentials;
@@ -153,7 +181,8 @@ class NectaIntegrationService
         string $apiKey,
         string $baseUrl,
         ?string $tenantId = null,
-        ?int $connectionId = null
+        ?int $connectionId = null,
+        ?string $rawApiKey = null
     ): IntegrationConnection {
         $integration = Integration::firstOrCreate(
             ['key' => self::INTEGRATION_KEY],
@@ -214,7 +243,7 @@ class NectaIntegrationService
             }
         }
 
-        $this->updateCredentials($connection, $apiKey, $baseUrl, $tenantId);
+        $this->updateCredentials($connection, $apiKey, $baseUrl, $tenantId, $rawApiKey);
 
         Log::info('necta.one connection created/updated', [
             'connection_id' => $connection->id,
@@ -236,11 +265,12 @@ class NectaIntegrationService
      */
     public function testConnection(IntegrationConnection $connection): array
     {
-        $apiKey = $this->getApiKey($connection);
+        // Der Test läuft gegen die Raw-API → Raw-Key (mit Fallback auf api_key).
+        $apiKey = $this->getRawApiKey($connection);
         $baseUrl = $this->getBaseUrl($connection);
 
         if (!$apiKey) {
-            return ['success' => false, 'message' => 'Kein API-Key (api_key) vorhanden.'];
+            return ['success' => false, 'message' => 'Kein API-Key (api_key/raw_api_key) vorhanden.'];
         }
         if (!$baseUrl) {
             return ['success' => false, 'message' => 'Keine base_url hinterlegt.'];

@@ -2604,13 +2604,17 @@
                 <div class="flex items-start gap-2">
                     @svg('heroicon-o-information-circle', 'w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5')
                     <div class="text-sm text-emerald-800">
-                        <p class="font-medium mb-1">Host, API-Key &amp; (für v1) Tenant-ID</p>
+                        <p class="font-medium mb-1">Host, API-Keys &amp; (für v1) Tenant-ID</p>
                         <p>Eine Verbindung bedient <strong>beide</strong> necta-APIs (Auth: Header <span class="font-mono">X-Api-Key</span>):
                            die <strong>Raw-API</strong> (<span class="font-mono">/rawapi</span>, read-only) und die <strong>necta.one API v1</strong>
-                           (<span class="font-mono">/api/v1/&#123;tenantId&#125;</span>, CRUD).</p>
+                           (<span class="font-mono">/api/v1/&#123;tenantId&#125;</span>, CRUD). necta stellt dafür <strong>getrennte Schlüssel</strong> aus —
+                           ein Key bedient nie beide APIs.</p>
+                        <p class="mt-2"><strong>API-Key (v1)</strong>: dein User-Key aus dem necta-Profil.
+                           <strong>Raw-API-Key</strong>: der Sysadmin-Key aus <span class="font-mono">Systemadmin → API-Schlüssel</span> — leer lassen,
+                           wenn der v1-Key auch die Raw-API abdeckt.</p>
                         <p class="mt-2"><strong>Host</strong>: nur der Root deiner necta-Umgebung (z.B. <span class="font-mono">https://api.necta.one</span>) —
                            <strong>ohne</strong> <span class="font-mono">/rawapi</span> oder <span class="font-mono">/api/v1/…</span> (wird automatisch bereinigt).
-                           <strong>Tenant-ID</strong>: nur für die v1-API nötig; leer lassen, wenn du nur die Raw-API nutzt.</p>
+                           <strong>Tenant-ID</strong>: nur für die v1-API nötig.</p>
                     </div>
                 </div>
             </div>
@@ -2626,11 +2630,20 @@
 
             <x-ui-input-text
                 name="nectaApiKey"
-                label="API-Key"
+                label="API-Key (necta.one API v1)"
                 wire:model.live="nectaApiKey"
                 type="password"
-                placeholder="Dein necta.one API-Key..."
+                placeholder="Dein necta.one v1-API-Key..."
                 :errorKey="'nectaApiKey'"
+            />
+
+            <x-ui-input-text
+                name="nectaRawApiKey"
+                label="Raw-API-Key (optional, Sysadmin-Key)"
+                wire:model.live="nectaRawApiKey"
+                type="password"
+                placeholder="Nur wenn separater Raw-API-Key vorhanden..."
+                :errorKey="'nectaRawApiKey'"
             />
 
             <x-ui-input-text
@@ -2643,7 +2656,7 @@
             />
 
             <div class="text-xs text-gray-500">
-                Der API-Key wird verschlüsselt gespeichert und ist nur für dich sichtbar. Der Verbindungstest prüft die Raw-API.
+                Die API-Keys werden verschlüsselt gespeichert und sind nur für dich sichtbar. Der Verbindungstest prüft die Raw-API (nutzt den Raw-API-Key, sonst den v1-Key).
             </div>
         </div>
 

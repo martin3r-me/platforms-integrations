@@ -18,8 +18,9 @@ use Platform\Integrations\Models\IntegrationConnection;
  *            (customers, invoices, orders, meals, stocks, supplier-items, purchase-orders, …).
  *
  * Abgrenzung: Die Raw-API (/rawapi, read-only, flach) wird von {@see NectaApiService}
- * bedient. Beide teilen sich dieselbe Connection (api_key + base_url); die v1-API
- * benötigt zusätzlich tenant_id.
+ * bedient. Beide teilen sich dieselbe Connection (base_url); die APIs nutzen aber
+ * getrennte Schlüssel: v1 → api_key (User-Key), Raw → raw_api_key (Sysadmin-Key,
+ * Fallback api_key). Die v1-API benötigt zusätzlich tenant_id.
  */
 class NectaApiV1Service
 {
