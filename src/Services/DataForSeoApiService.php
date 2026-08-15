@@ -269,7 +269,10 @@ class DataForSeoApiService
             ],
         ];
 
-        $response = $this->post($user, '/v3/serp/google/organic/live/regular', $payload);
+        // WICHTIG: /advanced (statt /regular) — nur dieser Endpoint liefert die
+        // nicht-organischen SERP-Elemente (People-Also-Ask, AI-Overview, Featured
+        // Snippet, Related Searches). /regular strippt sie. Kosten quasi identisch.
+        $response = $this->post($user, '/v3/serp/google/organic/live/advanced', $payload);
 
         return [
             'organic' => $this->extractSerpOrganicResults($response, $keyword),
