@@ -46,32 +46,13 @@ class FlynkApiService
     /**
      * GET /api/projects über ALLE Cursor-Seiten. FLYNK paginiert per Cursor (per_page=25,
      * ignoriert per_page/agency) — zum Verknüpfen bestehender Projekte müssen aber alle
-     * wählbar sein, nicht nur die erste Seite. Folgt meta.next_cursor bis erschöpft.
+     * wählbar sein, nicht nur die erste Seite.
      *
      * @return array<int, array<string, mixed>> flache Liste aller Project-Rows
      */
     public function listAllProjects(IntegrationConnection $connection, array $query = []): array
     {
-        $all = [];
-        $cursor = null;
-        $guard = 0;
-
-        do {
-            $response = $this->get(
-                $connection,
-                '/projects',
-                $cursor !== null ? array_merge($query, ['cursor' => $cursor]) : $query
-            );
-
-            $rows = $response['data'] ?? (array_is_list($response) ? $response : []);
-            foreach ($rows as $row) {
-                $all[] = $row;
-            }
-
-            $cursor = $response['meta']['next_cursor'] ?? null;
-        } while ($cursor && ++$guard < 60);
-
-        return $all;
+        return $this->getAllPages($connection, '/projects', $query);
     }
 
     /** GET /api/projects/{uuid} — Einzelnes Project abrufen. */
@@ -123,10 +104,21 @@ class FlynkApiService
     // TASKS  (inbound: Rückfragen = Tasks vom Typ "question")
     // =========================================================================
 
-    /** GET /api/tasks — Tasks auflisten (Filter z.B. project_id, type, status). */
+    /** GET /api/tasks — eine Seite Tasks (Filter z.B. project_id, type, status). */
     public function listTasks(IntegrationConnection $connection, array $query = []): array
     {
         return $this->get($connection, '/tasks', $query);
+    }
+
+    /**
+     * GET /api/tasks über ALLE Cursor-Seiten. Ohne das blieben Tasks/Rückfragen jenseits
+     * der ersten 25 unsichtbar (task-reiche Projekte, Rückfragen-Inbox).
+     *
+     * @return array<int, array<string, mixed>> flache Liste aller Task-Rows
+     */
+    public function listAllTasks(IntegrationConnection $connection, array $query = []): array
+    {
+        return $this->getAllPages($connection, '/tasks', $query);
     }
 
     /** GET /api/tasks/{uuid} — Einzelnen Task abrufen. */
@@ -150,6 +142,34 @@ class FlynkApiService
     // =========================================================================
     // INTERNE HTTP METHODEN
     // =========================================================================
+
+    /**
+     * Läuft einen Cursor-paginierten GET-Endpunkt vollständig ab (FLYNK: `meta.next_cursor`,
+     * per_page serverseitig fix) und liefert alle Rows flach. Guard gegen Endlosschleifen.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws FlynkApiException
+     */
+    protected function getAllPages(IntegrationConnection $connection, string $endpoint, array $query = []): array
+    {
+        $all = [];
+        $cursor = null;
+        $guard = 0;
+
+        do {
+            $response = $this->get($connection, $endpoint, $cursor !== null ? array_merge($query, ['cursor' => $cursor]) : $query);
+
+            $rows = $response['data'] ?? (array_is_list($response) ? $response : []);
+            foreach ($rows as $row) {
+                $all[] = $row;
+            }
+
+            $cursor = $response['meta']['next_cursor'] ?? null;
+        } while ($cursor && ++$guard < 60);
+
+        return $all;
+    }
 
     /** @throws FlynkApiException */
     public function get(IntegrationConnection $connection, string $endpoint, array $query = []): array

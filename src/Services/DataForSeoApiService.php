@@ -295,6 +295,55 @@ class DataForSeoApiService
     }
 
     /**
+     * Labs Search Intent — klassifiziert Keywords in informational / navigational /
+     * commercial / transactional. Bulk bis 1000 Keywords pro Call.
+     *
+     * @param string[] $keywords
+     * @return array<string, array{label: string, probability: float|null}> keyword(lower) => intent
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getSearchIntent(
+        ?User $user,
+        array $keywords,
+        ?string $languageName = null,
+    ): array {
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
+
+        $keywords = array_values(array_filter(array_map('strval', $keywords)));
+        if (empty($keywords)) {
+            return [];
+        }
+
+        $payload = [
+            [
+                'keywords' => array_slice($keywords, 0, 1000),
+                'language_name' => $languageName,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/search_intent/live', $payload);
+
+        $map = [];
+        foreach ($response['tasks'] ?? [] as $task) {
+            foreach ($task['result'] ?? [] as $resultSet) {
+                foreach ($resultSet['items'] ?? [] as $item) {
+                    $kw = $item['keyword'] ?? null;
+                    $intent = $item['keyword_intent'] ?? null;
+                    if ($kw && is_array($intent) && !empty($intent['label'])) {
+                        $map[mb_strtolower(trim($kw))] = [
+                            'label' => (string) $intent['label'],
+                            'probability' => isset($intent['probability']) ? (float) $intent['probability'] : null,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Labs Keyword Suggestions abrufen
      *
      * @param User $user
