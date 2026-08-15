@@ -272,7 +272,8 @@ class DataForSeoApiService
         // WICHTIG: /advanced (statt /regular) — nur dieser Endpoint liefert die
         // nicht-organischen SERP-Elemente (People-Also-Ask, AI-Overview, Featured
         // Snippet, Related Searches). /regular strippt sie. Kosten quasi identisch.
-        $response = $this->post($user, '/v3/serp/google/organic/live/advanced', $payload);
+        // Längeres Timeout (90s): advanced ist spürbar langsamer als regular.
+        $response = $this->post($user, '/v3/serp/google/organic/live/advanced', $payload, 90);
 
         return [
             'organic' => $this->extractSerpOrganicResults($response, $keyword),
@@ -942,9 +943,9 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function post(?User $user, string $endpoint, array $data = []): array
+    protected function post(?User $user, string $endpoint, array $data = [], ?int $timeout = null): array
     {
-        return $this->request($user, $endpoint, $data);
+        return $this->request($user, $endpoint, $data, 'POST', $timeout);
     }
 
     /**
@@ -955,7 +956,7 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function request(?User $user, string $endpoint, array $data = [], string $method = 'POST'): array
+    protected function request(?User $user, string $endpoint, array $data = [], string $method = 'POST', ?int $timeout = null): array
     {
         $connection = $this->resolveConnection($user);
 
@@ -968,7 +969,7 @@ class DataForSeoApiService
 
         $baseUrl = config('integrations.dataforseo.api_base_url', self::BASE_URL);
         $url = $baseUrl . $endpoint;
-        $timeout = config('integrations.dataforseo.timeout.default', 30);
+        $timeout = $timeout ?? config('integrations.dataforseo.timeout.default', 30);
         $connectTimeout = config('integrations.dataforseo.timeout.connect', 10);
 
         try {
