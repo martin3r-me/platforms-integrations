@@ -37,10 +37,41 @@ class FlynkApiService
     // PROJECTS  (= unser "Container" auf FLYNK-Seite)
     // =========================================================================
 
-    /** GET /api/projects — Projects auflisten (zum Verknüpfen bestehender Container). */
+    /** GET /api/projects — eine Seite Projects (Cursor-Pagination, per_page=25 serverseitig fix). */
     public function listProjects(IntegrationConnection $connection, array $query = []): array
     {
         return $this->get($connection, '/projects', $query);
+    }
+
+    /**
+     * GET /api/projects über ALLE Cursor-Seiten. FLYNK paginiert per Cursor (per_page=25,
+     * ignoriert per_page/agency) — zum Verknüpfen bestehender Projekte müssen aber alle
+     * wählbar sein, nicht nur die erste Seite. Folgt meta.next_cursor bis erschöpft.
+     *
+     * @return array<int, array<string, mixed>> flache Liste aller Project-Rows
+     */
+    public function listAllProjects(IntegrationConnection $connection, array $query = []): array
+    {
+        $all = [];
+        $cursor = null;
+        $guard = 0;
+
+        do {
+            $response = $this->get(
+                $connection,
+                '/projects',
+                $cursor !== null ? array_merge($query, ['cursor' => $cursor]) : $query
+            );
+
+            $rows = $response['data'] ?? (array_is_list($response) ? $response : []);
+            foreach ($rows as $row) {
+                $all[] = $row;
+            }
+
+            $cursor = $response['meta']['next_cursor'] ?? null;
+        } while ($cursor && ++$guard < 60);
+
+        return $all;
     }
 
     /** GET /api/projects/{uuid} — Einzelnes Project abrufen. */
