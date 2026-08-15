@@ -14,6 +14,7 @@ use Platform\Integrations\DTOs\DataForSeo\RankedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\RelatedKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\GoogleBusinessInfoResult;
 use Platform\Integrations\DTOs\DataForSeo\GoogleTrendsResult;
+use Platform\Integrations\DTOs\DataForSeo\SerpFeaturesResult;
 use Platform\Integrations\DTOs\DataForSeo\SerpOrganicResult;
 use Platform\Integrations\Exceptions\DataForSeoApiException;
 use Platform\Integrations\Models\IntegrationConnection;
@@ -237,6 +238,57 @@ class DataForSeoApiService
         $response = $this->post($user, '/v3/serp/google/organic/live/regular', $payload);
 
         return $this->extractSerpOrganicResults($response, $keyword);
+    }
+
+    /**
+     * Wie getSerpOrganic, liefert aber aus DEMSELBEN Call zusätzlich die SERP-Features
+     * (People-Also-Ask, Related Searches, Featured Snippet, AI-Overview) — bisher
+     * verworfen, obwohl bezahlt.
+     *
+     * @return array{organic: SerpOrganicResult[], features: SerpFeaturesResult}
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getSerpWithFeatures(
+        ?User $user,
+        string $keyword,
+        ?int $locationCode = null,
+        ?string $languageName = null,
+        string $device = 'desktop',
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
+
+        $payload = [
+            [
+                'keyword' => $keyword,
+                'location_code' => $locationCode,
+                'language_name' => $languageName,
+                'device' => $device,
+                'depth' => 100,
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/serp/google/organic/live/regular', $payload);
+
+        return [
+            'organic' => $this->extractSerpOrganicResults($response, $keyword),
+            'features' => $this->extractSerpFeatures($response, $keyword),
+        ];
+    }
+
+    /**
+     * Extrahiert die SERP-Features (nicht-organische Elemente) aus der Response.
+     */
+    protected function extractSerpFeatures(array $response, string $keyword): SerpFeaturesResult
+    {
+        foreach ($response['tasks'] ?? [] as $task) {
+            foreach ($task['result'] ?? [] as $resultSet) {
+                return SerpFeaturesResult::fromItems($resultSet['items'] ?? [], $keyword);
+            }
+        }
+
+        return SerpFeaturesResult::fromItems([], $keyword);
     }
 
     /**
