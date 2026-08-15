@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Platform\Core\Models\User;
 use Platform\Integrations\DTOs\DataForSeo\CompetitorDomainResult;
+use Platform\Integrations\DTOs\DataForSeo\DomainIntersectionResult;
 use Platform\Integrations\DTOs\DataForSeo\KeywordVolumeResult;
 use Platform\Integrations\DTOs\DataForSeo\LabsKeywordResult;
 use Platform\Integrations\DTOs\DataForSeo\OnPageResult;
@@ -377,6 +378,53 @@ class DataForSeoApiService
         $response = $this->post($user, '/v3/dataforseo_labs/google/keyword_suggestions/live', $payload);
 
         return $this->extractLabsKeywordResults($response);
+    }
+
+    /**
+     * Labs Domain Intersection — Keywords im Verhältnis zweier Domains.
+     * intersections=true: Keywords, für die BEIDE ranken. intersections=false:
+     * Keywords, für die target1 rankt, target2 aber NICHT (die Lücke).
+     *
+     * @return DomainIntersectionResult[]
+     *
+     * @throws DataForSeoApiException
+     */
+    public function getDomainIntersection(
+        ?User $user,
+        string $target1,
+        string $target2,
+        bool $intersections = true,
+        int $limit = 100,
+        ?int $locationCode = null,
+        ?string $languageName = null,
+    ): array {
+        $locationCode = $locationCode ?? config('integrations.dataforseo.default_location_code', self::DEFAULT_LOCATION_CODE);
+        $languageName = $languageName ?? config('integrations.dataforseo.default_language_name', self::DEFAULT_LANGUAGE_NAME);
+
+        $payload = [
+            [
+                'target1' => $target1,
+                'target2' => $target2,
+                'intersections' => $intersections,
+                'location_code' => $locationCode,
+                'language_name' => $languageName,
+                'limit' => $limit,
+                'order_by' => ['first_domain_serp_element.keyword_data.keyword_info.search_volume,desc'],
+            ],
+        ];
+
+        $response = $this->post($user, '/v3/dataforseo_labs/google/domain_intersection/live', $payload);
+
+        $results = [];
+        foreach ($response['tasks'] ?? [] as $task) {
+            foreach ($task['result'] ?? [] as $resultSet) {
+                foreach ($resultSet['items'] ?? [] as $item) {
+                    $results[] = DomainIntersectionResult::fromApiResult($item);
+                }
+            }
+        }
+
+        return $results;
     }
 
     /**
