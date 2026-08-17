@@ -24,6 +24,15 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
+                </div>
+            </div>
+        @endif
+
         {{-- Meta Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -1793,16 +1802,28 @@
                         </div>
                     </div>
                     @if($googleSearchConsoleConnections->isNotEmpty())
-                        <x-ui-button
-                            variant="secondary-outline"
-                            size="sm"
-                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
-                        >
-                            <span class="inline-flex items-center gap-2">
-                                @svg('heroicon-o-plus', 'w-4 h-4')
-                                <span>Neue Verbindung</span>
-                            </span>
-                        </x-ui-button>
+                        <div class="flex items-center gap-2">
+                            <x-ui-button
+                                variant="secondary-outline"
+                                size="sm"
+                                :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-plus', 'w-4 h-4')
+                                    <span>OAuth</span>
+                                </span>
+                            </x-ui-button>
+                            <x-ui-button
+                                variant="secondary-outline"
+                                size="sm"
+                                wire:click="openGscServiceAccountModal"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-key', 'w-4 h-4')
+                                    <span>Service-Account</span>
+                                </span>
+                            </x-ui-button>
+                        </div>
                     @endif
                 </div>
 
@@ -1829,6 +1850,9 @@
                                             <x-ui-badge size="sm" variant="{{ $gscConn->status === 'active' ? 'success' : 'warning' }}">
                                                 {{ $gscConn->status }}
                                             </x-ui-badge>
+                                            <x-ui-badge size="sm" variant="secondary">
+                                                {{ $gscConn->auth_scheme === 'service_account' ? 'Service-Account' : 'OAuth' }}
+                                            </x-ui-badge>
                                         </div>
                                         <p class="text-xs {{ $gscConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
                                             Verbunden am {{ $gscConn->updated_at->format('d.m.Y H:i') }}
@@ -1845,16 +1869,29 @@
                                                 @svg('heroicon-o-star', 'w-4 h-4')
                                             </x-ui-button>
                                         @endif
-                                        <x-ui-button
-                                            variant="secondary"
-                                            size="sm"
-                                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console', 'connection_id' => $gscConn->id])"
-                                        >
-                                            <span class="inline-flex items-center gap-2">
-                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
-                                                <span>Reconnect</span>
-                                            </span>
-                                        </x-ui-button>
+                                        @if($gscConn->auth_scheme === 'service_account')
+                                            <x-ui-button
+                                                variant="secondary"
+                                                size="sm"
+                                                wire:click="openGscServiceAccountModalForEdit({{ $gscConn->id }})"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @svg('heroicon-o-key', 'w-4 h-4')
+                                                    <span>Key aktualisieren</span>
+                                                </span>
+                                            </x-ui-button>
+                                        @else
+                                            <x-ui-button
+                                                variant="secondary"
+                                                size="sm"
+                                                :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console', 'connection_id' => $gscConn->id])"
+                                            >
+                                                <span class="inline-flex items-center gap-2">
+                                                    @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                    <span>Reconnect</span>
+                                                </span>
+                                            </x-ui-button>
+                                        @endif
                                         <x-ui-button
                                             variant="secondary"
                                             size="sm"
@@ -1919,16 +1956,28 @@
                         </div>
                         <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Google Search Console noch nicht verbunden</p>
                         <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde dein Google-Konto für Search Analytics, Sitemaps und URL Inspection</p>
-                        <x-ui-button
-                            variant="primary"
-                            size="md"
-                            :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
-                        >
-                            <span class="inline-flex items-center gap-2">
-                                @svg('heroicon-o-link', 'w-5 h-5')
-                                <span>Mit Google Search Console verbinden</span>
-                            </span>
-                        </x-ui-button>
+                        <div class="inline-flex flex-wrap items-center justify-center gap-2">
+                            <x-ui-button
+                                variant="primary"
+                                size="md"
+                                :href="route('integrations.oauth2.start', ['integrationKey' => 'google_search_console'])"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-link', 'w-5 h-5')
+                                    <span>Mit Google-Konto (OAuth) verbinden</span>
+                                </span>
+                            </x-ui-button>
+                            <x-ui-button
+                                variant="secondary-outline"
+                                size="md"
+                                wire:click="openGscServiceAccountModal"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    @svg('heroicon-o-key', 'w-5 h-5')
+                                    <span>Mit Service-Account verbinden</span>
+                                </span>
+                            </x-ui-button>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -2979,6 +3028,58 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveDataforseoConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- Google Search Console – Service-Account Modal --}}
+    <x-ui-modal wire:model="gscServiceAccountModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-key', 'w-5 h-5 text-orange-600')
+                </div>
+                <span>Google Search Console – Service-Account</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-blue-800">
+                        <p class="font-medium mb-1">Service-Account-JSON-Key einfügen</p>
+                        <p>Füge den vollständigen JSON-Key deines Google-Service-Accounts ein (Feld <code>type</code> muss <code>service_account</code> sein).</p>
+                        <p class="mt-2">Wichtig: Die Service-Account-E-Mail (<code>client_email</code>) muss in der Search-Console-Property als Nutzer (mind. eingeschränkt/lesend) hinzugefügt sein &ndash; sonst schlägt der Test mit <span class="font-mono">HTTP 403</span> fehl.</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-textarea
+                name="gscServiceAccountJson"
+                label="Service-Account-Key (JSON, verschlüsselt gespeichert)"
+                wire:model.live="gscServiceAccountJson"
+                rows="12"
+                placeholder='{ "type": "service_account", "project_id": "...", "private_key": "-----BEGIN PRIVATE KEY-----\n...", "client_email": "...@...iam.gserviceaccount.com", ... }'
+                :errorKey="'gscServiceAccountJson'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der Key wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeGscServiceAccountModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveGscServiceAccountConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>

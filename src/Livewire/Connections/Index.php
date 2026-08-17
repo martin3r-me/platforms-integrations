@@ -71,6 +71,11 @@ class Index extends Component
     public string $dataforseoLogin = '';
     public string $dataforseoPassword = '';
 
+    // Google Search Console – Service-Account Modal
+    public bool $gscServiceAccountModalShow = false;
+    public string $gscServiceAccountJson = '';
+    public ?int $gscSaEditingConnectionId = null;
+
     // HubSpot Modal
     public bool $hubspotModalShow = false;
     public string $hubspotApiToken = '';
@@ -1326,6 +1331,66 @@ class Index extends Component
     }
 
     // ==================== GOOGLE SEARCH CONSOLE METHODS ====================
+
+    public function openGscServiceAccountModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->gscSaEditingConnectionId = $connectionId;
+        $this->gscServiceAccountJson = '';
+        $this->gscServiceAccountModalShow = true;
+    }
+
+    public function openGscServiceAccountModalForEdit(int $connectionId): void
+    {
+        $this->openGscServiceAccountModal($connectionId);
+    }
+
+    public function closeGscServiceAccountModal(): void
+    {
+        $this->gscServiceAccountModalShow = false;
+        $this->gscServiceAccountJson = '';
+        $this->gscSaEditingConnectionId = null;
+    }
+
+    public function saveGscServiceAccountConnection(): void
+    {
+        $this->validate([
+            'gscServiceAccountJson' => ['required', 'string', 'min:50'],
+        ], [
+            'gscServiceAccountJson.required' => 'Bitte füge deinen Service-Account-JSON-Key ein.',
+            'gscServiceAccountJson.min' => 'Das sieht nicht nach einem vollständigen Service-Account-Key aus.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(GoogleSearchConsoleIntegrationService::class);
+            $connection = $service->createOrUpdateServiceAccountConnection(
+                $user,
+                $this->gscServiceAccountJson,
+                $this->gscSaEditingConnectionId
+            );
+
+            // Verbindung testen (mintet Token + ruft /sites ab)
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->gscServiceAccountModalShow = false;
+                $this->gscServiceAccountJson = '';
+                $this->gscSaEditingConnectionId = null;
+                session()->flash('status', 'Google Search Console (Service-Account) verbunden. ' . $testResult['message']);
+            } else {
+                $this->addError('gscServiceAccountJson', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('gscServiceAccountJson', 'Fehler: ' . $e->getMessage());
+            \Log::error('Google Search Console Service-Account connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 
     public function testGoogleSearchConsoleConnection(int $connectionId): void
     {

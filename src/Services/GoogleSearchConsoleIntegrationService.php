@@ -3,6 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Platform\Core\Models\User;
+use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Models\IntegrationConnection;
 use Illuminate\Support\Facades\Log;
 
@@ -50,6 +51,19 @@ class GoogleSearchConsoleIntegrationService
      */
     public function getValidAccessToken(IntegrationConnection $connection): ?string
     {
+        // Service-Account: Bearer-Token per JWT-Assertion minten (kein OAuth-Refresh-Flow).
+        // Frische SA-Connections haben noch keinen Token/kein expires_at → dann sofort minten.
+        if ($this->isServiceAccount($connection)) {
+            if (!$this->getAccessToken($connection) || $this->isTokenExpired($connection)) {
+                $minted = $this->mintServiceAccountToken($connection);
+                if ($minted) {
+                    return $minted;
+                }
+            }
+
+            return $this->getAccessToken($connection);
+        }
+
         if ($this->isTokenExpired($connection)) {
             $newToken = $this->refreshToken($connection);
             if ($newToken) {
@@ -58,6 +72,167 @@ class GoogleSearchConsoleIntegrationService
         }
 
         return $this->getAccessToken($connection);
+    }
+
+    /**
+     * Ob es sich um eine Service-Account-Connection handelt (statt OAuth-User-Flow).
+     */
+    public function isServiceAccount(IntegrationConnection $connection): bool
+    {
+        if ($connection->auth_scheme === 'service_account') {
+            return true;
+        }
+
+        $credentials = $connection->credentials ?? [];
+        return !empty($credentials['service_account']);
+    }
+
+    /**
+     * Mintet einen OAuth2-Bearer-Token aus dem hinterlegten Service-Account-Key
+     * (signierte JWT-Assertion via google/apiclient) und legt ihn – wie beim OAuth-Flow –
+     * unter credentials.oauth.access_token/expires_at ab.
+     *
+     * @return string|null Der Access-Token oder null bei Fehler.
+     */
+    public function mintServiceAccountToken(IntegrationConnection $connection): ?string
+    {
+        $serviceAccount = $connection->credentials['service_account'] ?? null;
+        if (empty($serviceAccount)) {
+            Log::warning('Google Search Console: Kein Service-Account-Key vorhanden', [
+                'connection_id' => $connection->id,
+            ]);
+            return null;
+        }
+
+        try {
+            $client = new \Google\Client();
+            $client->setAuthConfig($serviceAccount);
+            $client->setScopes(['https://www.googleapis.com/auth/webmasters.readonly']);
+
+            $token = $client->fetchAccessTokenWithAssertion();
+
+            if (empty($token['access_token'])) {
+                $error = $token['error_description'] ?? ($token['error'] ?? 'Unbekannter Fehler');
+                throw new \RuntimeException('Kein access_token erhalten: ' . $error);
+            }
+
+            $expiresIn = isset($token['expires_in']) ? (int) $token['expires_in'] : 3600;
+
+            $credentials = $connection->credentials ?? [];
+            $credentials['oauth'] = array_merge($credentials['oauth'] ?? [], [
+                'access_token'    => $token['access_token'],
+                'token_type'      => $token['token_type'] ?? 'Bearer',
+                'expires_in'      => $expiresIn,
+                'expires_at'      => now()->addSeconds($expiresIn)->timestamp,
+                'token_issued_at' => now()->timestamp,
+            ]);
+
+            $connection->credentials = $credentials;
+            $connection->last_error = null;
+            $connection->save();
+
+            Log::info('Google Search Console: Service-Account-Token gemintet', [
+                'connection_id' => $connection->id,
+            ]);
+
+            return $token['access_token'];
+        } catch (\Throwable $e) {
+            $connection->status = 'error';
+            $connection->last_error = 'Service-Account-Token fehlgeschlagen: ' . $e->getMessage();
+            $connection->save();
+
+            Log::error('Google Search Console: Service-Account-Token minten fehlgeschlagen', [
+                'connection_id' => $connection->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Erstellt oder aktualisiert eine Service-Account-basierte GSC-Connection für einen User.
+     *
+     * Der JSON-Key wird validiert und verschlüsselt (EncryptedJson) in
+     * credentials.service_account abgelegt. Gespiegelt an
+     * {@see DataForSeoIntegrationService::createOrUpdateConnectionForUser()}.
+     *
+     * @param int|null $connectionId Wenn gesetzt: Update dieser Connection; null = neue Connection.
+     * @throws \RuntimeException bei ungültigem Key/Connection.
+     */
+    public function createOrUpdateServiceAccountConnection(User $user, string $serviceAccountJson, ?int $connectionId = null): IntegrationConnection
+    {
+        $decoded = json_decode($serviceAccountJson, true);
+
+        if (!is_array($decoded)) {
+            throw new \RuntimeException('Der Service-Account-Key ist kein gültiges JSON.');
+        }
+
+        if (($decoded['type'] ?? null) !== 'service_account'
+            || empty($decoded['client_email'])
+            || empty($decoded['private_key'])) {
+            throw new \RuntimeException('Kein gültiger Service-Account-Key (erwartet type=service_account mit client_email und private_key).');
+        }
+
+        $integration = Integration::firstOrCreate(
+            ['key' => 'google_search_console'],
+            [
+                'name' => 'Google Search Console',
+                'is_enabled' => true,
+                'supported_auth_schemes' => ['oauth2', 'service_account'],
+                'meta' => [
+                    'description' => 'Google Search Console Integration für Search Analytics, Sitemaps und URL Inspection.',
+                    'icon' => 'heroicon-o-magnifying-glass-circle',
+                ],
+            ]
+        );
+
+        if ($connectionId) {
+            $connection = IntegrationConnection::withTrashed()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', $user->id)
+                ->first();
+
+            if ($connection && $connection->trashed()) {
+                $connection->restore();
+            }
+
+            if (!$connection) {
+                throw new \RuntimeException("Connection #{$connectionId} nicht gefunden.");
+            }
+        } else {
+            $isFirst = !IntegrationConnection::query()
+                ->where('integration_id', $integration->id)
+                ->where('owner_user_id', $user->id)
+                ->exists();
+
+            $connection = new IntegrationConnection([
+                'integration_id' => $integration->id,
+                'owner_user_id' => $user->id,
+                'name' => IntegrationConnection::generateName($integration->id, $user->id, $integration->name),
+                'is_default' => $isFirst,
+            ]);
+        }
+
+        // Neuer Key → alten geminten Token verwerfen, damit beim nächsten Zugriff frisch gemintet wird.
+        $credentials = $connection->credentials ?? [];
+        $credentials['service_account'] = $decoded;
+        unset($credentials['oauth']);
+
+        $connection->integration_id = $integration->id;
+        $connection->owner_user_id = $user->id;
+        $connection->auth_scheme = 'service_account';
+        $connection->status = 'active';
+        $connection->last_error = null;
+        $connection->credentials = $credentials;
+        $connection->save();
+
+        Log::info('Google Search Console Service-Account connection created/updated', [
+            'connection_id' => $connection->id,
+            'user_id' => $user->id,
+        ]);
+
+        return $connection;
     }
 
     /**
