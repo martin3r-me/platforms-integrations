@@ -917,7 +917,7 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    public function getLocations(User $user, ?string $country = null): array
+    public function getLocations(?User $user = null, ?string $country = null): array
     {
         $endpoint = '/v3/serp/google/locations';
 
