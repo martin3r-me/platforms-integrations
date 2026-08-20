@@ -981,7 +981,7 @@ class DataForSeoApiService
      *
      * @throws DataForSeoApiException
      */
-    protected function get(User $user, string $endpoint): array
+    protected function get(?User $user = null, string $endpoint = ''): array
     {
         return $this->request($user, $endpoint, [], 'GET');
     }
