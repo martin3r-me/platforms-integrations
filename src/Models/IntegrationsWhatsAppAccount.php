@@ -70,6 +70,15 @@ class IntegrationsWhatsAppAccount extends Model implements HasDisplayName
         return $this->hasMany(IntegrationsWhatsAppTemplate::class, 'whatsapp_account_id');
     }
 
+    /**
+     * Alle Rufnummern dieser WABA (additiv). Die primäre Nummer liegt zusätzlich
+     * direkt auf phone_number/phone_number_id und bleibt dort unverändert.
+     */
+    public function phoneNumbers(): HasMany
+    {
+        return $this->hasMany(IntegrationsWhatsAppPhoneNumber::class, 'whatsapp_account_id');
+    }
+
     public function getDisplayName(): ?string
     {
         return $this->title;

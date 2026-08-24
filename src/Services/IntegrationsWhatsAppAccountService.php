@@ -3,6 +3,7 @@
 namespace Platform\Integrations\Services;
 
 use Platform\Integrations\Models\IntegrationsWhatsAppAccount;
+use Platform\Integrations\Models\IntegrationsWhatsAppPhoneNumber;
 use Platform\Integrations\Models\IntegrationsWhatsAppTemplate;
 use Platform\Integrations\Models\IntegrationConnection;
 use Platform\Integrations\Models\IntegrationsMetaBusinessAccount;
@@ -218,6 +219,37 @@ class IntegrationsWhatsAppAccountService
                     );
 
                     $syncedAccounts[] = $whatsappAccount;
+
+                    // Additiv: ALLE Nummern der WABA in die Kind-Tabelle spiegeln.
+                    // Die primäre Nummer (data[0]) bleibt oben unverändert auf dem
+                    // Account. Bricht nie den Account-Sync (nur best effort).
+                    if (Schema::hasTable('integrations_whatsapp_phone_numbers')) {
+                        foreach ($phoneNumbersData['data'] ?? [] as $numberData) {
+                            $numberId = $numberData['id'] ?? null;
+                            if (!$numberId) {
+                                continue;
+                            }
+
+                            try {
+                                IntegrationsWhatsAppPhoneNumber::updateOrCreate(
+                                    ['phone_number_id' => $numberId],
+                                    [
+                                        'whatsapp_account_id' => $whatsappAccount->id,
+                                        'phone_number' => $numberData['display_phone_number'] ?? null,
+                                        'display_name' => $numberData['verified_name'] ?? null,
+                                        'status' => $numberData['status'] ?? ($numberData['code_verification_status'] ?? null),
+                                        'quality_rating' => $numberData['quality_rating'] ?? null,
+                                    ]
+                                );
+                            } catch (\Exception $e) {
+                                Log::warning('Failed to sync WhatsApp phone number', [
+                                    'waba_id' => $wabaId,
+                                    'phone_number_id' => $numberId,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    }
 
                     Log::info('WhatsApp Account synced successfully', [
                         'account_id' => $whatsappAccount->id,
