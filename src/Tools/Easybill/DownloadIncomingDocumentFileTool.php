@@ -34,12 +34,12 @@ class DownloadIncomingDocumentFileTool implements ToolContract, ToolMetadataCont
               'description' => 'Optional: ID einer spezifischen easybill-Connection.',
             ],
             'incoming_document_id' => [
-              'type' => 'integer',
-              'description' => 'ID des Eingangsbelegs',
+              'type' => 'string',
+              'description' => 'ID (UUID) des Eingangsbelegs, z.B. "01a03966-520f-711b-8018-19a6638d3272".',
             ],
             'file_id' => [
-              'type' => 'integer',
-              'description' => 'ID der herunterzuladenden Datei (aus incoming-document.files.GET).',
+              'type' => 'string',
+              'description' => 'ID (UUID) der herunterzuladenden Datei (aus incoming-document.files.GET).',
             ],
           ],
           'required' => [
@@ -63,8 +63,8 @@ class DownloadIncomingDocumentFileTool implements ToolContract, ToolMetadataCont
             $svc = app(EasybillApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->downloadIncomingDocumentFile(
                 $context->user,
-                (int) $arguments['incoming_document_id'],
-                (int) $arguments['file_id']
+                (string) $arguments['incoming_document_id'],
+                (string) $arguments['file_id']
             );
             return ToolResult::success($result);
         } catch (EasybillApiException $e) {

@@ -34,8 +34,8 @@ class ListIncomingDocumentFilesTool implements ToolContract, ToolMetadataContrac
               'description' => 'Optional: ID einer spezifischen easybill-Connection.',
             ],
             'incoming_document_id' => [
-              'type' => 'integer',
-              'description' => 'ID des Eingangsbelegs',
+              'type' => 'string',
+              'description' => 'ID (UUID) des Eingangsbelegs, z.B. "01a03966-520f-711b-8018-19a6638d3272".',
             ],
             'query' => [
               'type' => 'object',
@@ -62,7 +62,7 @@ class ListIncomingDocumentFilesTool implements ToolContract, ToolMetadataContrac
             $svc = app(EasybillApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->listIncomingDocumentFiles(
                 $context->user,
-                (int) $arguments['incoming_document_id'],
+                (string) $arguments['incoming_document_id'],
                 $arguments['query'] ?? []
             );
             return ToolResult::success($result);

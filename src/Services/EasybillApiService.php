@@ -309,20 +309,23 @@ class EasybillApiService
         return $this->get($user, '/incoming-documents', $query);
     }
 
-    /** GET /incoming-documents/{id} — Einen Eingangsbeleg abrufen. */
-    public function getIncomingDocument(User $user, int $incomingDocumentId): array
+    /**
+     * GET /incoming-documents/{id} — Einen Eingangsbeleg abrufen.
+     * Hinweis: Eingangsbeleg-IDs sind UUID-Strings (z.B. "01a03966-520f-…"), keine Integer.
+     */
+    public function getIncomingDocument(User $user, string $incomingDocumentId): array
     {
         return $this->get($user, "/incoming-documents/{$incomingDocumentId}");
     }
 
     /** GET /incoming-documents/{id}/files — Dateien (Anhänge/Scans) eines Eingangsbelegs listen. */
-    public function listIncomingDocumentFiles(User $user, int $incomingDocumentId, array $query = []): array
+    public function listIncomingDocumentFiles(User $user, string $incomingDocumentId, array $query = []): array
     {
         return $this->get($user, "/incoming-documents/{$incomingDocumentId}/files", $query);
     }
 
     /** GET /incoming-documents/{id}/files/{fileId}/download — Datei eines Eingangsbelegs herunterladen (Binary, base64). */
-    public function downloadIncomingDocumentFile(User $user, int $incomingDocumentId, int $fileId): array
+    public function downloadIncomingDocumentFile(User $user, string $incomingDocumentId, string $fileId): array
     {
         return $this->getBinary($user, "/incoming-documents/{$incomingDocumentId}/files/{$fileId}/download", 'application/octet-stream');
     }

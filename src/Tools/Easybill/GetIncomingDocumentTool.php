@@ -34,8 +34,8 @@ class GetIncomingDocumentTool implements ToolContract, ToolMetadataContract
               'description' => 'Optional: ID einer spezifischen easybill-Connection.',
             ],
             'incoming_document_id' => [
-              'type' => 'integer',
-              'description' => 'ID des Eingangsbelegs',
+              'type' => 'string',
+              'description' => 'ID (UUID) des Eingangsbelegs, z.B. "01a03966-520f-711b-8018-19a6638d3272".',
             ],
           ],
           'required' => [
@@ -56,7 +56,7 @@ class GetIncomingDocumentTool implements ToolContract, ToolMetadataContract
 
         try {
             $svc = app(EasybillApiService::class)->forConnection($arguments['connection_id'] ?? null);
-            $result = $svc->getIncomingDocument($context->user, (int) $arguments['incoming_document_id']);
+            $result = $svc->getIncomingDocument($context->user, (string) $arguments['incoming_document_id']);
             return ToolResult::success($result);
         } catch (EasybillApiException $e) {
             return ToolResult::error($e->getEasybillErrorCode() ?? 'EASYBILL_ERROR', $e->getMessage());
