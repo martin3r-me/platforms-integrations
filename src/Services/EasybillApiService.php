@@ -330,6 +330,43 @@ class EasybillApiService
         return $this->getBinary($user, "/incoming-documents/{$incomingDocumentId}/files/{$fileId}/download", 'application/octet-stream');
     }
 
+    /**
+     * Komfort: Holt die PDF-Datei eines Eingangsbelegs in einem Schritt.
+     *
+     * Listet die Dateien des Belegs, wählt bevorzugt die PDF (extension/name)
+     * — sonst die erste Datei — und lädt sie base64-kodiert herunter.
+     *
+     * @return array{file: array, mime: string, data_base64: string, size: int}
+     * @throws EasybillApiException
+     */
+    public function getIncomingDocumentPdf(User $user, string $incomingDocumentId): array
+    {
+        $files = $this->listIncomingDocumentFiles($user, $incomingDocumentId);
+        $items = $files['items'] ?? [];
+
+        if (empty($items)) {
+            throw EasybillApiException::fromResponse(404, [
+                'message' => "Eingangsbeleg {$incomingDocumentId} hat keine Dateien zum Download.",
+            ]);
+        }
+
+        // Bevorzugt PDF (per extension oder Dateiendung), sonst erste Datei.
+        $pick = null;
+        foreach ($items as $item) {
+            $ext = strtolower((string) ($item['extension'] ?? ''));
+            $name = strtolower((string) ($item['name'] ?? ''));
+            if ($ext === 'pdf' || str_ends_with($name, '.pdf')) {
+                $pick = $item;
+                break;
+            }
+        }
+        $pick ??= $items[0];
+
+        $binary = $this->downloadIncomingDocumentFile($user, $incomingDocumentId, (string) $pick['id']);
+
+        return array_merge(['file' => $pick], $binary);
+    }
+
     // =========================================================================
     // POSITIONS (Artikel)
     // =========================================================================

@@ -703,6 +703,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetTextTemplateTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetTimeTrackingTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetWebhookTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\IncomingDocumentPdfTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListAttachmentsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomerContactsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomerGroupsTool());
