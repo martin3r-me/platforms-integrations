@@ -734,6 +734,16 @@ class DataForSeoApiService
     /**
      * Extrahiert SerpOrganicResult-Objekte aus der API-Response
      *
+     * Hinweis zum "checks"-Array (Klärung für Christian, s. Issue): DataForSEO liefert
+     * je organischem/bezahltem SERP-Item optional ein "checks"-Array (item-Ebene, kann
+     * null sein), das kennzeichnet, ob das Item bestimmte Eigenschaften hat, z. B.
+     * is_image, is_video, is_featured_snippet, is_malicious, is_web_story, amp_version.
+     * Mehrere Werte können gleichzeitig gesetzt sein (z. B. Featured Snippet mit Bild).
+     * Wir werten "checks" hier aktuell NICHT aus — SerpOrganicResult::$isFeaturedSnippet
+     * basiert stattdessen auf dem separaten "type"-Feld des Items.
+     *
+     * @see https://dataforseo.com/help-center/whats-a-checks-array-in-the-google-organic-serp-api
+     *
      * @return SerpOrganicResult[]
      */
     protected function extractSerpOrganicResults(array $response, string $keyword): array
