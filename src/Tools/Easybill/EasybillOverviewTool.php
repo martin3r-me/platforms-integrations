@@ -41,6 +41,7 @@ class EasybillOverviewTool implements ToolContract, ToolMetadataContract
                 'customer-groups' => ['list', 'get', 'create', 'update', 'delete'],
                 'documents' => ['list', 'get', 'create', 'update', 'delete', 'complete', 'cancel', 'send', 'convert', 'pdf', 'jpg', 'download'],
                 'document-payments' => ['list', 'get', 'create', 'delete'],
+                'incoming-documents' => ['list', 'get', 'files.list', 'file.download', '(read-only, Eingangsbelege/Lieferantenrechnungen)'],
                 'positions' => ['list', 'get', 'create', 'update', 'delete'],
                 'position-groups' => ['list', 'get', 'create', 'update', 'delete'],
                 'discounts.position' => ['list', 'get', 'create', 'update', 'delete'],

@@ -294,6 +294,40 @@ class EasybillApiService
     }
 
     // =========================================================================
+    // INCOMING DOCUMENTS (Eingangsbelege — Lieferantenrechnungen & -gutschriften)
+    // easybill REST v1 seit 2026-08-11 (v1.100.0), ausschließlich read-only.
+    // =========================================================================
+
+    /**
+     * GET /incoming-documents — Listet Eingangsbelege (paginiert). Filter u.a.:
+     *   - `created_at` (Zeitraum-Filter)
+     *   - Sortierung via `ASC`/`DESC`
+     *   - `limit` (default 100, max 1000), `page`
+     */
+    public function listIncomingDocuments(User $user, array $query = []): array
+    {
+        return $this->get($user, '/incoming-documents', $query);
+    }
+
+    /** GET /incoming-documents/{id} — Einen Eingangsbeleg abrufen. */
+    public function getIncomingDocument(User $user, int $incomingDocumentId): array
+    {
+        return $this->get($user, "/incoming-documents/{$incomingDocumentId}");
+    }
+
+    /** GET /incoming-documents/{id}/files — Dateien (Anhänge/Scans) eines Eingangsbelegs listen. */
+    public function listIncomingDocumentFiles(User $user, int $incomingDocumentId, array $query = []): array
+    {
+        return $this->get($user, "/incoming-documents/{$incomingDocumentId}/files", $query);
+    }
+
+    /** GET /incoming-documents/{id}/files/{fileId}/download — Datei eines Eingangsbelegs herunterladen (Binary, base64). */
+    public function downloadIncomingDocumentFile(User $user, int $incomingDocumentId, int $fileId): array
+    {
+        return $this->getBinary($user, "/incoming-documents/{$incomingDocumentId}/files/{$fileId}/download", 'application/octet-stream');
+    }
+
+    // =========================================================================
     // POSITIONS (Artikel)
     // =========================================================================
 

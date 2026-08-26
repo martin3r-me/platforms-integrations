@@ -677,6 +677,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteTimeTrackingTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\DeleteWebhookTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\DownloadDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\DownloadIncomingDocumentFileTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\EasybillOverviewTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetAttachmentContentTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetAttachmentTool());
@@ -687,6 +688,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentPaymentTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentPdfTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetDocumentTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\GetIncomingDocumentTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetLoginTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionDiscountTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\GetPositionGroupDiscountTool());
@@ -707,6 +709,8 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListCustomersTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListDocumentPaymentsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListDocumentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListIncomingDocumentFilesTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\ListIncomingDocumentsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListLoginsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionDiscountsTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\ListPositionGroupDiscountsTool());
