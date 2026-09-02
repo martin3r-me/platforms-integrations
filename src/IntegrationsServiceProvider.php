@@ -531,6 +531,7 @@ class IntegrationsServiceProvider extends ServiceProvider
         try {
             $registry->register(new \Platform\Integrations\Tools\Moss\TestConnectionTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\ListExpensesTool());
+            $registry->register(new \Platform\Integrations\Tools\Moss\ListMissingReceiptsTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\ListExpenseAccountsTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\ListSuppliersTool());
             $registry->register(new \Platform\Integrations\Tools\Moss\GetSupplierTool());

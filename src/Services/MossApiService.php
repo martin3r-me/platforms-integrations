@@ -106,6 +106,87 @@ class MossApiService
     }
 
     /**
+     * Komfort: Findet Expenses mit fehlendem Beleg ("offene Belege").
+     *
+     * Ein Expense gilt als offen, wenn ein Beleg gefordert ist, aber (noch)
+     * keiner angehängt wurde: expenseMetadata.receiptRequirement == REQUIRED
+     * UND expenseMetadata.receiptStatus == NOT_CREATED.
+     *
+     * Paginiert selbstständig über alle Seiten (meta.pagination.hasMore) und
+     * liefert eine kompakte Liste plus Summenblock je Währung.
+     *
+     * @param  array<string, mixed>  $filters  Optional durchgereichte Server-Filter
+     *                                          (type, status, date_from, date_to).
+     * @return array{items: array<int, array<string, mixed>>, summary: array<string, mixed>}
+     *
+     * @throws MossApiException
+     */
+    public function getExpensesMissingReceipts(User $user, array $filters = []): array
+    {
+        $items = [];
+        $scanned = 0;
+        $page = 1;
+        $maxPages = 200; // Sicherheitskappe gegen Endlosschleifen
+
+        do {
+            $query = array_merge($filters, ['page' => $page, 'pageSize' => 200]);
+            $response = $this->getExpenses($user, $query);
+
+            $data = $response['data'] ?? [];
+            foreach ($data as $expense) {
+                $scanned++;
+                $meta = $expense['expenseMetadata'] ?? [];
+                $requirement = $meta['receiptRequirement'] ?? null;
+                $status = $meta['receiptStatus'] ?? null;
+
+                if ($requirement !== 'REQUIRED' || $status !== 'NOT_CREATED') {
+                    continue;
+                }
+
+                $items[] = [
+                    'id' => $expense['id'] ?? null,
+                    'expenseType' => $expense['expenseType'] ?? null,
+                    'status' => $expense['status'] ?? null,
+                    'expenseTime' => $expense['expenseTime'] ?? null,
+                    'amount' => $expense['homeAmount']['amount'] ?? null,
+                    'currency' => $expense['homeAmount']['currency'] ?? null,
+                    'merchant' => $meta['merchantDetails']['name'] ?? null,
+                    'invoiceNumber' => $meta['invoiceNumber'] ?? null,
+                    'supplierId' => $expense['supplierId'] ?? null,
+                    'createdBy' => $expense['createdBy'] ?? null,
+                    'receiptRequirement' => $requirement,
+                    'receiptStatus' => $status,
+                ];
+            }
+
+            $pagination = $response['meta']['pagination'] ?? [];
+            $hasMore = (bool) ($pagination['hasMore'] ?? false);
+            $page++;
+        } while ($hasMore && $page <= $maxPages);
+
+        // Summen je Währung.
+        $totals = [];
+        foreach ($items as $item) {
+            $currency = $item['currency'] ?? 'UNKNOWN';
+            $totals[$currency] = ($totals[$currency] ?? 0.0) + (float) ($item['amount'] ?? 0);
+        }
+        $totalsFormatted = [];
+        foreach ($totals as $currency => $sum) {
+            $totalsFormatted[$currency] = number_format($sum, 2, '.', '');
+        }
+
+        return [
+            'items' => $items,
+            'summary' => [
+                'missing_count' => count($items),
+                'scanned_expenses' => $scanned,
+                'total_amount' => $totalsFormatted,
+                'definition' => 'receiptRequirement=REQUIRED und receiptStatus=NOT_CREATED',
+            ],
+        ];
+    }
+
+    /**
      * Expense Accounts auflisten
      *
      * @param array $filters Optional: page, per_page
