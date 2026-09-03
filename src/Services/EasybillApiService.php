@@ -630,6 +630,83 @@ class EasybillApiService
         return $this->getBinary($user, "/attachments/{$attachmentId}/content");
     }
 
+    /**
+     * POST /attachments — Datei-Upload per multipart/form-data.
+     *
+     * easybill verlangt für Anhänge multipart statt JSON (die generische request()-Methode
+     * setzt Content-Type fest auf application/json, siehe request()-Docblock). Begleitfelder
+     * (z.B. document_id oder customer_id) gehen als normale Formfelder mit.
+     */
+    public function uploadAttachment(
+        User $user,
+        string $fileContent,
+        string $fileName,
+        array $companion = [],
+        ?string $contentType = null
+    ): array {
+        $connection = $this->resolveConnection($user);
+
+        $apiToken = $this->integrationService->getApiToken($connection);
+
+        if (!$apiToken) {
+            Log::warning('easybill API: Kein Token für User', ['user_id' => $user->id]);
+            throw EasybillApiException::unauthorized();
+        }
+
+        if ($contentType === null) {
+            $contentType = $this->detectAttachmentContentType($fileContent, $fileName);
+        }
+
+        $url = self::BASE_URL . '/attachments';
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Accept' => 'application/json',
+            ])->attach(
+                'file',
+                $fileContent,
+                $fileName,
+                ['Content-Type' => $contentType]
+            )->post($url, $companion);
+
+            return $this->handleResponse($response, $connection);
+        } catch (EasybillApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('easybill API: Verbindungsfehler', [
+                'user_id' => $user->id,
+                'endpoint' => '/attachments',
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+
+            throw EasybillApiException::connectionError($e->getMessage());
+        }
+    }
+
+    protected function detectAttachmentContentType(string $fileContent, string $fileName): string
+    {
+        $extensionMap = [
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+        ];
+
+        $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        if (isset($extensionMap[$extension])) {
+            return $extensionMap[$extension];
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->buffer($fileContent);
+
+        return $mimeType ?: 'application/octet-stream';
+    }
+
     // =========================================================================
     // POST BOXES (Brief-Versand-Historie, read-only + delete)
     // =========================================================================
