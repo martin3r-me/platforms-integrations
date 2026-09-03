@@ -744,6 +744,7 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateTextTemplateTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateTimeTrackingTool());
             $registry->register(new \Platform\Integrations\Tools\Easybill\UpdateWebhookTool());
+            $registry->register(new \Platform\Integrations\Tools\Easybill\UploadAttachmentTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: easybill Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
