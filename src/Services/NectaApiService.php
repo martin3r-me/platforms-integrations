@@ -245,7 +245,10 @@ class NectaApiService
             $response = Http::withHeaders([
                 'X-Api-Key' => $apiKey,
                 'Accept' => 'application/json',
-            ])->get($url, self::normalizeQuery($query));
+            ])
+                ->connectTimeout(config('integrations.necta.timeout.connect', 10))
+                ->timeout(config('integrations.necta.timeout.default', 60))
+                ->get($url, self::normalizeQuery($query));
 
             return $this->handleResponse($response, $connection);
         } catch (NectaApiException $e) {
