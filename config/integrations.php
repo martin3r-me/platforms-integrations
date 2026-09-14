@@ -284,6 +284,24 @@ return [
     ],
 
     /**
+     * necta.one Raw-API Konfiguration
+     *
+     * Credentials (api_key/raw_api_key, base_url) liegen pro Connection in der
+     * DB (IntegrationConnection), nur das Timeout ist global konfigurierbar.
+     *
+     * Manche Ressourcen (z.B. inventory-balances) sind serverseitig deutlich
+     * langsamer als der 30s-HTTP-Client-Default und liefen ins cURL-Limit
+     * (Ticket #868: "cURL error 28: Operation timed out after 30002 ms").
+     */
+    'necta' => [
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('NECTA_DEFAULT_TIMEOUT', 60),
+            'connect' => (int) env('NECTA_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
      * BuchhaltungsButler API Konfiguration
      *
      * BuchhaltungsButler Buchhaltungs-Software.
