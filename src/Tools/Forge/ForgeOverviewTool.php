@@ -275,7 +275,7 @@ class ForgeOverviewTool implements ToolContract, ToolMetadataContract
             'paginierung' => 'CURSOR-basiert, nicht seitenbasiert: page[size] (Standard 30) und page[cursor]. '
                 . 'Die Antwort enthält meta.next_cursor und meta.prev_cursor — den next_cursor als "cursor" '
                 . 'in den Folgeaufruf geben. Ist next_cursor null, war es die letzte Seite.',
-            'antwort_format' => 'Listen: { data: [...], meta: {...}, links: {...} }. Einzelressourcen: { data: {...} }.',
+            'antwort_format' => 'JSON:API. Listen: { data: [ { id, type, attributes: {...}, relationships: {...} } ], meta: {...}, links: {...} }. Einzelressourcen: { data: { id, type, attributes: {...} } }. WICHTIG: Die eigentlichen Felder liegen unter "attributes", nicht auf der obersten Ebene — eine Feldauswahl lautet also "attributes.name", nicht "name".',
             'fehlercodes' => [
                 '401' => 'Token ungültig.',
                 '403' => 'Token ohne Berechtigung für diese Organisation/Ressource.',

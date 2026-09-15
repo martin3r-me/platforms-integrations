@@ -50,7 +50,7 @@ class ListServersTool implements ToolContract, ToolMetadataContract
                 'fields' => [
                     'type' => 'array',
                     'items' => ['type' => 'string'],
-                    'description' => 'Optional: reduziert die Antwort auf diese Felder, z.B. ["id","name","ip_address","status"].',
+                    'description' => 'Optional: reduziert die Antwort auf diese Felder, z.B. ["id","attributes.name","attributes.ip_address","attributes.type"]. Forge antwortet im JSON:API-Format, die Nutzdaten liegen unter "attributes" — entsprechend "attributes.name" statt "name" angeben.',
                 ],
                 'connection_id' => [
                     'type' => 'integer',

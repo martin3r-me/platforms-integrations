@@ -58,7 +58,7 @@ class ListDeploymentsTool implements ToolContract, ToolMetadataContract
                 'fields' => [
                     'type' => 'array',
                     'items' => ['type' => 'string'],
-                    'description' => 'Optional: reduziert die Antwort auf diese Felder (Dot-Notation).',
+                    'description' => 'Optional: reduziert die Antwort auf diese Felder (Dot-Notation). Forge antwortet im JSON:API-Format, die Nutzdaten liegen unter "attributes" — entsprechend "attributes.name" statt "name" angeben.',
                 ],
                 'connection_id' => [
                     'type' => 'integer',

@@ -138,6 +138,10 @@ werden. Der Verbindungstest listet alle erreichbaren Organisationen auf.
 
 Alle schreibenden Tools verlangen `"confirm": true`.
 
+**Antwortformat:** Forge v2 antwortet im JSON:API-Stil. Die Nutzdaten liegen unter
+`attributes`, nicht auf der obersten Ebene. Eine Feldauswahl lautet deshalb
+`attributes.name`, nicht `name`.
+
 **ENV-Variablen** (optional, überschreiben nur die Defaults):
 
 ```env
@@ -192,3 +196,19 @@ HETZNER_CONNECT_TIMEOUT=10
 HETZNER_ACTION_MAX_WAIT=60
 HETZNER_ACTION_POLL_INTERVAL=2
 ```
+
+## Für aufrufenden Code
+
+Beide API-Services bieten zwei Dinge, die längere Abläufe brauchen:
+
+- `withObserver(callable $observer)` liefert eine Kopie des Services, die jeden
+  ausgeführten Aufruf meldet, mit Methode, Pfad, Status, Dauer und den
+  Rate-Limit-Headern. Auch bei Erfolg. Ohne das käme ein Aufrufer an den
+  Status-Code erfolgreicher Antworten nicht heran, weil nur die dekodierten Daten
+  zurückgegeben werden. Ein Fehler im Beobachter bricht den Aufruf nie ab.
+- `getRetryAfter()` auf beiden Exceptions liefert die Wartezeit einer
+  Rate-Limit-Antwort als Zahl, statt sie nur in den Meldungstext zu schreiben.
+
+Bei Hetzner ist der Header `RateLimit-Remaining` besonders nützlich: Er macht den
+Budgetverbrauch sichtbar, bevor das Limit von 3600 Aufrufen je Stunde erreicht ist.
+
