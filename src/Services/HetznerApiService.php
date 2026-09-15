@@ -51,9 +51,35 @@ class HetznerApiService
 
     protected ?int $connectionIdOverride = null;
 
+    /**
+     * Optionaler Beobachter für jeden ausgeführten Aufruf.
+     *
+     * Wird mit (method, path, status, durationMs, headers) aufgerufen — auch bei
+     * Erfolg. Für Hetzner besonders nützlich, weil der Header
+     * RateLimit-Remaining sonst nirgends sichtbar wird: Damit lässt sich der
+     * Budgetverbrauch beobachten, BEVOR das Limit von 3600 Aufrufen je Stunde
+     * erreicht ist und Aufrufe zu scheitern beginnen.
+     *
+     * @var (callable(string, string, int, int, array<string, string>): void)|null
+     */
+    protected $observer = null;
+
     public function __construct(HetznerIntegrationService $integrationService)
     {
         $this->integrationService = $integrationService;
+    }
+
+    /**
+     * Gibt eine Kopie zurück, die jeden Aufruf an den Beobachter meldet.
+     *
+     * @param callable(string, string, int, int, array<string, string>): void $observer
+     */
+    public function withObserver(callable $observer): static
+    {
+        $clone = clone $this;
+        $clone->observer = $observer;
+
+        return $clone;
     }
 
     /**
@@ -456,6 +482,8 @@ class HetznerApiService
                     'Content-Type' => 'application/json',
                 ]);
 
+            $startedAt = microtime(true);
+
             $response = match ($method) {
                 'GET' => $http->get($url, $query),
                 'POST' => $http->post($url, $body),
@@ -464,6 +492,8 @@ class HetznerApiService
                 'DELETE' => $http->delete($url, $body),
                 default => throw new HetznerApiException("Nicht unterstützte HTTP-Methode: {$method}", 400, 'invalid_input'),
             };
+
+            $this->notifyObserver($method, $path, $response, $startedAt);
 
             return $this->handleResponse($response, $connection);
         } catch (HetznerApiException $e) {
@@ -538,6 +568,35 @@ class HetznerApiService
         ]);
 
         throw HetznerApiException::fromResponse($statusCode, $data);
+    }
+
+    /**
+     * Meldet einen abgeschlossenen Aufruf an den Beobachter, falls einer gesetzt ist.
+     *
+     * Ein Fehler im Beobachter darf den Aufruf nie zum Scheitern bringen —
+     * Protokollierung ist Beiwerk, nicht Zweck.
+     */
+    protected function notifyObserver(string $method, string $path, Response $response, float $startedAt): void
+    {
+        if (!$this->observer) {
+            return;
+        }
+
+        try {
+            ($this->observer)(
+                $method,
+                $path,
+                $response->status(),
+                (int) round((microtime(true) - $startedAt) * 1000),
+                [
+                    'Retry-After' => (string) $response->header('Retry-After'),
+                    'RateLimit-Remaining' => (string) $response->header('RateLimit-Remaining'),
+                    'RateLimit-Reset' => (string) $response->header('RateLimit-Reset'),
+                ],
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Hetzner API: Beobachter fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
     }
 
     protected function updateConnectionStatus(

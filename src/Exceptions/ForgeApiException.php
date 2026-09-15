@@ -18,6 +18,14 @@ class ForgeApiException extends Exception
 
     protected ?array $responseData = null;
 
+    /**
+     * Wartezeit in Sekunden aus einer Rate-Limit-Antwort.
+     *
+     * Steht als Feld zur Verfügung, damit ein Aufrufer sie auswerten kann, ohne
+     * den Meldungstext zu zerlegen.
+     */
+    protected ?int $retryAfter = null;
+
     public const HTTP_STATUS_MESSAGES = [
         200 => 'OK - Anfrage erfolgreich verarbeitet.',
         201 => 'Created - Ressource wurde angelegt.',
@@ -85,7 +93,10 @@ class ForgeApiException extends Exception
             ? " Bitte in {$retryAfter} Sekunden erneut versuchen."
             : ' Bitte später erneut versuchen.';
 
-        return new self($message, 429, 'RATE_LIMIT_EXCEEDED');
+        $exception = new self($message, 429, 'RATE_LIMIT_EXCEEDED');
+        $exception->retryAfter = $retryAfter;
+
+        return $exception;
     }
 
     public static function connectionError(string $message): self
@@ -124,6 +135,14 @@ class ForgeApiException extends Exception
     public function getErrorCode(): ?string
     {
         return $this->errorCode;
+    }
+
+    /**
+     * Wartezeit in Sekunden, falls die Antwort eine genannt hat.
+     */
+    public function getRetryAfter(): ?int
+    {
+        return $this->retryAfter;
     }
 
     public function getResponseData(): ?array
