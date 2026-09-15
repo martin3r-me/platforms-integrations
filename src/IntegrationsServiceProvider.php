@@ -923,6 +923,66 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: DedeFleet Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+
+        // ---------------------------------------------------------------------
+        // Laravel Forge Tools (API v2 — Server, Sites, Deployments)
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Referenz + Verbindung
+            $registry->register(new \Platform\Integrations\Tools\Forge\ForgeOverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\TestConnectionTool());
+
+            // Generischer Zugriff (deckt alle 160 Endpunkte der v2-API ab)
+            $registry->register(new \Platform\Integrations\Tools\Forge\CallTool());
+
+            // Komfort-Read-Tools
+            $registry->register(new \Platform\Integrations\Tools\Forge\ListOrganizationsTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ListServersTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\GetServerTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ListSitesTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\GetSiteTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ListDeploymentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\GetDeploymentLogTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ListEventsTool());
+
+            // Schreibende Aktionen (jeweils mit Bestätigungspflicht)
+            $registry->register(new \Platform\Integrations\Tools\Forge\DeploySiteTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ServerActionTool());
+            $registry->register(new \Platform\Integrations\Tools\Forge\ServiceActionTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Laravel Forge Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // ---------------------------------------------------------------------
+        // Hetzner Cloud Tools (API v1 — Server, Netzwerk, Speicher, DNS)
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Referenz + Verbindung
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\HetznerOverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\TestConnectionTool());
+
+            // Generischer Zugriff (deckt alle 152 Endpunkte der v1-API ab)
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\CallTool());
+
+            // Komfort-Read-Tools
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\ListServersTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\GetServerTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\GetServerMetricsTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\ListResourcesTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\ListZoneRrsetsTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\GetPricingTool());
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\ActionsTool());
+
+            // Schreibende Aktionen (zerstörende Aktionen mit Bestätigungspflicht)
+            $registry->register(new \Platform\Integrations\Tools\Hetzner\ServerActionTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Hetzner Cloud Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

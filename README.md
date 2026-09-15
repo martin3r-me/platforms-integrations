@@ -100,3 +100,95 @@ Das Script:
 1. Liest GitHub Repository-Informationen aus den whitelabelten Ordnern
 2. Fragt den API-Endpunkt `/api/helpdesk/tickets/github-repository/next-open` ab
 3. Gibt gefundene Tickets aus: "JA TICKET: [Titel]"
+
+## Laravel Forge (API v2)
+
+Server-, Site- und Deployment-Verwaltung über die Laravel Forge API v2.
+
+**Verbinden:** `/integrations` → „Laravel Forge verbinden“. Benötigt ein persönliches
+API-Token aus dem Forge-Profil (https://forge.laravel.com/profile/api). Das Token wird
+verschlüsselt in `credentials.api_key` abgelegt.
+
+**Organisationen:** Die v2-API ist organisationsbezogen — nahezu alle Ressourcen liegen
+unter `/orgs/{organization}/…`. Im Verbindungsdialog kann ein Standard-Slug hinterlegt
+werden (`credentials.organization`); er muss dann nicht bei jedem Tool-Aufruf mitgegeben
+werden. Der Verbindungstest listet alle erreichbaren Organisationen auf.
+
+**Paginierung:** cursorbasiert über `page[size]` und `page[cursor]`. Die Antwort liefert
+`meta.next_cursor`, der als `cursor` in den Folgeaufruf geht.
+
+**Tools:**
+
+| Tool | Zweck |
+|---|---|
+| `integrations.forge.overview` | Endpunkt-Katalog und Nutzungsregeln, ohne API-Aufruf |
+| `integrations.forge.test-connection` | Verbindung prüfen, Organisationen auflisten |
+| `integrations.forge.call` | Generischer Zugriff auf alle 160 Endpunkte |
+| `integrations.forge.organizations.GET` | Organisationen auflisten |
+| `integrations.forge.servers.GET` | Server einer Organisation auflisten |
+| `integrations.forge.server.GET` | Einzelnen Server abrufen |
+| `integrations.forge.sites.GET` | Sites organisationsweit oder je Server |
+| `integrations.forge.site.GET` | Einzelne Site abrufen |
+| `integrations.forge.deployments.GET` | Deployment-Historie einer Site |
+| `integrations.forge.deployment-log.GET` | Deployment-Log bzw. aktueller Status |
+| `integrations.forge.events.GET` | Events als Audit-Trail |
+| `integrations.forge.site.deploy` | **Schreibend:** Deployment auslösen |
+| `integrations.forge.server.action` | **Schreibend:** `reboot` / `power-cycle` |
+| `integrations.forge.service.action` | **Schreibend:** Dienst neu starten oder stoppen |
+
+Alle schreibenden Tools verlangen `"confirm": true`.
+
+**ENV-Variablen** (optional, überschreiben nur die Defaults):
+
+```env
+FORGE_API_BASE_URL=https://forge.laravel.com/api
+FORGE_DEFAULT_TIMEOUT=30
+FORGE_CONNECT_TIMEOUT=10
+```
+
+## Hetzner Cloud (API v1)
+
+Verwaltung von Servern, Volumes, Netzwerken, Load Balancern, Firewalls und DNS-Zonen.
+
+**Verbinden:** `/integrations` → „Hetzner Cloud verbinden“. Das Token wird in der Cloud
+Console unter Projekt → Security → API Tokens erzeugt.
+
+**Ein Token = ein Projekt.** Die API kennt keinen Projekt-Parameter. Für mehrere Projekte
+wird je Projekt eine eigene Verbindung angelegt und über `connection_id` angesprochen. Ein
+Token mit reinen Leserechten beantwortet schreibende Aufrufe mit HTTP 403.
+
+**Asynchrone Aktionen:** Jeder verändernde Aufruf liefert ein `action`-Objekt mit Status
+`running`, `success` oder `error`. Die Antwort bedeutet also noch nicht, dass die Aktion
+abgeschlossen ist. Den Fortschritt liefert `integrations.hetzner.actions.GET`, wahlweise
+mit `"wait": true`.
+
+**Paginierung:** seitenbasiert über `page` und `per_page` (Maximum 50).
+
+**Tools:**
+
+| Tool | Zweck |
+|---|---|
+| `integrations.hetzner.overview` | Endpunkt-Katalog und Nutzungsregeln, ohne API-Aufruf |
+| `integrations.hetzner.test-connection` | Verbindung prüfen, Server-Anzahl ermitteln |
+| `integrations.hetzner.call` | Generischer Zugriff auf alle 152 Endpunkte |
+| `integrations.hetzner.servers.GET` | Server des Projekts auflisten |
+| `integrations.hetzner.server.GET` | Einzelnen Server abrufen |
+| `integrations.hetzner.server.metrics.GET` | CPU-, Disk- und Netzwerk-Metriken |
+| `integrations.hetzner.list.GET` | Sammel-Tool für 16 weitere Ressourcen |
+| `integrations.hetzner.zone.rrsets.GET` | DNS-Einträge einer Zone |
+| `integrations.hetzner.pricing.GET` | Preisliste des Projekts |
+| `integrations.hetzner.actions.GET` | Status asynchroner Aktionen, optional mit Warten |
+| `integrations.hetzner.server.action` | **Schreibend:** Server-Aktionen ausführen |
+
+Die zerstörenden Aktionen `poweroff`, `reset` und `rebuild` sowie jedes `DELETE` über
+`integrations.hetzner.call` verlangen `"confirm": true`.
+
+**ENV-Variablen** (optional, überschreiben nur die Defaults):
+
+```env
+HETZNER_API_BASE_URL=https://api.hetzner.cloud/v1
+HETZNER_DEFAULT_TIMEOUT=30
+HETZNER_CONNECT_TIMEOUT=10
+HETZNER_ACTION_MAX_WAIT=60
+HETZNER_ACTION_POLL_INTERVAL=2
+```

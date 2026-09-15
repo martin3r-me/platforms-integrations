@@ -34,6 +34,8 @@ use Platform\Integrations\Services\DatevIntegrationService;
 use Platform\Integrations\Services\EasybillIntegrationService;
 use Platform\Integrations\Services\NectaIntegrationService;
 use Platform\Integrations\Services\DedefleetIntegrationService;
+use Platform\Integrations\Services\ForgeIntegrationService;
+use Platform\Integrations\Services\HetznerIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -108,6 +110,16 @@ class Index extends Component
     // DedeFleet Modal
     public bool $dedefleetModalShow = false;
     public string $dedefleetApiToken = '';
+
+    // Laravel Forge Modal
+    public bool $forgeModalShow = false;
+    public string $forgeApiToken = '';
+    public string $forgeOrganization = '';
+
+    // Hetzner Cloud Modal
+    public bool $hetznerModalShow = false;
+    public string $hetznerApiToken = '';
+    public string $hetznerProjectLabel = '';
 
     // Share Modal
     public bool $shareModalShow = false;
@@ -243,6 +255,22 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
+        $forgeConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'forge'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
+        $hetznerConnections = IntegrationConnection::query()
+            ->with('integration')
+            ->whereHas('integration', fn ($q) => $q->where('key', 'hetzner'))
+            ->where('owner_user_id', $user->id)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
         $sharedWithMe = IntegrationConnection::query()
@@ -288,6 +316,8 @@ class Index extends Component
             'easybillConnections' => $easybillConnections,
             'nectaConnections' => $nectaConnections,
             'dedefleetConnections' => $dedefleetConnections,
+            'forgeConnections' => $forgeConnections,
+            'hetznerConnections' => $hetznerConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1753,6 +1783,225 @@ class Index extends Component
 
             if ($result['success']) {
                 $this->syncMessage = 'DedeFleet-Verbindung erfolgreich getestet.';
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== LARAVEL FORGE METHODS ====================
+
+    public function openForgeModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->forgeApiToken = '';
+        $this->forgeOrganization = '';
+
+        // Beim Bearbeiten die hinterlegte Standard-Organisation vorbelegen,
+        // damit sie nicht versehentlich verloren geht. Das Token wird aus
+        // Sicherheitsgruenden nie zurueckgespielt.
+        if ($connectionId) {
+            $connection = IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if ($connection) {
+                $this->forgeOrganization = app(ForgeIntegrationService::class)->getDefaultOrganization($connection) ?? '';
+            }
+        }
+
+        $this->forgeModalShow = true;
+    }
+
+    public function openForgeModalForEdit(int $connectionId): void
+    {
+        $this->openForgeModal($connectionId);
+    }
+
+    public function closeForgeModal(): void
+    {
+        $this->forgeModalShow = false;
+        $this->forgeApiToken = '';
+        $this->forgeOrganization = '';
+        $this->editingId = null;
+    }
+
+    public function saveForgeConnection(): void
+    {
+        $this->validate([
+            'forgeApiToken' => ['required', 'string', 'min:20'],
+            'forgeOrganization' => ['nullable', 'string', 'max:255'],
+        ], [
+            'forgeApiToken.required' => 'Bitte gib dein Laravel-Forge API-Token ein.',
+            'forgeApiToken.min' => 'Das Token muss mindestens 20 Zeichen lang sein.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(ForgeIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->forgeApiToken,
+                $this->forgeOrganization,
+                $this->editingId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->forgeModalShow = false;
+                $this->forgeApiToken = '';
+                $this->forgeOrganization = '';
+                $this->editingId = null;
+                session()->flash('status', 'Laravel-Forge-Verbindung erfolgreich hergestellt. ' . $testResult['message']);
+            } else {
+                $this->addError('forgeApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('forgeApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('Forge connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testForgeConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $forgeConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$forgeConnection) {
+                $this->syncError = 'Keine Laravel-Forge-Verbindung gefunden.';
+                return;
+            }
+
+            $result = app(ForgeIntegrationService::class)->testConnection($forgeConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = $result['message'];
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== HETZNER CLOUD METHODS ====================
+
+    public function openHetznerModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->hetznerApiToken = '';
+        $this->hetznerProjectLabel = '';
+
+        if ($connectionId) {
+            $connection = IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if ($connection) {
+                $this->hetznerProjectLabel = app(HetznerIntegrationService::class)->getProjectLabel($connection) ?? '';
+            }
+        }
+
+        $this->hetznerModalShow = true;
+    }
+
+    public function openHetznerModalForEdit(int $connectionId): void
+    {
+        $this->openHetznerModal($connectionId);
+    }
+
+    public function closeHetznerModal(): void
+    {
+        $this->hetznerModalShow = false;
+        $this->hetznerApiToken = '';
+        $this->hetznerProjectLabel = '';
+        $this->editingId = null;
+    }
+
+    public function saveHetznerConnection(): void
+    {
+        $this->validate([
+            'hetznerApiToken' => ['required', 'string', 'min:32'],
+            'hetznerProjectLabel' => ['nullable', 'string', 'max:255'],
+        ], [
+            'hetznerApiToken.required' => 'Bitte gib dein Hetzner-Cloud API-Token ein.',
+            'hetznerApiToken.min' => 'Hetzner-Tokens sind 64 Zeichen lang — bitte das vollstaendige Token einfuegen.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(HetznerIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->hetznerApiToken,
+                $this->hetznerProjectLabel,
+                $this->editingId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->hetznerModalShow = false;
+                $this->hetznerApiToken = '';
+                $this->hetznerProjectLabel = '';
+                $this->editingId = null;
+                session()->flash('status', 'Hetzner-Cloud-Verbindung erfolgreich hergestellt. ' . $testResult['message']);
+            } else {
+                $this->addError('hetznerApiToken', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('hetznerApiToken', 'Fehler: ' . $e->getMessage());
+            \Log::error('Hetzner connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testHetznerConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $hetznerConnection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$hetznerConnection) {
+                $this->syncError = 'Keine Hetzner-Cloud-Verbindung gefunden.';
+                return;
+            }
+
+            $result = app(HetznerIntegrationService::class)->testConnection($hetznerConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = $result['message'];
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];

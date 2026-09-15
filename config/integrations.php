@@ -514,5 +514,69 @@ return [
             'connect' => (int) env('SIPGATE_CONNECT_TIMEOUT', 10),
         ],
     ],
+    /**
+     * Laravel Forge API Konfiguration (API v2)
+     *
+     * Forge verwaltet Server, Sites und Deployments. Die API v2 ist
+     * organisationsbezogen: nahezu alle Ressourcen liegen unter
+     * /orgs/{organization}/...
+     *
+     * Auth: persönliches API-Token (Bearer), erzeugt unter
+     * https://forge.laravel.com/profile/api
+     * Das Token wird pro Connection in credentials.api_key gespeichert,
+     * die Standard-Organisation in credentials.organization.
+     *
+     * ENV-Variablen (optional, nur zum Überschreiben der Defaults):
+     * - FORGE_API_BASE_URL
+     * - FORGE_DEFAULT_TIMEOUT / FORGE_CONNECT_TIMEOUT
+     *
+     * @see https://laravel.com/forge/docs/api-reference/introduction
+     */
+    'forge' => [
+        'api_base_url' => env('FORGE_API_BASE_URL', 'https://forge.laravel.com/api'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('FORGE_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('FORGE_CONNECT_TIMEOUT', 10),
+        ],
+    ],
+
+    /**
+     * Hetzner Cloud API Konfiguration (API v1)
+     *
+     * Hetzner Cloud verwaltet Server, Volumes, Netzwerke, Load Balancer,
+     * Firewalls und DNS-Zonen.
+     *
+     * Auth: projektbezogenes API-Token (Bearer), erzeugt in der Cloud Console
+     * unter Projekt -> Security -> API Tokens.
+     * WICHTIG: Ein Token gilt immer für genau EIN Projekt. Für mehrere Projekte
+     * wird je Projekt eine eigene Connection angelegt.
+     *
+     * Verändernde Aufrufe sind asynchron und liefern ein "action"-Objekt, dessen
+     * Status über GET /actions/{id} abgefragt wird.
+     *
+     * ENV-Variablen (optional, nur zum Überschreiben der Defaults):
+     * - HETZNER_API_BASE_URL
+     * - HETZNER_DEFAULT_TIMEOUT / HETZNER_CONNECT_TIMEOUT
+     * - HETZNER_ACTION_MAX_WAIT / HETZNER_ACTION_POLL_INTERVAL
+     *
+     * @see https://docs.hetzner.cloud/reference/cloud
+     */
+    'hetzner' => [
+        'api_base_url' => env('HETZNER_API_BASE_URL', 'https://api.hetzner.cloud/v1'),
+
+        // Polling für asynchrone Aktionen
+        'action' => [
+            'max_wait' => (int) env('HETZNER_ACTION_MAX_WAIT', 60),
+            'poll_interval' => (int) env('HETZNER_ACTION_POLL_INTERVAL', 2),
+        ],
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('HETZNER_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('HETZNER_CONNECT_TIMEOUT', 10),
+        ],
+    ],
 ];
 

@@ -1028,6 +1028,244 @@
             </div>
         </div>
 
+        {{-- Laravel Forge Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-server-stack', 'w-6 h-6 text-indigo-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Laravel Forge</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Server, Sites &amp; Deployments — API v2, organisationsbezogen</p>
+                        </div>
+                    </div>
+                    @if($forgeConnections->isNotEmpty())
+                        <x-ui-button variant="secondary-outline" size="sm" wire:click="openForgeModal">
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($forgeConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($forgeConnections as $fgConn)
+                            <div class="p-4 {{ $fgConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($fgConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $fgConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $fgConn->name ?? 'Laravel Forge' }}
+                                            </p>
+                                            @if($fgConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $fgConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $fgConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        @if(($fgConn->credentials['organization'] ?? null))
+                                            <p class="text-xs font-mono {{ $fgConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                                Standard-Organisation: {{ $fgConn->credentials['organization'] }}
+                                            </p>
+                                        @else
+                                            <p class="text-xs text-yellow-700 mt-1">
+                                                Keine Standard-Organisation hinterlegt — bei jedem Aufruf muss &bdquo;organization&ldquo; mitgegeben werden.
+                                            </p>
+                                        @endif
+                                        <p class="text-xs {{ $fgConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $fgConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($fgConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $fgConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$fgConn->is_default)
+                                            <x-ui-button variant="secondary-outline" size="sm" wire:click="setDefaultConnection({{ $fgConn->id }})" title="Als Standard setzen">
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button variant="secondary" size="sm" wire:click="openShareModal({{ $fgConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button variant="secondary" size="sm" wire:click="openForgeModalForEdit({{ $fgConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Token aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button variant="danger-outline" size="sm" wire:click="deleteConnection({{ $fgConn->id }})" wire:confirm="Laravel Forge-Verbindung '{{ $fgConn->name }}' wirklich löschen?">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($fgConn->status === 'active')
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button variant="secondary-outline" size="sm" wire:click="testForgeConnection({{ $fgConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 mb-4">
+                            @svg('heroicon-o-server-stack', 'w-8 h-8 text-indigo-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Laravel Forge noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde Laravel Forge mit deinem persönlichen API-Token</p>
+                        <x-ui-button variant="primary" size="md" wire:click="openForgeModal">
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>Laravel Forge verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Hetzner Cloud Integration (Prominent) --}}
+        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
+            <div class="p-6 lg:p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/10 to-red-600/5 flex items-center justify-center">
+                            @svg('heroicon-o-cloud', 'w-6 h-6 text-red-600')
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Hetzner Cloud</h2>
+                            <p class="text-sm text-[var(--ui-muted)]">Server, Volumes, Netzwerke &amp; DNS — ein Token je Projekt</p>
+                        </div>
+                    </div>
+                    @if($hetznerConnections->isNotEmpty())
+                        <x-ui-button variant="secondary-outline" size="sm" wire:click="openHetznerModal">
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-plus', 'w-4 h-4')
+                                <span>Neue Verbindung</span>
+                            </span>
+                        </x-ui-button>
+                    @endif
+                </div>
+
+                @if($hetznerConnections->isNotEmpty())
+                    <div class="space-y-4">
+                        @foreach($hetznerConnections as $htzConn)
+                            <div class="p-4 {{ $htzConn->status === 'active' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-xl">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if($htzConn->status === 'active')
+                                            @svg('heroicon-o-check-circle', 'w-6 h-6 text-green-600')
+                                        @else
+                                            @svg('heroicon-o-exclamation-circle', 'w-6 h-6 text-yellow-600')
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium {{ $htzConn->status === 'active' ? 'text-green-900' : 'text-yellow-900' }}">
+                                                {{ $htzConn->name ?? 'Hetzner Cloud' }}
+                                            </p>
+                                            @if($htzConn->is_default)
+                                                <x-ui-badge size="sm" variant="primary">Standard</x-ui-badge>
+                                            @endif
+                                            <x-ui-badge size="sm" variant="{{ $htzConn->status === 'active' ? 'success' : 'warning' }}">
+                                                {{ $htzConn->status }}
+                                            </x-ui-badge>
+                                        </div>
+                                        @if(($htzConn->credentials['project'] ?? null))
+                                            <p class="text-xs font-mono {{ $htzConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                                Projekt: {{ $htzConn->credentials['project'] }}
+                                            </p>
+                                        @endif
+                                        <p class="text-xs {{ $htzConn->status === 'active' ? 'text-green-700' : 'text-yellow-700' }} mt-1">
+                                            Verbunden am {{ $htzConn->updated_at->format('d.m.Y H:i') }}
+                                        </p>
+                                        @if($htzConn->last_error)
+                                            <p class="text-xs text-red-700 mt-1">Letzter Fehler: {{ $htzConn->last_error }}</p>
+                                        @endif
+                                    </div>
+                                    <div class="flex gap-2">
+                                        @if(!$htzConn->is_default)
+                                            <x-ui-button variant="secondary-outline" size="sm" wire:click="setDefaultConnection({{ $htzConn->id }})" title="Als Standard setzen">
+                                                @svg('heroicon-o-star', 'w-4 h-4')
+                                            </x-ui-button>
+                                        @endif
+                                        <x-ui-button variant="secondary" size="sm" wire:click="openShareModal({{ $htzConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-user-group', 'w-4 h-4')
+                                                <span>Freigaben</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button variant="secondary" size="sm" wire:click="openHetznerModalForEdit({{ $htzConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-arrow-path', 'w-4 h-4')
+                                                <span>Token aktualisieren</span>
+                                            </span>
+                                        </x-ui-button>
+                                        <x-ui-button variant="danger-outline" size="sm" wire:click="deleteConnection({{ $htzConn->id }})" wire:confirm="Hetzner Cloud-Verbindung '{{ $htzConn->name }}' wirklich löschen?">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-trash', 'w-4 h-4')
+                                                <span>Trennen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                </div>
+
+                                @if($htzConn->status === 'active')
+                                    <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
+                                        <x-ui-button variant="secondary-outline" size="sm" wire:click="testHetznerConnection({{ $htzConn->id }})">
+                                            <span class="inline-flex items-center gap-2">
+                                                @svg('heroicon-o-signal', 'w-4 h-4')
+                                                <span>Verbindung testen</span>
+                                            </span>
+                                        </x-ui-button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                            @svg('heroicon-o-cloud', 'w-8 h-8 text-red-600')
+                        </div>
+                        <p class="text-sm font-medium text-[var(--ui-secondary)] mb-1">Hetzner Cloud noch nicht verbunden</p>
+                        <p class="text-xs text-[var(--ui-muted)] mb-4">Verbinde ein Hetzner-Cloud-Projekt mit seinem API-Token</p>
+                        <x-ui-button variant="primary" size="md" wire:click="openHetznerModal">
+                            <span class="inline-flex items-center gap-2">
+                                @svg('heroicon-o-key', 'w-5 h-5')
+                                <span>Hetzner Cloud verbinden</span>
+                            </span>
+                        </x-ui-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- HubSpot Integration (Prominent) --}}
         <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
             <div class="p-6 lg:p-8">
@@ -2768,6 +3006,133 @@
                     Abbrechen
                 </x-ui-button>
                 <x-ui-button type="button" variant="primary" wire:click="saveDedefleetConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- Laravel Forge Modal (API-Token + Standard-Organisation) --}}
+    <x-ui-modal wire:model="forgeModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-server-stack', 'w-5 h-5 text-indigo-600')
+                </div>
+                <span>Laravel Forge verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-indigo-800">
+                        <p class="font-medium mb-1">Persönliches API-Token erforderlich</p>
+                        <p>Das Token erzeugst du in deinem Forge-Profil:</p>
+                        <p class="font-mono text-xs mt-1 bg-indigo-100 px-2 py-1 rounded">forge.laravel.com &rarr; Profil &rarr; API &rarr; Create Token</p>
+                        <p class="mt-2">Das Token wird nur <strong>einmal vollständig angezeigt</strong> — bei Verlust neu erzeugen.</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="forgeApiToken"
+                label="API-Token"
+                wire:model.live="forgeApiToken"
+                type="password"
+                placeholder="Dein Laravel-Forge API-Token..."
+                :errorKey="'forgeApiToken'"
+            />
+
+            <x-ui-input-text
+                name="forgeOrganization"
+                label="Standard-Organisation (optional)"
+                wire:model.live="forgeOrganization"
+                placeholder="z.B. meine-agentur"
+                :errorKey="'forgeOrganization'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Die API v2 ist organisationsbezogen: Server und Sites liegen unter <span class="font-mono">/orgs/&#123;organisation&#125;/…</span>.
+                Ist hier ein Slug hinterlegt, muss er bei Aufrufen nicht jedes Mal mitgegeben werden.
+                Nach dem Speichern zeigt der Verbindungstest alle erreichbaren Organisationen an.
+                Das Token wird verschlüsselt gespeichert und ist nur für dich sichtbar.
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeForgeModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveForgeConnection">
+                    <span class="inline-flex items-center gap-2">
+                        @svg('heroicon-o-check', 'w-4 h-4')
+                        <span>Verbinden</span>
+                    </span>
+                </x-ui-button>
+            </div>
+        </x-slot>
+    </x-ui-modal>
+
+    {{-- Hetzner Cloud Modal (Projekt-Token) --}}
+    <x-ui-modal wire:model="hetznerModalShow" size="md">
+        <x-slot name="header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/10 to-red-600/5 flex items-center justify-center">
+                    @svg('heroicon-o-cloud', 'w-5 h-5 text-red-600')
+                </div>
+                <span>Hetzner Cloud verbinden</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    @svg('heroicon-o-information-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                    <div class="text-sm text-red-800">
+                        <p class="font-medium mb-1">Projekt-Token erforderlich</p>
+                        <p>Das Token erzeugst du in der Hetzner Cloud Console:</p>
+                        <p class="font-mono text-xs mt-1 bg-red-100 px-2 py-1 rounded">Projekt &rarr; Security &rarr; API Tokens &rarr; Generate API token</p>
+                        <p class="mt-2">Ein Token gilt immer für <strong>genau ein Projekt</strong>. Für weitere Projekte jeweils eine eigene Verbindung anlegen.</p>
+                        <p class="mt-1">Mit <strong>Read</strong>-Rechten sind nur Abfragen möglich; für Aktionen wie Neustarts wird <strong>Read &amp; Write</strong> benötigt.</p>
+                    </div>
+                </div>
+            </div>
+
+            <x-ui-input-text
+                name="hetznerApiToken"
+                label="API-Token"
+                wire:model.live="hetznerApiToken"
+                type="password"
+                placeholder="64-stelliges Hetzner-Cloud-Token..."
+                :errorKey="'hetznerApiToken'"
+            />
+
+            <x-ui-input-text
+                name="hetznerProjectLabel"
+                label="Projektname (optional)"
+                wire:model.live="hetznerProjectLabel"
+                placeholder="z.B. Produktion"
+                :errorKey="'hetznerProjectLabel'"
+            />
+
+            <div class="text-xs text-gray-500">
+                Der Projektname dient nur der Unterscheidung mehrerer Verbindungen und wird als Name der Verbindung übernommen.
+                Das Token wird verschlüsselt gespeichert und ist nur für dich sichtbar. Base-URL: https://api.hetzner.cloud/v1
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="d-flex justify-end gap-2">
+                <x-ui-button type="button" variant="secondary-outline" wire:click="closeHetznerModal">
+                    Abbrechen
+                </x-ui-button>
+                <x-ui-button type="button" variant="primary" wire:click="saveHetznerConnection">
                     <span class="inline-flex items-center gap-2">
                         @svg('heroicon-o-check', 'w-4 h-4')
                         <span>Verbinden</span>
