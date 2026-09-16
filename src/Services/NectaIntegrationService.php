@@ -259,24 +259,107 @@ class NectaIntegrationService
     // =========================================================================
 
     /**
-     * Testet die necta.one API-Verbindung gegen einen leichtgewichtigen
-     * Raw-API-Endpunkt (GET /rawapi/products?pageNumber=1&pageSize=1).
+     * Testet die necta.one-Verbindung gegen BEIDE APIs, weil sie getrennte
+     * Schluessel nutzen und unabhaengig voneinander kaputt sein koennen:
+     *
+     *   Raw-API → GET /rawapi/products?pageNumber=1&pageSize=1  (raw_api_key)
+     *   API v1  → GET /api/v1/user/profile                      (api_key)
+     *
+     * Der v1-Endpunkt kommt ohne tenantId aus und prueft damit den Schluessel
+     * auch bei Connections ohne hinterlegte tenant_id.
+     *
+     * Wurde frueher nur die Raw-API geprueft, meldete der Test "erfolgreich",
+     * waehrend saemtliche v1-Tools an einem ungueltigen api_key scheiterten.
      *
      * @return array{success: bool, message: string, data?: array}
      */
     public function testConnection(IntegrationConnection $connection): array
     {
-        // Der Test läuft gegen die Raw-API → Raw-Key (mit Fallback auf api_key).
-        $apiKey = $this->getRawApiKey($connection);
         $baseUrl = $this->getBaseUrl($connection);
-
-        if (!$apiKey) {
-            return ['success' => false, 'message' => 'Kein API-Key (api_key/raw_api_key) vorhanden.'];
-        }
         if (!$baseUrl) {
             return ['success' => false, 'message' => 'Keine base_url hinterlegt.'];
         }
 
+        // Raw nutzt raw_api_key (Fallback api_key), v1 den User-Key api_key.
+        $rawKey = $this->getRawApiKey($connection);
+        $v1Key = $this->getApiKey($connection);
+
+        if (!$rawKey && !$v1Key) {
+            return ['success' => false, 'message' => 'Kein API-Key (api_key/raw_api_key) vorhanden.'];
+        }
+
+        $checks = [];
+        if ($rawKey) {
+            $checks[] = $this->probeEndpoint(
+                'Raw-API',
+                $baseUrl . '/rawapi/products',
+                $rawKey,
+                ['pageNumber' => 1, 'pageSize' => 1]
+            );
+        }
+        if ($v1Key) {
+            $checks[] = $this->probeEndpoint('API v1', $baseUrl . '/api/v1/user/profile', $v1Key, []);
+        }
+
+        $failed = array_values(array_filter($checks, static fn (array $c) => !$c['ok']));
+        $success = $failed === [];
+
+        // Die Connection gilt nur dann als defekt, wenn KEIN Pfad mehr nutzbar
+        // ist und die Fehlschlaege echte Credential-/Konfigurationsprobleme sind.
+        // Solange ein Schluessel funktioniert, bleibt sie fuer alle nutzbar —
+        // sonst faellt sie aus dem IntegrationConnectionResolver und sperrt alle
+        // Kollegen aus, die sie geteilt nutzen.
+        $allBroken = $failed === $checks
+            && $failed !== []
+            && array_reduce($failed, static fn ($carry, $c) => $carry && $c['credentialProblem'], true);
+
+        if ($allBroken) {
+            $connection->status = 'error';
+        } elseif ($success) {
+            $connection->status = 'active';
+        }
+
+        $connection->last_error = $success
+            ? null
+            : implode(' | ', array_map(static fn (array $c) => $c['label'] . ': ' . $c['error'], $failed));
+        $connection->last_tested_at = now();
+        $connection->save();
+
+        $summary = implode(' · ', array_map(
+            static fn (array $c) => $c['label'] . ': ' . ($c['ok'] ? 'OK' : $c['error']),
+            $checks
+        ));
+
+        if (!$success) {
+            Log::warning('necta.one testConnection failed', [
+                'connection_id' => $connection->id,
+                'checks' => array_map(
+                    static fn (array $c) => ['label' => $c['label'], 'ok' => $c['ok'], 'http_status' => $c['status']],
+                    $checks
+                ),
+                'marked_broken' => $allBroken,
+            ]);
+        }
+
+        return [
+            'success' => $success,
+            'message' => $success ? 'Verbindung erfolgreich. ' . $summary : $summary,
+            'data' => ['checks' => $checks],
+        ];
+    }
+
+    /**
+     * Ein einzelner Endpunkt-Check.
+     *
+     * credentialProblem unterscheidet "Zugang kaputt, da muss jemand ran"
+     * (401/403/404) von "gerade nicht erreichbar" (Timeout, 429, 5xx) — nur
+     * Ersteres darf die Connection als defekt markieren.
+     *
+     * @param array<string, mixed> $query
+     * @return array{label: string, ok: bool, status: int|null, error: string|null, credentialProblem: bool}
+     */
+    protected function probeEndpoint(string $label, string $url, string $apiKey, array $query): array
+    {
         try {
             $response = Http::withHeaders([
                 'X-Api-Key' => $apiKey,
@@ -284,22 +367,10 @@ class NectaIntegrationService
             ])
                 ->connectTimeout((int) config('integrations.necta.timeout.connect', 10))
                 ->timeout((int) config('integrations.necta.timeout.default', 60))
-                ->get($baseUrl . '/rawapi/products', [
-                    'pageNumber' => 1,
-                    'pageSize' => 1,
-                ]);
+                ->get($url, $query);
 
             if ($response->successful()) {
-                $connection->status = 'active';
-                $connection->last_error = null;
-                $connection->last_tested_at = now();
-                $connection->save();
-
-                return [
-                    'success' => true,
-                    'message' => 'Verbindung erfolgreich.',
-                    'data' => $response->json() ?? [],
-                ];
+                return ['label' => $label, 'ok' => true, 'status' => $response->status(), 'error' => null, 'credentialProblem' => false];
             }
 
             $status = $response->status();
@@ -310,57 +381,41 @@ class NectaIntegrationService
                 $raw = trim((string) $response->body());
                 $error = $raw !== '' ? mb_substr($raw, 0, 300) : 'Unbekannter Fehler';
             }
-
-            $hint = '';
-            if ($status === 401) {
-                $hint = ' Hinweis: Prüfe den API-Key (Header X-Api-Key) und ob er gültig ist.';
-            } elseif ($status === 403) {
-                $hint = ' Hinweis: Der API-Key besitzt keine RAW-API-Berechtigung.';
-            } elseif ($status === 404) {
-                $hint = ' Hinweis: Prüfe die base_url — sie muss der Instanz-Root ohne /rawapi sein.';
+            if (!is_string($error)) {
+                $error = json_encode($error, JSON_UNESCAPED_UNICODE);
             }
 
-            $connection->status = 'error';
-            $connection->last_error = is_string($error) ? $error : json_encode($error);
-            $connection->last_tested_at = now();
-            $connection->save();
-
-            Log::warning('necta.one testConnection failed', [
-                'connection_id' => $connection->id,
-                'http_status' => $status,
-            ]);
+            $hint = match (true) {
+                $status === 401 => $label === 'Raw-API'
+                    ? ' Hinweis: Prüfe den Raw-API-Key (raw_api_key).'
+                    : ' Hinweis: Prüfe den v1-API-Key (api_key).',
+                $status === 403 && $label === 'Raw-API' => ' Hinweis: Der Schlüssel besitzt keine RAW-API-Berechtigung.',
+                $status === 403 => ' Hinweis: Der Schlüssel besitzt keine Berechtigung für die v1-API.',
+                $status === 404 => ' Hinweis: Prüfe die base_url — sie muss der Instanz-Root ohne /rawapi sein.',
+                default => '',
+            };
 
             return [
-                'success' => false,
-                'message' => 'API-Fehler (HTTP ' . $status . '): ' . (is_string($error) ? $error : json_encode($error)) . $hint,
+                'label' => $label,
+                'ok' => false,
+                'status' => $status,
+                'error' => 'HTTP ' . $status . ': ' . $error . $hint,
+                'credentialProblem' => in_array($status, [401, 403, 404], true),
             ];
         } catch (\Exception $e) {
-            Log::error('necta.one connection test failed', [
-                'connection_id' => $connection->id,
-                'error' => $e->getMessage(),
-                'transient' => HttpTransientFailure::isTransient($e),
-            ]);
-
-            $message = HttpTransientFailure::describe(
-                $e,
-                'necta.one',
-                (int) config('integrations.necta.timeout.default', 60)
-            );
-
-            // Ein Timeout im Test heisst "gerade nicht erreichbar", nicht
-            // "Credentials kaputt" — eine bereits aktive Connection darf
-            // deswegen nicht fuer alle Nutzer ausfallen.
-            if (!HttpTransientFailure::isTransient($e)) {
-                $connection->status = 'error';
-            }
-            $connection->last_error = $message;
-            $connection->last_tested_at = now();
-            $connection->save();
-
-            return ['success' => false, 'message' => 'Verbindungsfehler: ' . $message];
+            return [
+                'label' => $label,
+                'ok' => false,
+                'status' => null,
+                'error' => HttpTransientFailure::describe(
+                    $e,
+                    'necta.one',
+                    (int) config('integrations.necta.timeout.default', 60)
+                ),
+                'credentialProblem' => !HttpTransientFailure::isTransient($e),
+            ];
         }
     }
-
     public function deleteConnectionForUser(User $user): bool
     {
         $connection = $this->getConnectionForUser($user);
