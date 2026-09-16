@@ -8,6 +8,7 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\NectaApiV1Service;
 use Platform\Integrations\Exceptions\NectaApiException;
+use Platform\Integrations\Support\NectaV1Arguments;
 
 /**
  * necta.one API v1 — DELETE /api/v1/{tenantId}/necta-modules/{moduleId}/files
@@ -58,16 +59,11 @@ Pfad-Parameter:
         $path = '/api/v1/{tenantId}/necta-modules/{moduleId}/files';
         $path = str_replace('{moduleId}', rawurlencode((string) $arguments['moduleId']), $path);
 
-        $query = [];
-        foreach (self::QUERY_KEYS as $k) {
-            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
-                $query[$k] = $arguments[$k];
-            }
-        }
-
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
+            $query = NectaV1Arguments::query($arguments, self::QUERY_KEYS, ['moduleId']);
+
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->callSpec($context->user, 'DELETE', $path, $query, $data);
 

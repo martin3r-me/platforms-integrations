@@ -10,6 +10,7 @@ use Platform\Integrations\Services\NectaApiService;
 use Platform\Integrations\Services\NectaResource;
 use Platform\Integrations\Exceptions\NectaApiException;
 use Platform\Integrations\Support\FieldProjection;
+use Platform\Integrations\Support\NectaListArguments;
 
 /**
  * Generisches Lese-Tool für die necta.one Raw-API.
@@ -29,7 +30,11 @@ class ListTool implements ToolContract, ToolMetadataContract
     {
         return 'GET /rawapi/{resource} — liest eine paginierte Seite einer beliebigen necta.one '
             . 'Raw-API-Ressource (z.B. "products", "customers", "orders", "suppliers", "invoices"). '
-            . 'Gültige Slugs + erlaubte Filter via integrations.necta.resources.GET. Read-only.';
+            . 'Gültige Slugs + erlaubte Filter via integrations.necta.resources.GET. Read-only. '
+            . 'Paginierung: pageNumber (1-basiert, Alias "page") + pageSize. '
+            . 'Filter: entweder als Top-Level-Argumente oder im Objekt "filters" — beides wird akzeptiert. '
+            . 'Nicht dokumentierte Filter werden mit einem Fehler abgelehnt (necta würde sie kommentarlos '
+            . 'ignorieren und die ungefilterte Liste liefern).';
     }
 
     public function getSchema(): array
@@ -44,7 +49,12 @@ class ListTool implements ToolContract, ToolMetadataContract
                 ],
                 'pageNumber' => [
                     'type' => 'integer',
-                    'description' => 'Seitenzahl (1-basiert). Standard: 1.',
+                    'description' => 'Seitenzahl (1-basiert). Standard: 1. Alias: "page".',
+                    'minimum' => 1,
+                ],
+                'page' => [
+                    'type' => 'integer',
+                    'description' => 'Alias für pageNumber (Schreibweise der v1-Tools).',
                     'minimum' => 1,
                 ],
                 'pageSize' => [
@@ -55,7 +65,8 @@ class ListTool implements ToolContract, ToolMetadataContract
                 'filters' => [
                     'type' => 'object',
                     'description' => 'Optionale Query-Filter der Ressource (z.B. Datumsbereiche wie '
-                        . 'creationDateFrom/creationDateTo). Erlaubte Filter siehe resources.GET.',
+                        . 'creationDateFrom/creationDateTo). Erlaubte Filter siehe resources.GET. '
+                        . 'Filter dürfen alternativ als Top-Level-Argumente übergeben werden.',
                 ],
                 'fields' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional: nur diese Felder zurückgeben (Dot-Notation für verschachtelte, z.B. "customer.customerNumber"). Reduziert die Antwortgröße drastisch.'],
                 'connection_id' => [
@@ -85,13 +96,15 @@ class ListTool implements ToolContract, ToolMetadataContract
         }
 
         try {
+            $args = NectaListArguments::normalize($resource, $arguments);
+
             $svc = app(NectaApiService::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->listForUser(
                 $context->user,
                 $resource,
-                (int) ($arguments['pageNumber'] ?? 1),
-                (int) ($arguments['pageSize'] ?? 50),
-                is_array($arguments['filters'] ?? null) ? $arguments['filters'] : []
+                $args['pageNumber'],
+                $args['pageSize'],
+                $args['filters']
             );
 
             if (!empty($arguments['fields']) && is_array($arguments['fields'])) {

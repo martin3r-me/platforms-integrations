@@ -8,6 +8,7 @@ use Platform\Core\Contracts\ToolResult;
 use Platform\Core\Contracts\ToolMetadataContract;
 use Platform\Integrations\Services\NectaApiV1Service;
 use Platform\Integrations\Exceptions\NectaApiException;
+use Platform\Integrations\Support\NectaV1Arguments;
 
 /**
  * necta.one API v1 — GET /api/v1/{tenantId}/necta-modules
@@ -48,19 +49,13 @@ Parameter sind TOP-LEVEL-Argumente (kein query-Wrapper).
             return ToolResult::error('AUTH_ERROR', 'Benutzer nicht authentifiziert.');
         }
 
-
         $path = '/api/v1/{tenantId}/necta-modules';
-
-        $query = [];
-        foreach (self::QUERY_KEYS as $k) {
-            if (array_key_exists($k, $arguments) && $arguments[$k] !== null) {
-                $query[$k] = $arguments[$k];
-            }
-        }
 
         $data = is_array($arguments['data'] ?? null) ? $arguments['data'] : [];
 
         try {
+            $query = NectaV1Arguments::query($arguments, self::QUERY_KEYS);
+
             $svc = app(NectaApiV1Service::class)->forConnection($arguments['connection_id'] ?? null);
             $result = $svc->callSpec($context->user, 'GET', $path, $query, $data);
             if (!empty($arguments['fields']) && is_array($arguments['fields'])) {
