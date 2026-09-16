@@ -8,6 +8,7 @@ use Platform\Core\Models\Team;
 use Platform\Core\Models\User;
 use Platform\Integrations\Models\Integration;
 use Platform\Integrations\Models\IntegrationConnection;
+use Platform\Integrations\Support\HttpTransientFailure;
 
 /**
  * Helper-Service für necta.one Raw-API-Integrationen.
@@ -280,10 +281,13 @@ class NectaIntegrationService
             $response = Http::withHeaders([
                 'X-Api-Key' => $apiKey,
                 'Accept' => 'application/json',
-            ])->get($baseUrl . '/rawapi/products', [
-                'pageNumber' => 1,
-                'pageSize' => 1,
-            ]);
+            ])
+                ->connectTimeout((int) config('integrations.necta.timeout.connect', 10))
+                ->timeout((int) config('integrations.necta.timeout.default', 60))
+                ->get($baseUrl . '/rawapi/products', [
+                    'pageNumber' => 1,
+                    'pageSize' => 1,
+                ]);
 
             if ($response->successful()) {
                 $connection->status = 'active';
@@ -334,14 +338,26 @@ class NectaIntegrationService
             Log::error('necta.one connection test failed', [
                 'connection_id' => $connection->id,
                 'error' => $e->getMessage(),
+                'transient' => HttpTransientFailure::isTransient($e),
             ]);
 
-            $connection->status = 'error';
-            $connection->last_error = $e->getMessage();
+            $message = HttpTransientFailure::describe(
+                $e,
+                'necta.one',
+                (int) config('integrations.necta.timeout.default', 60)
+            );
+
+            // Ein Timeout im Test heisst "gerade nicht erreichbar", nicht
+            // "Credentials kaputt" — eine bereits aktive Connection darf
+            // deswegen nicht fuer alle Nutzer ausfallen.
+            if (!HttpTransientFailure::isTransient($e)) {
+                $connection->status = 'error';
+            }
+            $connection->last_error = $message;
             $connection->last_tested_at = now();
             $connection->save();
 
-            return ['success' => false, 'message' => 'Verbindungsfehler: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Verbindungsfehler: ' . $message];
         }
     }
 

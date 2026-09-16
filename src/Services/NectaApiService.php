@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Platform\Core\Models\User;
 use Platform\Integrations\Exceptions\NectaApiException;
 use Platform\Integrations\Models\IntegrationConnection;
+use Platform\Integrations\Support\HttpTransientFailure;
 
 /**
  * Service für die Kommunikation mit der necta.one Raw-API (/rawapi/*).
@@ -242,12 +243,22 @@ class NectaApiService
         $url = $baseUrl . self::API_PREFIX . $endpoint;
 
         try {
+            // Raw-API ist read-only → GET ist idempotent, Retry unbedenklich.
+            // throw: false, damit Fehler-Status-Codes weiterhin durch
+            // handleResponse() laufen; Retries loest nur eine
+            // ConnectionException aus.
             $response = Http::withHeaders([
                 'X-Api-Key' => $apiKey,
                 'Accept' => 'application/json',
             ])
-                ->connectTimeout(config('integrations.necta.timeout.connect', 10))
-                ->timeout(config('integrations.necta.timeout.default', 60))
+                ->connectTimeout((int) config('integrations.necta.timeout.connect', 10))
+                ->timeout((int) config('integrations.necta.timeout.default', 60))
+                ->retry(
+                    max(1, (int) config('integrations.necta.retry.times', 2)),
+                    max(0, (int) config('integrations.necta.retry.sleep_ms', 500)),
+                    static fn (\Throwable $e) => HttpTransientFailure::isRetryable($e),
+                    false
+                )
                 ->get($url, self::normalizeQuery($query));
 
             return $this->handleResponse($response, $connection);
@@ -258,11 +269,26 @@ class NectaApiService
                 'connection_id' => $connection->id,
                 'endpoint' => $endpoint,
                 'error' => $e->getMessage(),
+                'transient' => HttpTransientFailure::isTransient($e),
             ]);
 
-            $this->updateConnectionStatus($connection, 'error', $e->getMessage());
+            $message = HttpTransientFailure::describe(
+                $e,
+                'necta.one',
+                (int) config('integrations.necta.timeout.default', 60)
+            );
 
-            throw NectaApiException::connectionError($e->getMessage());
+            // Netzwerkfehler sagen nichts ueber die Credentials aus → Status
+            // bleibt stehen, damit geteilte Connections nutzbar bleiben.
+            if (HttpTransientFailure::isTransient($e)) {
+                $connection->last_error = $message;
+                $connection->last_tested_at = now();
+                $connection->save();
+            } else {
+                $this->updateConnectionStatus($connection, 'error', $message);
+            }
+
+            throw NectaApiException::connectionError($message);
         }
     }
 

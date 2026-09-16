@@ -284,20 +284,34 @@ return [
     ],
 
     /**
-     * necta.one Raw-API Konfiguration
+     * necta.one Konfiguration (Raw-API + API v1)
      *
-     * Credentials (api_key/raw_api_key, base_url) liegen pro Connection in der
-     * DB (IntegrationConnection), nur das Timeout ist global konfigurierbar.
+     * Credentials (api_key/raw_api_key, base_url, tenant_id) liegen pro Connection
+     * in der DB (IntegrationConnection), nur das Timeout ist global konfigurierbar.
      *
-     * Manche Ressourcen (z.B. inventory-balances) sind serverseitig deutlich
-     * langsamer als der 30s-HTTP-Client-Default und liefen ins cURL-Limit
-     * (Ticket #868: "cURL error 28: Operation timed out after 30002 ms").
+     * Gilt fuer alle drei HTTP-Pfade: Raw-API (NectaApiService), API v1
+     * (NectaApiV1Service) und den Verbindungstest (NectaIntegrationService).
+     *
+     * Manche Ressourcen sind serverseitig deutlich langsamer als der
+     * 30s-HTTP-Client-Default und liefen ins cURL-Limit:
+     * - Raw-API, z.B. inventory-balances (Ticket #868)
+     * - API v1, z.B. purchase-orders mit grossem pageSize auf hohen Seiten
+     *   ("cURL error 28 ... for /api/v1/{tenantId}/purchase-orders?page=7&pageSize=200")
      */
     'necta' => [
         // Timeout-Konfiguration
         'timeout' => [
             'default' => (int) env('NECTA_DEFAULT_TIMEOUT', 60),
             'connect' => (int) env('NECTA_CONNECT_TIMEOUT', 10),
+        ],
+
+        // Wiederholversuche bei sporadischen Verbindungsabbruechen (Connect,
+        // DNS, Reset). NICHT bei Read-Timeouts — siehe HttpTransientFailure.
+        // 'times' ist die Gesamtzahl der Versuche: 2 = ein Wiederholversuch.
+        // Greift nur fuer idempotente Methoden (GET/HEAD).
+        'retry' => [
+            'times' => (int) env('NECTA_RETRY_TIMES', 2),
+            'sleep_ms' => (int) env('NECTA_RETRY_SLEEP_MS', 500),
         ],
     ],
 
