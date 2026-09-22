@@ -897,6 +897,25 @@
                                 @endif
                             </div>
                         @endforeach
+
+                        {{-- Testergebnis direkt bei der Karte, nicht nur im globalen
+                             Meldungsblock am Seitenanfang — necta steht weit unten,
+                             dort sieht man eine Meldung ganz oben nicht. Gleiches
+                             Muster wie bei den uebrigen Integrationen. --}}
+                        @if($syncMessage)
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <p class="text-sm text-green-800">{{ $syncMessage }}</p>
+                            </div>
+                        @endif
+
+                        @if($syncError)
+                            <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-start gap-2">
+                                    @svg('heroicon-o-exclamation-circle', 'w-5 h-5 text-red-600 flex-shrink-0 mt-0.5')
+                                    <p class="text-sm text-red-800">{{ $syncError }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @else
                     <div class="text-center py-8 border-2 border-dashed border-[var(--ui-border)]/40 rounded-xl bg-[var(--ui-muted-5)]">
