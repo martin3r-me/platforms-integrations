@@ -1697,8 +1697,13 @@ class Index extends Component
                 // Die Meldung des Services nennt beide geprueften APIs einzeln
                 // ("Raw-API: OK · API v1: OK") — das ist die eigentliche Auskunft,
                 // weil Raw und v1 getrennte Schluessel nutzen.
+                //
+                // Bewusst KEIN session()->flash('status'): das wird ganz oben auf
+                // der Seite gerendert (index.blade.php:18), waehrend man nach dem
+                // Klick unten bei der necta-Karte steht. Die Meldung stuende dann
+                // zweimal auf der Seite — einmal sichtbar, einmal ausserhalb des
+                // Blickfelds.
                 $this->syncMessage = $result['message'];
-                session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
             }
