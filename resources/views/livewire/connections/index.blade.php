@@ -877,7 +877,11 @@
                                     </div>
                                 </div>
 
-                                @if($nectaConn->status === 'active')
+                                {{-- Auch bei 'error' anbieten: ein erfolgreicher Test setzt die
+                                     Verbindung wieder auf 'active'. War der Button hier ausgeblendet,
+                                     blieb im Fehlerfall nur "Key aktualisieren" mit neu eingetipptem
+                                     API-Key — obwohl die Zugangsdaten meist unveraendert gueltig waren. --}}
+                                @if(in_array($nectaConn->status, ['active', 'error'], true))
                                     <div class="mt-4 pt-4 border-t border-[var(--ui-border)]/20">
                                         <x-ui-button
                                             variant="secondary-outline"

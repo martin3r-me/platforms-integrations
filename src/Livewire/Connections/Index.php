@@ -1694,7 +1694,10 @@ class Index extends Component
             $result = $service->testConnection($nectaConnection);
 
             if ($result['success']) {
-                $this->syncMessage = 'necta.one-Verbindung erfolgreich getestet.';
+                // Die Meldung des Services nennt beide geprueften APIs einzeln
+                // ("Raw-API: OK · API v1: OK") — das ist die eigentliche Auskunft,
+                // weil Raw und v1 getrennte Schluessel nutzen.
+                $this->syncMessage = $result['message'];
                 session()->flash('status', $this->syncMessage);
             } else {
                 $this->syncError = $result['message'];
