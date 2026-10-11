@@ -543,6 +543,13 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: Moss Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // Connections Tool (Verbindungen auflisten – Discovery für connection_id)
+        try {
+            $registry->register(new \Platform\Integrations\Tools\Connections\ListConnectionsTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: Connections Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
         // Connection Shares Tools (Freigaben)
         try {
             $registry->register(new \Platform\Integrations\Tools\ConnectionShares\ListSharesTool());
