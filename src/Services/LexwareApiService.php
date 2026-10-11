@@ -1267,44 +1267,6 @@ class LexwareApiService
     }
 
     /**
-     * Rechnung finalisieren (abschließen)
-     *
-     * Finalisiert einen Rechnungsentwurf und macht ihn zu einer echten Rechnung.
-     * Nach der Finalisierung erhält die Rechnung eine Rechnungsnummer und kann nicht mehr bearbeitet werden.
-     * Der voucherStatus wechselt von 'draft' zu 'open'.
-     *
-     * WICHTIG: Diese Operation ist unwiderruflich! Finalisierte Rechnungen können nur noch
-     * storniert werden, aber nicht mehr bearbeitet.
-     *
-     * @see https://developers.lexoffice.io/docs/#invoices-endpoint-finalize-an-invoice
-     *
-     * Beispiel-Request:
-     * POST /invoices/{id}/finalize
-     *
-     * Beispiel-Response:
-     * HTTP 200 OK (leerer Response-Body)
-     *
-     * Voraussetzungen:
-     * - Die Rechnung muss im Status 'draft' (Entwurf) sein
-     * - Alle Pflichtfelder müssen ausgefüllt sein
-     * - Die Rechnungsdaten müssen valide sein
-     *
-     * Hinweise:
-     * - Nach der Finalisierung wird automatisch eine Rechnungsnummer vergeben
-     * - Der PDF-Download ist erst nach der Finalisierung möglich
-     * - Finalisierte Rechnungen erscheinen in der Buchhaltung
-     *
-     * @param User $user Der authentifizierte Benutzer
-     * @param string $invoiceId Die UUID der zu finalisierenden Rechnung
-     * @return array Leeres Array bei Erfolg
-     * @throws LexwareApiException Bei API-Fehlern (z.B. 400 wenn bereits finalisiert, 404 nicht gefunden)
-     */
-    public function finalizeInvoice(User $user, string $invoiceId): array
-    {
-        return $this->post($user, "/invoices/{$invoiceId}/finalize");
-    }
-
-    /**
      * Rechnung als PDF rendern (Document-ID abrufen)
      *
      * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Rechnung.

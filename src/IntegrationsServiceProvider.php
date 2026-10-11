@@ -95,8 +95,6 @@ class IntegrationsServiceProvider extends ServiceProvider
                     ->name('integrations.lexware.invoices.create');
                 Route::get('/invoices/{id}', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoice'])
                     ->name('integrations.lexware.invoice');
-                Route::post('/invoices/{id}/finalize', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'finalizeInvoice'])
-                    ->name('integrations.lexware.invoices.finalize');
                 Route::get('/invoices/{id}/pdf', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'invoicePdf'])
                     ->name('integrations.lexware.invoices.pdf');
                 Route::get('/invoices/{id}/download', [\Platform\Integrations\Http\Controllers\LexwareController::class, 'downloadInvoice'])
@@ -455,7 +453,6 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Lexware\ListInvoicesTool());
             $registry->register(new \Platform\Integrations\Tools\Lexware\GetInvoiceTool());
             $registry->register(new \Platform\Integrations\Tools\Lexware\CreateInvoiceTool());
-            $registry->register(new \Platform\Integrations\Tools\Lexware\FinalizeInvoiceTool());
             $registry->register(new \Platform\Integrations\Tools\Lexware\RenderInvoicePdfTool());
 
             // Quotations

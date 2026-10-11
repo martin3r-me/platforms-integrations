@@ -1051,55 +1051,6 @@ class LexwareController extends Controller
     }
 
     /**
-     * Rechnung finalisieren (abschließen)
-     *
-     * Finalisiert einen Rechnungsentwurf und macht ihn zu einer echten Rechnung.
-     * Nach der Finalisierung erhält die Rechnung eine Rechnungsnummer und kann nicht mehr bearbeitet werden.
-     *
-     * WICHTIG: Diese Operation ist unwiderruflich!
-     *
-     * POST /api/integrations/lexware/invoices/{id}/finalize
-     *
-     * URL-Parameter:
-     * - id (string): Die UUID der zu finalisierenden Rechnung
-     *
-     * Beispiel-Request:
-     * POST /api/integrations/lexware/invoices/e9066f04-8cc7-4616-93f8-ac9c10e55bc9/finalize
-     *
-     * Beispiel-Response bei Erfolg:
-     * {
-     *   "success": true,
-     *   "message": "Rechnung erfolgreich finalisiert."
-     * }
-     *
-     * Voraussetzungen:
-     * - Die Rechnung muss im Status 'draft' (Entwurf) sein
-     * - Alle Pflichtfelder müssen ausgefüllt sein
-     *
-     * Mögliche Fehler:
-     * - 400: Rechnung ist bereits finalisiert oder ungültige Daten
-     * - 404: Rechnung nicht gefunden
-     *
-     * @param Request $request HTTP-Request
-     * @param string $id Die UUID der Rechnung
-     * @return JsonResponse Erfolgsmeldung oder Fehlermeldung
-     */
-    public function finalizeInvoice(Request $request, string $id): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $this->lexwareApiService->finalizeInvoice($user, $id);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Rechnung erfolgreich finalisiert.',
-            ]);
-        } catch (LexwareApiException $e) {
-            return $this->handleLexwareException($e);
-        }
-    }
-
-    /**
      * Rechnung als PDF rendern (Document-ID abrufen)
      *
      * Triggert die Erstellung eines PDF-Dokuments für eine finalisierte Rechnung.

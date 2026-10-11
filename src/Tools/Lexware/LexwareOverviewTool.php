@@ -49,7 +49,7 @@ class LexwareOverviewTool implements ToolContract, ToolMetadataContract
                 'reference_data' => 'Stammdaten: Länder, Buchungskategorien, Zahlungsbedingungen.',
             ],
             'workflows' => [
-                'invoice_creation' => '1. Kontakt anlegen/finden (integrations.lexware.contacts.GET/POST) → 2. Rechnung erstellen (integrations.lexware.invoices.POST) → 3. Finalisieren (integrations.lexware.invoices.finalize.POST) → 4. PDF rendern (integrations.lexware.invoices.pdf.GET)',
+                'invoice_creation' => '1. Kontakt anlegen/finden (integrations.lexware.contacts.GET/POST) → 2. Rechnung erstellen (integrations.lexware.invoices.POST); finalisieren nur beim Anlegen via finalize=true (die API kann einen gespeicherten Entwurf nicht nachträglich finalisieren) → 3. PDF rendern, nur bei finalisierter Rechnung (integrations.lexware.invoices.pdf.GET)',
                 'quotation_to_invoice' => '1. Angebot erstellen (integrations.lexware.quotations.POST) → 2. Bei Annahme: Rechnung erstellen mit gleichen Daten',
                 'dunning_process' => '1. Überfällige Rechnungen finden (integrations.lexware.voucherlist.GET mit Status-Filter) → 2. Mahnung erstellen (integrations.lexware.dunnings.POST)',
             ],
@@ -59,7 +59,7 @@ class LexwareOverviewTool implements ToolContract, ToolMetadataContract
                 'profile' => 'integrations.lexware.profile.GET',
                 'voucherlist' => 'integrations.lexware.voucherlist.GET',
                 'contacts' => ['integrations.lexware.contacts.GET', 'integrations.lexware.contact.GET', 'integrations.lexware.contacts.POST', 'integrations.lexware.contacts.PUT', 'integrations.lexware.contacts.DELETE'],
-                'invoices' => ['integrations.lexware.invoices.GET', 'integrations.lexware.invoice.GET', 'integrations.lexware.invoices.POST', 'integrations.lexware.invoices.finalize.POST', 'integrations.lexware.invoices.pdf.GET'],
+                'invoices' => ['integrations.lexware.invoices.GET', 'integrations.lexware.invoice.GET', 'integrations.lexware.invoices.POST', 'integrations.lexware.invoices.pdf.GET'],
                 'quotations' => ['integrations.lexware.quotations.GET', 'integrations.lexware.quotation.GET', 'integrations.lexware.quotations.POST'],
                 'order_confirmations' => ['integrations.lexware.order_confirmations.GET', 'integrations.lexware.order_confirmation.GET', 'integrations.lexware.order_confirmations.POST'],
                 'credit_notes' => ['integrations.lexware.credit_notes.GET', 'integrations.lexware.credit_note.GET', 'integrations.lexware.credit_notes.POST'],
