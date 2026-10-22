@@ -296,7 +296,7 @@
                                     $connected = $p['conns']->isNotEmpty();
                                     $searchText = mb_strtolower($p['label'] . ' ' . $p['desc'] . ' ' . $p['key']);
                                 @endphp
-                                <li wire:key="provider-{{ $p['key'] }}" x-show="show(@js($searchText), {{ $connected ? 'true' : 'false' }})">
+                                <li id="provider-{{ $p['key'] }}" wire:key="provider-{{ $p['key'] }}" class="scroll-mt-4" x-show="show(@js($searchText), {{ $connected ? 'true' : 'false' }})">
                                     {{-- Anbieter-Kopf --}}
                                     <div class="flex items-center gap-3 px-4 py-3">
                                         <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] {{ $connected ? 'bg-[color:var(--nx-accent-soft)] text-[color:var(--nx-text)]' : 'bg-[color:var(--nx-bg)] text-[color:var(--nx-faint)]' }}">
@@ -463,7 +463,7 @@
 
         {{-- Für mich freigegeben --}}
         @if ($sharedWithMe->isNotEmpty())
-            <section>
+            <section id="shared" class="scroll-mt-4">
                 <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--nx-faint)]">Für mich freigegeben</h2>
                 <x-nx-card flush>
                     <ul class="divide-y divide-[color:var(--nx-line)]">
