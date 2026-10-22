@@ -150,126 +150,31 @@ class Index extends Component
             ->orderBy('name')
             ->get();
 
-        // Alle Connections pro Typ laden (Collections statt single)
-        $metaConnections = IntegrationConnection::query()
+        // Alle eigenen Connections einmal laden und je Integration aufteilen
+        // (vorher eine Query pro Anbieter).
+        $owned = IntegrationConnection::query()
             ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'meta'))
             ->where('owner_user_id', $user->id)
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
+        $ofType = fn (string $key) => $owned->filter(fn ($c) => $c->integration?->key === $key)->values();
 
-        $githubConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'github'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $lexwareConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'lexoffice'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $sipgateConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'sipgate'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $dataforseoConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'dataforseo'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $hubspotConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'hubspot'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $mossConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'moss'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $buchhaltungsbutlerConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'buchhaltungsbutler'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $googleSearchConsoleConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'google_search_console'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $datevConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'datev'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $easybillConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'easybill'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $nectaConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'necta'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $dedefleetConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'dedefleet'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $forgeConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'forge'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $hetznerConnections = IntegrationConnection::query()
-            ->with('integration')
-            ->whereHas('integration', fn ($q) => $q->where('key', 'hetzner'))
-            ->where('owner_user_id', $user->id)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
+        $metaConnections = $ofType('meta');
+        $githubConnections = $ofType('github');
+        $lexwareConnections = $ofType('lexoffice');
+        $sipgateConnections = $ofType('sipgate');
+        $dataforseoConnections = $ofType('dataforseo');
+        $hubspotConnections = $ofType('hubspot');
+        $mossConnections = $ofType('moss');
+        $buchhaltungsbutlerConnections = $ofType('buchhaltungsbutler');
+        $googleSearchConsoleConnections = $ofType('google_search_console');
+        $datevConnections = $ofType('datev');
+        $easybillConnections = $ofType('easybill');
+        $nectaConnections = $ofType('necta');
+        $dedefleetConnections = $ofType('dedefleet');
+        $forgeConnections = $ofType('forge');
+        $hetznerConnections = $ofType('hetzner');
 
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();

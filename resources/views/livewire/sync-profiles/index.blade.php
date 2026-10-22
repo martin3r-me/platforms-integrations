@@ -1,221 +1,133 @@
 <x-ui-page>
     <x-slot name="navbar">
-        <x-ui-page-navbar title="" />
+        <x-ui-page-navbar title="Sync-Profile" icon="heroicon-o-arrows-right-left" />
     </x-slot>
 
     <x-slot name="actionbar">
         <x-ui-page-actionbar :breadcrumbs="[
             ['label' => 'Integrationen', 'icon' => 'link', 'route' => 'integrations.connections.index'],
-            ['label' => 'Lexoffice ↔ DATEV'],
+            ['label' => 'Sync-Profile (Lexoffice ↔ DATEV)'],
         ]">
-            <x-ui-button variant="primary" size="sm" wire:click="openCreateModal">
+            <x-nx-button variant="primary" wire:click="openCreateModal">
                 @svg('heroicon-o-plus', 'w-4 h-4')
-                <span>Neue Bridge</span>
-            </x-ui-button>
+                Neue Bridge
+            </x-nx-button>
         </x-ui-page-actionbar>
     </x-slot>
 
     <x-ui-page-container spacing="space-y-6">
-        @if($flashSuccess)
-            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-                <div class="flex items-center gap-2">
-                    @svg('heroicon-o-check-circle', 'w-5 h-5 text-green-600')
-                    <p class="text-sm font-medium text-green-800">{{ $flashSuccess }}</p>
-                </div>
-            </div>
+        @if ($flashSuccess)
+            <x-nx-callout variant="success">{{ $flashSuccess }}</x-nx-callout>
+        @endif
+        @if ($flashError)
+            <x-nx-callout variant="danger">{{ $flashError }}</x-nx-callout>
         @endif
 
-        @if($flashError)
-            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-                <div class="flex items-center gap-2">
-                    @svg('heroicon-o-exclamation-triangle', 'w-5 h-5 text-red-600')
-                    <p class="text-sm font-medium text-red-800">{{ $flashError }}</p>
-                </div>
-            </div>
+        <p class="m-0 max-w-2xl text-sm text-[color:var(--nx-muted)]">
+            Eine Bridge paart eine Lexoffice-Verbindung mit einer DATEV-Verbindung und einem Mandanten. Pro Bridge werden danach die Konten-Mappings gepflegt.
+        </p>
+
+        @if ($lexofficeConnections->isEmpty() || $datevConnections->isEmpty())
+            <x-nx-callout variant="warning" title="Aktive Verbindungen fehlen">
+                Benötigt werden je eine aktive Lexoffice- und DATEV-Verbindung
+                (aktuell: Lexoffice {{ $lexofficeConnections->count() }}, DATEV {{ $datevConnections->count() }}).
+                <x-slot name="action">
+                    <x-nx-button size="sm" :href="route('integrations.connections.index')">Zu den Verbindungen</x-nx-button>
+                </x-slot>
+            </x-nx-callout>
         @endif
 
-        <div class="bg-white rounded-2xl border border-[var(--ui-border)]/60 shadow-sm overflow-hidden">
-            <div class="p-6 lg:p-8">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 flex items-center justify-center">
-                            @svg('heroicon-o-arrows-right-left', 'w-6 h-6 text-indigo-600')
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-bold text-[var(--ui-secondary)] mb-1">Sync-Profile</h2>
-                            <p class="text-sm text-[var(--ui-muted)]">
-                                Paare eine Lexoffice-Verbindung mit einer DATEV-Verbindung + Mandant.
-                                Pro Bridge werden danach die Konten-Mappings gepflegt.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                @if($lexofficeConnections->isEmpty() || $datevConnections->isEmpty())
-                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                        <div class="flex items-start gap-3">
-                            @svg('heroicon-o-information-circle', 'w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5')
-                            <div class="text-sm text-amber-900">
-                                <p class="font-medium">Aktive Verbindungen fehlen.</p>
-                                <p class="mt-1">
-                                    Es werden eine aktive <strong>Lexoffice</strong>- und eine aktive <strong>DATEV</strong>-Verbindung benötigt.
-                                    Status:
-                                    Lexoffice = {{ $lexofficeConnections->count() }},
-                                    DATEV = {{ $datevConnections->count() }}.
-                                    <a href="{{ route('integrations.connections.index') }}" class="underline">Zu den Verbindungen</a>.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-
-                @if($bridges->isEmpty())
-                    <div class="text-center py-12 text-[var(--ui-muted)]">
-                        <p class="text-sm">Noch keine Bridges angelegt.</p>
-                    </div>
-                @else
-                    <div class="space-y-3">
-                        @foreach($bridges as $bridge)
-                            <div class="p-4 border {{ $bridge->is_active ? 'border-[var(--ui-border)]/60 bg-white' : 'border-gray-200 bg-gray-50' }} rounded-xl">
-                                <div class="flex items-center justify-between gap-4">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <h3 class="text-base font-semibold text-[var(--ui-secondary)] truncate">
-                                                {{ $bridge->name }}
-                                            </h3>
-                                            <x-ui-badge size="sm" variant="{{ $bridge->is_active ? 'success' : 'neutral' }}">
-                                                {{ $bridge->is_active ? 'aktiv' : 'inaktiv' }}
-                                            </x-ui-badge>
-                                        </div>
-                                        <div class="flex items-center gap-2 text-sm text-[var(--ui-muted)] flex-wrap">
-                                            <span class="font-medium text-gray-700">
-                                                {{ $bridge->lexofficeConnection?->name ?? 'Lexoffice #' . $bridge->lexoffice_connection_id }}
-                                            </span>
-                                            @svg('heroicon-o-arrows-right-left', 'w-4 h-4 text-gray-400')
-                                            <span class="font-medium text-gray-700">
-                                                {{ $bridge->datevConnection?->name ?? 'DATEV #' . $bridge->datev_connection_id }}
-                                            </span>
-                                            <span class="text-gray-400">·</span>
-                                            <span>Mandant <code class="px-1.5 py-0.5 bg-gray-100 rounded text-xs">{{ $bridge->datev_client_id }}</code></span>
-                                        </div>
-                                        @if($bridge->notes)
-                                            <p class="text-xs text-gray-500 mt-2">{{ $bridge->notes }}</p>
-                                        @endif
-                                    </div>
-
-                                    <div class="flex items-center gap-2 flex-shrink-0">
-                                        <x-ui-button
-                                            variant="primary"
-                                            size="sm"
-                                            :href="route('integrations.sync-profiles.mappings', $bridge->id)"
-                                        >
-                                            @svg('heroicon-o-table-cells', 'w-4 h-4')
-                                            <span>Mappings</span>
-                                        </x-ui-button>
-
-                                        <x-ui-button
-                                            variant="secondary-outline"
-                                            size="sm"
-                                            wire:click="openEditModal({{ $bridge->id }})"
-                                        >
-                                            @svg('heroicon-o-pencil-square', 'w-4 h-4')
-                                        </x-ui-button>
-
-                                        <x-ui-button
-                                            variant="secondary-outline"
-                                            size="sm"
-                                            wire:click="toggleActive({{ $bridge->id }})"
-                                            title="{{ $bridge->is_active ? 'Deaktivieren' : 'Aktivieren' }}"
-                                        >
-                                            @svg($bridge->is_active ? 'heroicon-o-pause' : 'heroicon-o-play', 'w-4 h-4')
-                                        </x-ui-button>
-
-                                        <x-ui-button
-                                            variant="danger-outline"
-                                            size="sm"
-                                            wire:click="delete({{ $bridge->id }})"
-                                            wire:confirm="Bridge '{{ $bridge->name }}' wirklich löschen? Alle Mappings darin werden mit gelöscht."
-                                        >
-                                            @svg('heroicon-o-trash', 'w-4 h-4')
-                                        </x-ui-button>
-                                    </div>
+        @if ($bridges->isEmpty())
+            <x-nx-card>
+                <x-nx-empty icon="heroicon-o-arrows-right-left">
+                    Noch keine Bridges angelegt.
+                    <x-slot name="action">
+                        <x-nx-button size="sm" wire:click="openCreateModal">Bridge anlegen</x-nx-button>
+                    </x-slot>
+                </x-nx-empty>
+            </x-nx-card>
+        @else
+            <x-nx-card flush>
+                <ul class="divide-y divide-[color:var(--nx-line)]">
+                    @foreach ($bridges as $bridge)
+                        <li wire:key="bridge-{{ $bridge->id }}" class="flex items-center gap-3 px-4 py-3 {{ $bridge->is_active ? '' : 'opacity-60' }}">
+                            <a href="{{ route('integrations.sync-profiles.mappings', $bridge->id) }}" class="min-w-0 flex-1 group">
+                                <div class="flex items-center gap-2">
+                                    <span class="truncate text-sm font-medium text-[color:var(--nx-text)] group-hover:underline">{{ $bridge->name }}</span>
+                                    <x-nx-badge :variant="$bridge->is_active ? 'success' : 'neutral'" dot>{{ $bridge->is_active ? 'Aktiv' : 'Inaktiv' }}</x-nx-badge>
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
+                                <div class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[color:var(--nx-faint)]">
+                                    <span class="text-[color:var(--nx-muted)]">{{ $bridge->lexofficeConnection?->name ?? 'Lexoffice #' . $bridge->lexoffice_connection_id }}</span>
+                                    @svg('heroicon-o-arrows-right-left', 'w-3 h-3')
+                                    <span class="text-[color:var(--nx-muted)]">{{ $bridge->datevConnection?->name ?? 'DATEV #' . $bridge->datev_connection_id }}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>Mandant <span class="font-mono">{{ $bridge->datev_client_id }}</span></span>
+                                </div>
+                                @if ($bridge->notes)
+                                    <p class="m-0 mt-1 text-xs text-[color:var(--nx-muted)]">{{ $bridge->notes }}</p>
+                                @endif
+                            </a>
+
+                            <x-nx-button size="sm" :href="route('integrations.sync-profiles.mappings', $bridge->id)">
+                                @svg('heroicon-o-table-cells', 'w-4 h-4')
+                                <span class="hidden sm:inline">Mappings</span>
+                            </x-nx-button>
+                            <x-nx-dropdown>
+                                <x-nx-dropdown-item wire:click="openEditModal({{ $bridge->id }})">
+                                    @svg('heroicon-o-pencil-square', 'w-4 h-4')
+                                    Bearbeiten
+                                </x-nx-dropdown-item>
+                                <x-nx-dropdown-item wire:click="toggleActive({{ $bridge->id }})">
+                                    @svg($bridge->is_active ? 'heroicon-o-pause' : 'heroicon-o-play', 'w-4 h-4')
+                                    {{ $bridge->is_active ? 'Deaktivieren' : 'Aktivieren' }}
+                                </x-nx-dropdown-item>
+                                <x-nx-dropdown-divider />
+                                <x-nx-dropdown-item variant="danger" wire:click="delete({{ $bridge->id }})"
+                                    wire:confirm="Bridge „{{ $bridge->name }}“ wirklich löschen? Alle Mappings darin werden mit gelöscht.">
+                                    @svg('heroicon-o-trash', 'w-4 h-4')
+                                    Löschen
+                                </x-nx-dropdown-item>
+                            </x-nx-dropdown>
+                        </li>
+                    @endforeach
+                </ul>
+            </x-nx-card>
+        @endif
     </x-ui-page-container>
 
-    {{-- Create / Edit Modal --}}
-    <x-ui-modal wire:model="modalShow" size="lg">
-        <x-slot name="header">{{ $editingId ? 'Bridge bearbeiten' : 'Neue Bridge anlegen' }}</x-slot>
+    <x-nx-modal wire:model="modalShow" size="lg">
+        <x-slot name="header">{{ $editingId ? 'Bridge bearbeiten' : 'Neue Bridge' }}</x-slot>
 
         <div class="space-y-4">
-            <x-ui-input-text
-                name="name"
-                label="Name"
-                wire:model.live="name"
-                placeholder="z. B. BHG.DIGITAL Hauptbuch 2026"
-                :errorKey="'name'"
-            />
+            <x-nx-input-text name="name" label="Name" placeholder="z. B. BHG.DIGITAL Hauptbuch 2026"
+                wire:model.live="name" errorKey="name" />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-ui-input-select
-                    name="lexofficeConnectionId"
-                    label="Lexoffice-Verbindung"
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <x-nx-input-select name="lexofficeConnectionId" label="Lexoffice-Verbindung" nullable
                     :options="$lexofficeConnections->map(fn ($c) => ['value' => $c->id, 'label' => $c->name ?: 'Lexoffice #' . $c->id])"
-                    optionValue="value"
-                    optionLabel="label"
-                    :nullable="true"
-                    wire:model.live="lexofficeConnectionId"
-                    :errorKey="'lexofficeConnectionId'"
-                />
-
-                <x-ui-input-select
-                    name="datevConnectionId"
-                    label="DATEV-Verbindung"
+                    wire:model.live="lexofficeConnectionId" errorKey="lexofficeConnectionId" />
+                <x-nx-input-select name="datevConnectionId" label="DATEV-Verbindung" nullable
                     :options="$datevConnections->map(fn ($c) => ['value' => $c->id, 'label' => $c->name ?: 'DATEV #' . $c->id])"
-                    optionValue="value"
-                    optionLabel="label"
-                    :nullable="true"
-                    wire:model.live="datevConnectionId"
-                    :errorKey="'datevConnectionId'"
-                />
+                    wire:model.live="datevConnectionId" errorKey="datevConnectionId" />
             </div>
 
-            <x-ui-input-text
-                name="datevClientId"
-                label="DATEV-Mandanten-ID"
-                wire:model.live="datevClientId"
-                placeholder="z. B. 12345"
-                :errorKey="'datevClientId'"
-            />
+            <x-nx-input-text name="datevClientId" label="DATEV-Mandanten-ID" placeholder="z. B. 12345"
+                wire:model.live="datevClientId" errorKey="datevClientId" />
 
-            <x-ui-input-textarea
-                name="notes"
-                label="Notizen (optional)"
-                wire:model.live="notes"
-                rows="3"
-                :errorKey="'notes'"
-            />
+            <x-nx-input-textarea name="notes" label="Notizen (optional)" rows="3"
+                wire:model.live="notes" errorKey="notes" />
 
-            <label class="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" wire:model.live="isActive" class="rounded">
-                <span>Aktiv</span>
+            <label class="inline-flex items-center gap-2 text-sm text-[color:var(--nx-text)]">
+                <input type="checkbox" wire:model.live="isActive" class="h-4 w-4 rounded border-[color:var(--nx-line-strong)] accent-[color:var(--nx-accent)]">
+                Aktiv
             </label>
         </div>
 
         <x-slot name="footer">
             <div class="flex justify-end gap-2">
-                <x-ui-button type="button" variant="secondary-outline" wire:click="closeModal">
-                    Abbrechen
-                </x-ui-button>
-                <x-ui-button type="button" variant="primary" wire:click="save">
-                    Speichern
-                </x-ui-button>
+                <x-nx-button variant="ghost" wire:click="closeModal">Abbrechen</x-nx-button>
+                <x-nx-button variant="primary" wire:click="save">Speichern</x-nx-button>
             </div>
         </x-slot>
-    </x-ui-modal>
+    </x-nx-modal>
 </x-ui-page>
