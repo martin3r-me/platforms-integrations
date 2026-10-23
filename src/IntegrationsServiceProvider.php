@@ -581,6 +581,7 @@ class IntegrationsServiceProvider extends ServiceProvider
         // GitHub Tools (Repos, Resources Sync)
         try {
             $registry->register(new \Platform\Integrations\Tools\Github\ListGithubReposTool());
+            $registry->register(new \Platform\Integrations\Tools\Github\ListGithubCommitsTool());
             $registry->register(new \Platform\Integrations\Tools\Github\SyncGithubResourcesTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: GitHub Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
