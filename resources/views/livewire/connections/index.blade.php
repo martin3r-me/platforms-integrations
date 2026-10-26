@@ -817,10 +817,18 @@
 
         <div class="space-y-4">
             <x-nx-callout variant="info">
-                Lege in NinjaOne unter <strong>Administration → Apps → API</strong> eine Anwendung an.
-                Für den Maschine-zu-Maschine-Weg den Typ <strong>API Services</strong> wählen — der braucht
-                keine Redirect-URI. Für den Browser-Weg den Typ <strong>Web</strong> und dort
-                <code>{{ url('/integrations/oauth2/ninja/callback') }}</code> als Redirect-URI eintragen.
+                <p class="m-0">
+                    Lege in NinjaOne unter <strong>Administration → Apps → API</strong> eine Anwendung an.
+                    Für den Maschine-zu-Maschine-Weg den Typ <strong>API Services</strong> wählen —
+                    der braucht keine Redirect-URI.
+                </p>
+                <p class="m-0 mt-2">
+                    Für den Browser-Weg den Typ <strong>Web</strong> wählen und dort diese Redirect-URI
+                    hinterlegen:
+                </p>
+                {{-- Eigene Zeile mit break-all: die URL ist zu lang fuer den Fliesstext und
+                     erzwaenge im Modal sonst waagerechtes Scrollen. --}}
+                <span class="block font-mono text-xs break-all mt-1">{{ url('/integrations/oauth2/ninja/callback') }}</span>
             </x-nx-callout>
 
             <div class="grid grid-cols-2 gap-4">
