@@ -19,6 +19,13 @@ use Platform\Integrations\Support\HttpTransientFailure;
  *   us  → https://app.ninjarmm.com     eu → https://eu.ninjarmm.com
  *   oc  → https://oc.ninjarmm.com      ca → https://ca.ninjarmm.com
  *
+ * WHITE-LABEL
+ * Partner-Instanzen laufen unter eigener Domain (z.B. https://rmm.beispiel.de)
+ * und bringen OAuth-Server und API vollständig selbst mit. Sie sind KEINE der
+ * obigen Regionen: dort registrierte Apps gelten nur auf dieser Domain. Für
+ * solche Instanzen wird die Region "custom" gesetzt und der Host in
+ * credentials.base_url hinterlegt, der dann Vorrang vor der Regions-Tabelle hat.
+ *
  * AUTHENTIFIZIERUNG
  * Beide OAuth2-Wege werden unterstützt, erkennbar an auth_scheme:
  *
@@ -52,6 +59,9 @@ class NinjaIntegrationService
 
     public const DEFAULT_REGION = 'us';
 
+    /** Pseudo-Region für White-Label-Instanzen mit eigener Domain. */
+    public const REGION_CUSTOM = 'custom';
+
     /** Alle von der API angebotenen Scopes. */
     public const SCOPES = ['monitoring', 'management', 'control'];
 
@@ -81,9 +91,18 @@ class NinjaIntegrationService
     // REGION / URLS
     // =========================================================================
 
-    /** Region-Kürzel der Verbindung (us/eu/oc/ca), mit Fallback auf die Konfiguration. */
+    /**
+     * Region-Kürzel der Verbindung (us/eu/oc/ca) oder "custom" bei einer
+     * White-Label-Instanz mit eigener Domain.
+     */
     public function getRegion(IntegrationConnection $connection): string
     {
+        // Eine eigene Host-URL ist die Region — jede Vorgabe waere hier irrefuehrend.
+        $explicit = ($connection->credentials ?? [])['base_url'] ?? null;
+        if (is_string($explicit) && trim($explicit) !== '') {
+            return self::REGION_CUSTOM;
+        }
+
         $region = ($connection->credentials ?? [])['region'] ?? null;
         $region = mb_strtolower(trim((string) $region));
 
@@ -382,7 +401,8 @@ class NinjaIntegrationService
         string $region = self::DEFAULT_REGION,
         array $scopes = ['monitoring'],
         string $authScheme = 'client_credentials',
-        ?int $connectionId = null
+        ?int $connectionId = null,
+        ?string $baseUrl = null
     ): IntegrationConnection {
         $integration = Integration::firstOrCreate(
             ['key' => self::INTEGRATION_KEY],
@@ -397,7 +417,10 @@ class NinjaIntegrationService
             ]
         );
 
-        $region = isset(self::REGIONS[mb_strtolower($region)]) ? mb_strtolower($region) : self::DEFAULT_REGION;
+        $baseUrl = $baseUrl !== null ? rtrim(trim($baseUrl), '/') : null;
+        $region = $baseUrl !== null && $baseUrl !== ''
+            ? self::REGION_CUSTOM
+            : (isset(self::REGIONS[mb_strtolower($region)]) ? mb_strtolower($region) : self::DEFAULT_REGION);
         $scopes = array_values(array_intersect(self::SCOPES, $scopes)) ?: ['monitoring'];
         $authScheme = $authScheme === 'oauth2' ? 'oauth2' : 'client_credentials';
 
@@ -421,6 +444,14 @@ class NinjaIntegrationService
         $credentials = $connection->credentials ?? [];
         $credentials['client_id'] = trim($clientId);
         $credentials['region'] = $region;
+
+        if ($baseUrl !== null && $baseUrl !== '') {
+            $credentials['base_url'] = $baseUrl;
+        } else {
+            // Zurueck auf eine Standard-Region: eine frueher gesetzte eigene
+            // Domain muss weichen, sonst wuerde sie weiter gewinnen.
+            unset($credentials['base_url']);
+        }
         $credentials['scopes'] = $scopes;
         $credentials['auth_scheme'] = $authScheme;
 
@@ -436,7 +467,9 @@ class NinjaIntegrationService
 
         $connection->credentials = $credentials;
         $connection->auth_scheme = $authScheme;
-        $connection->name = $connection->name ?: ('NinjaOne (' . mb_strtoupper($region) . ')');
+        $connection->name = $connection->name ?: ($region === self::REGION_CUSTOM && $baseUrl
+            ? 'NinjaOne (' . parse_url($baseUrl, PHP_URL_HOST) . ')'
+            : 'NinjaOne (' . mb_strtoupper($region) . ')');
         $connection->status = $authScheme === 'oauth2' ? 'draft' : 'active';
         $connection->last_error = null;
         $connection->save();

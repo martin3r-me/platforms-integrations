@@ -838,6 +838,7 @@
                         ['value' => 'eu', 'label' => 'EU — eu.ninjarmm.com'],
                         ['value' => 'oc', 'label' => 'Oceania — oc.ninjarmm.com'],
                         ['value' => 'ca', 'label' => 'Canada — ca.ninjarmm.com'],
+                        ['value' => 'custom', 'label' => 'Eigene Instanz (White-Label)'],
                     ]"
                     wire:model.live="ninjaRegion" errorKey="ninjaRegion" />
                 <x-nx-input-select name="ninjaAuthScheme" label="Anmeldeverfahren"
@@ -847,6 +848,19 @@
                     ]"
                     wire:model.live="ninjaAuthScheme" errorKey="ninjaAuthScheme" />
             </div>
+
+            @if($ninjaRegion === 'custom')
+                <div>
+                    <x-nx-input-text name="ninjaBaseUrl" label="Adresse deiner NinjaOne-Instanz"
+                        placeholder="https://rmm.beispiel.de"
+                        wire:model.live="ninjaBaseUrl" errorKey="ninjaBaseUrl" />
+                    <p class="text-xs text-[var(--ui-muted)] mt-1">
+                        Nur den Host angeben, ohne Pfad. White-Label-Instanzen bringen OAuth-Server und
+                        API selbst mit — eine dort angelegte App gilt ausschließlich auf dieser Adresse,
+                        nicht auf <span class="font-mono">eu.ninjarmm.com</span>.
+                    </p>
+                </div>
+            @endif
 
             <x-nx-input-text name="ninjaClientId" label="Client ID" placeholder="Client ID der NinjaOne-App…"
                 wire:model.live="ninjaClientId" errorKey="ninjaClientId" />

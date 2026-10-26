@@ -122,6 +122,7 @@ class Index extends Component
     public string $ninjaClientId = '';
     public string $ninjaClientSecret = '';
     public string $ninjaRegion = 'us';
+    public string $ninjaBaseUrl = '';
     public string $ninjaAuthScheme = 'client_credentials';
     /** @var array<int, string> */
     public array $ninjaScopes = ['monitoring'];
@@ -1638,6 +1639,7 @@ class Index extends Component
         $this->ninjaClientId = '';
         $this->ninjaClientSecret = '';
         $this->ninjaRegion = (string) config('integrations.ninja.region', 'us');
+        $this->ninjaBaseUrl = '';
         $this->ninjaAuthScheme = 'client_credentials';
         $this->ninjaScopes = ['monitoring'];
 
@@ -1653,6 +1655,9 @@ class Index extends Component
                 // heisst beim Speichern "unveraendert".
                 $this->ninjaClientId = $service->getClientId($connection) ?? '';
                 $this->ninjaRegion = $service->getRegion($connection);
+                $this->ninjaBaseUrl = $this->ninjaRegion === NinjaIntegrationService::REGION_CUSTOM
+                    ? $service->getBaseUrl($connection)
+                    : '';
                 $this->ninjaAuthScheme = $service->getAuthScheme($connection);
                 $this->ninjaScopes = $service->getScopes($connection);
             }
@@ -1671,6 +1676,7 @@ class Index extends Component
         $this->ninjaModalShow = false;
         $this->ninjaClientId = '';
         $this->ninjaClientSecret = '';
+        $this->ninjaBaseUrl = '';
         $this->editingId = null;
     }
 
@@ -1680,7 +1686,17 @@ class Index extends Component
             'ninjaClientId' => ['required', 'string', 'min:8'],
             // Beim Bearbeiten darf das Secret leer bleiben; beim Anlegen nicht.
             'ninjaClientSecret' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
-            'ninjaRegion' => ['required', 'string', Rule::in(array_keys(NinjaIntegrationService::REGIONS))],
+            'ninjaRegion' => ['required', 'string', Rule::in(array_merge(
+                array_keys(NinjaIntegrationService::REGIONS),
+                [NinjaIntegrationService::REGION_CUSTOM]
+            ))],
+            // Bei einer White-Label-Instanz ist der Host Pflicht, sonst verboten.
+            'ninjaBaseUrl' => [
+                $this->ninjaRegion === NinjaIntegrationService::REGION_CUSTOM ? 'required' : 'nullable',
+                'string',
+                'url',
+                'starts_with:https://',
+            ],
             'ninjaAuthScheme' => ['required', 'string', Rule::in(['client_credentials', 'oauth2'])],
             'ninjaScopes' => ['required', 'array', 'min:1'],
             'ninjaScopes.*' => [Rule::in(NinjaIntegrationService::SCOPES)],
@@ -1688,6 +1704,9 @@ class Index extends Component
             'ninjaClientId.required' => 'Bitte gib die Client ID deiner NinjaOne-App ein.',
             'ninjaClientSecret.required' => 'Bitte gib das Client Secret deiner NinjaOne-App ein.',
             'ninjaScopes.required' => 'Bitte waehle mindestens einen Scope.',
+            'ninjaBaseUrl.required' => 'Bitte gib die Adresse deiner NinjaOne-Instanz ein, z. B. https://rmm.beispiel.de.',
+            'ninjaBaseUrl.url' => 'Bitte eine vollstaendige URL angeben, z. B. https://rmm.beispiel.de.',
+            'ninjaBaseUrl.starts_with' => 'Die Adresse muss mit https:// beginnen.',
         ]);
 
         try {
@@ -1702,7 +1721,8 @@ class Index extends Component
                 $this->ninjaRegion,
                 $this->ninjaScopes,
                 $this->ninjaAuthScheme,
-                $this->editingId
+                $this->editingId,
+                $this->ninjaRegion === NinjaIntegrationService::REGION_CUSTOM ? $this->ninjaBaseUrl : null
             );
 
             // Beim Browser-Flow wird erst durch die Autorisierung ein Token
