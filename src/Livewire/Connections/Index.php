@@ -36,6 +36,7 @@ use Platform\Integrations\Services\NectaIntegrationService;
 use Platform\Integrations\Services\DedefleetIntegrationService;
 use Platform\Integrations\Services\ForgeIntegrationService;
 use Platform\Integrations\Services\HetznerIntegrationService;
+use Platform\Integrations\Services\NinjaIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -116,6 +117,15 @@ class Index extends Component
     public string $forgeApiToken = '';
     public string $forgeOrganization = '';
 
+    // NinjaOne Modal
+    public bool $ninjaModalShow = false;
+    public string $ninjaClientId = '';
+    public string $ninjaClientSecret = '';
+    public string $ninjaRegion = 'us';
+    public string $ninjaAuthScheme = 'client_credentials';
+    /** @var array<int, string> */
+    public array $ninjaScopes = ['monitoring'];
+
     // Hetzner Cloud Modal
     public bool $hetznerModalShow = false;
     public string $hetznerApiToken = '';
@@ -175,6 +185,7 @@ class Index extends Component
         $dedefleetConnections = $ofType('dedefleet');
         $forgeConnections = $ofType('forge');
         $hetznerConnections = $ofType('hetzner');
+        $ninjaConnections = $ofType('ninja');
 
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
@@ -223,6 +234,7 @@ class Index extends Component
             'dedefleetConnections' => $dedefleetConnections,
             'forgeConnections' => $forgeConnections,
             'hetznerConnections' => $hetznerConnections,
+            'ninjaConnections' => $ninjaConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -1608,6 +1620,145 @@ class Index extends Component
                 // Klick unten bei der necta-Karte steht. Die Meldung stuende dann
                 // zweimal auf der Seite — einmal sichtbar, einmal ausserhalb des
                 // Blickfelds.
+                $this->syncMessage = $result['message'];
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== NINJAONE METHODS ====================
+
+    public function openNinjaModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->ninjaClientId = '';
+        $this->ninjaClientSecret = '';
+        $this->ninjaRegion = (string) config('integrations.ninja.region', 'us');
+        $this->ninjaAuthScheme = 'client_credentials';
+        $this->ninjaScopes = ['monitoring'];
+
+        if ($connectionId) {
+            $connection = IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if ($connection) {
+                $service = app(NinjaIntegrationService::class);
+                // Das Secret wird bewusst nicht vorbefuellt — leer lassen
+                // heisst beim Speichern "unveraendert".
+                $this->ninjaClientId = $service->getClientId($connection) ?? '';
+                $this->ninjaRegion = $service->getRegion($connection);
+                $this->ninjaAuthScheme = $service->getAuthScheme($connection);
+                $this->ninjaScopes = $service->getScopes($connection);
+            }
+        }
+
+        $this->ninjaModalShow = true;
+    }
+
+    public function openNinjaModalForEdit(int $connectionId): void
+    {
+        $this->openNinjaModal($connectionId);
+    }
+
+    public function closeNinjaModal(): void
+    {
+        $this->ninjaModalShow = false;
+        $this->ninjaClientId = '';
+        $this->ninjaClientSecret = '';
+        $this->editingId = null;
+    }
+
+    public function saveNinjaConnection(): void
+    {
+        $this->validate([
+            'ninjaClientId' => ['required', 'string', 'min:8'],
+            // Beim Bearbeiten darf das Secret leer bleiben; beim Anlegen nicht.
+            'ninjaClientSecret' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
+            'ninjaRegion' => ['required', 'string', Rule::in(array_keys(NinjaIntegrationService::REGIONS))],
+            'ninjaAuthScheme' => ['required', 'string', Rule::in(['client_credentials', 'oauth2'])],
+            'ninjaScopes' => ['required', 'array', 'min:1'],
+            'ninjaScopes.*' => [Rule::in(NinjaIntegrationService::SCOPES)],
+        ], [
+            'ninjaClientId.required' => 'Bitte gib die Client ID deiner NinjaOne-App ein.',
+            'ninjaClientSecret.required' => 'Bitte gib das Client Secret deiner NinjaOne-App ein.',
+            'ninjaScopes.required' => 'Bitte waehle mindestens einen Scope.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(NinjaIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->ninjaClientId,
+                $this->ninjaClientSecret !== '' ? $this->ninjaClientSecret : null,
+                $this->ninjaRegion,
+                $this->ninjaScopes,
+                $this->ninjaAuthScheme,
+                $this->editingId
+            );
+
+            // Beim Browser-Flow wird erst durch die Autorisierung ein Token
+            // ausgestellt — ein Verbindungstest waere hier zwangslaeufig negativ.
+            if ($this->ninjaAuthScheme === 'oauth2') {
+                $this->ninjaModalShow = false;
+                $this->editingId = null;
+                $this->redirect(route('integrations.oauth2.start', [
+                    'integrationKey' => 'ninja',
+                    'connection_id' => $connection->id,
+                ]));
+
+                return;
+            }
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->ninjaModalShow = false;
+                $this->ninjaClientId = '';
+                $this->ninjaClientSecret = '';
+                $this->editingId = null;
+                $this->syncMessage = $testResult['message'];
+            } else {
+                $this->addError('ninjaClientId', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('ninjaClientId', 'Fehler: ' . $e->getMessage());
+            \Log::error('NinjaOne connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testNinjaConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $connection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$connection) {
+                $this->syncError = 'Keine NinjaOne-Verbindung gefunden.';
+
+                return;
+            }
+
+            $result = app(NinjaIntegrationService::class)->testConnection($connection);
+
+            if ($result['success']) {
                 $this->syncMessage = $result['message'];
             } else {
                 $this->syncError = $result['message'];

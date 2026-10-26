@@ -988,6 +988,32 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: Hetzner Cloud Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // ---------------------------------------------------------------------
+        // NinjaOne Tools (Public API 2.0 — Geraete, Monitoring, Patches)
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Referenz + Verbindung
+            $registry->register(new \Platform\Integrations\Tools\Ninja\NinjaOverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Ninja\TestConnectionTool());
+
+            // Generischer Zugriff (deckt alle 315 Endpunkte der API 2.0 ab)
+            $registry->register(new \Platform\Integrations\Tools\Ninja\CallTool());
+
+            // Komfort-Read-Tools
+            $registry->register(new \Platform\Integrations\Tools\Ninja\ListDevicesTool());
+            $registry->register(new \Platform\Integrations\Tools\Ninja\GetDeviceTool());
+            $registry->register(new \Platform\Integrations\Tools\Ninja\ListOrganizationsTool());
+            $registry->register(new \Platform\Integrations\Tools\Ninja\ListAlertsTool());
+            $registry->register(new \Platform\Integrations\Tools\Ninja\QueryReportTool());
+
+            // Schreibende Aktionen (bestaetigungspflichtig, wirken auf echte Geraete)
+            $registry->register(new \Platform\Integrations\Tools\Ninja\DeviceActionTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: NinjaOne Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

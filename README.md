@@ -197,6 +197,86 @@ HETZNER_ACTION_MAX_WAIT=60
 HETZNER_ACTION_POLL_INTERVAL=2
 ```
 
+## NinjaOne (Public API 2.0)
+
+RMM-Verwaltung: Geräte, Monitoring, Alarme, Patch-Management und Automatisierung.
+
+**Verbinden:** `/integrations` → „NinjaOne verbinden". In NinjaOne wird die Anwendung unter
+Administration → Apps → API angelegt.
+
+**Region wählen.** NinjaOne betreibt getrennte Instanzen, und die Region bestimmt sowohl die
+API- als auch die OAuth-Endpunkte:
+
+| Region | Host |
+|---|---|
+| `us` | `https://app.ninjarmm.com` |
+| `eu` | `https://eu.ninjarmm.com` |
+| `oc` | `https://oc.ninjarmm.com` |
+| `ca` | `https://ca.ninjarmm.com` |
+
+**Zwei Anmeldeverfahren**, je Verbindung wählbar:
+
+- **Client Credentials** (empfohlen) — App-Typ *API Services (machine-to-machine)*. Client-ID
+  und Secret liegen in der Verbindung, das Token wird selbstständig geholt und vor Ablauf
+  erneuert. Kein Browser, keine Redirect-URI, und damit regionsunabhängig.
+- **Browser-Autorisierung** — App-Typ *Web*. Erfordert die Redirect-URI
+  `{APP_URL}/integrations/oauth2/ninja/callback` in der NinjaOne-App. Weil der `OAuth2Service`
+  seine URLs global auflöst, gilt dieser Weg nur für die Region aus `NINJA_REGION`; bei
+  gemischten Regionen ist Client Credentials der richtige Weg.
+
+**Scopes:** `monitoring` (lesen), `management` (verändern), `control` (Fernsteuerung). Sie
+müssen in der NinjaOne-App freigegeben *und* in der Verbindung ausgewählt sein — fehlt ein
+Scope, antwortet die API mit HTTP 403.
+
+**Paginierung:** `pageSize` (max. 1000) zusammen mit `after`, einem Cursor auf der letzten
+gelieferten ID; einzelne Endpunkte nutzen stattdessen `cursor`. Nicht jede Liste ist
+paginiert — der Katalog nennt je Operation die erlaubten Parameter.
+
+**Gerätefilter:** Viele Endpunkte akzeptieren `df`, zum Beispiel `status eq APPROVED`,
+`org = 5` oder `class in (WINDOWS_WORKSTATION,WINDOWS_SERVER)`.
+
+**Tools:**
+
+| Tool | Zweck |
+|---|---|
+| `integrations.ninja.overview` | Endpunkt-Katalog, Scopes und Nutzungsregeln, ohne API-Aufruf |
+| `integrations.ninja.test-connection` | Token beziehen, Verbindung prüfen, Region und Scopes melden |
+| `integrations.ninja.call` | Generischer Zugriff auf alle 315 Endpunkte |
+| `integrations.ninja.devices.GET` | Geräte auflisten — global, detailliert oder je Organisation |
+| `integrations.ninja.device.GET` | Ein Gerät mit 20 wählbaren Unterressourcen |
+| `integrations.ninja.organizations.GET` | Organisationen auflisten oder einzeln abrufen |
+| `integrations.ninja.alerts.GET` | Aktive Alarme, flottenweit oder je Gerät |
+| `integrations.ninja.query.GET` | 24 flottenweite Auswertungen (`/v2/queries/*`) |
+| `integrations.ninja.device.action` | **Schreibend:** Neustart, Wartung, Patches, Skripte |
+
+Alle verändernden Aufrufe verlangen `"confirm": true` — auch über
+`integrations.ninja.call`. Sie wirken sofort auf echte Endgeräte.
+
+**Unbekannte Parameter werden abgelehnt,** nicht stillschweigend verworfen: NinjaOne ignoriert
+sie kommentarlos und lieferte sonst ein ungefiltertes Ergebnis, das wie ein gefiltertes aussieht.
+
+**Der Endpunkt-Katalog** in `NinjaResource` ist aus der offiziellen Spezifikation generiert
+(`https://app.ninjarmm.com/apidocs-beta/NinjaRMM-API-v2.yaml`, Version 2.0.9-draft). Ändert
+sich die API, wird er daraus neu erzeugt.
+
+**ENV-Variablen** (optional, überschreiben nur die Defaults):
+
+```env
+NINJA_REGION=eu
+NINJA_SCOPES=monitoring,management,control
+NINJA_DEFAULT_TIMEOUT=30
+NINJA_CONNECT_TIMEOUT=10
+NINJA_RETRY_TIMES=2
+NINJA_RETRY_SLEEP_MS=500
+
+# Nur für die Browser-Autorisierung:
+NINJA_CLIENT_ID=
+NINJA_CLIENT_SECRET=
+NINJA_OAUTH_REDIRECT_DOMAIN=
+NINJA_AUTHORIZE_URL=https://eu.ninjarmm.com/oauth/authorize
+NINJA_TOKEN_URL=https://eu.ninjarmm.com/oauth/token
+```
+
 ## Für aufrufenden Code
 
 Beide API-Services bieten zwei Dinge, die längere Abläufe brauchen:

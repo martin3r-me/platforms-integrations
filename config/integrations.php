@@ -83,6 +83,37 @@ return [
                     // 'ads_management', // Nur wenn Werbekonten benötigt werden
                 ],
             ],
+            /**
+             * NinjaOne (Public API 2.0) — nur fuer den Browser-Flow
+             * (authorization_code). Der Maschine-zu-Maschine-Weg
+             * (client_credentials) laeuft ohne diesen Block direkt ueber
+             * NinjaIntegrationService.
+             *
+             * ACHTUNG: NinjaOne ist regional getrennt. Die URLs hier gelten fuer
+             * die Region aus NINJA_REGION; eine Verbindung in einer anderen
+             * Region kann den Browser-Flow nicht nutzen, weil der
+             * OAuth2Service seine URLs global aufloest. Fuer gemischte Regionen
+             * ist client_credentials der richtige Weg.
+             *
+             * Benoetigte ENV-Variablen:
+             * - NINJA_CLIENT_ID / NINJA_CLIENT_SECRET aus der NinjaOne-App
+             * - NINJA_OAUTH_REDIRECT_DOMAIN (optional, sonst APP_URL)
+             *
+             * @see https://app.ninjarmm.com/apidocs/
+             */
+            'ninja' => [
+                'authorize_url' => env('NINJA_AUTHORIZE_URL', 'https://app.ninjarmm.com/oauth/authorize'),
+                'token_url' => env('NINJA_TOKEN_URL', 'https://app.ninjarmm.com/oauth/token'),
+                'client_id' => env('NINJA_CLIENT_ID'),
+                'client_secret' => env('NINJA_CLIENT_SECRET'),
+                'redirect_domain' => env('NINJA_OAUTH_REDIRECT_DOMAIN'),
+                'scopes' => [
+                    'monitoring',
+                    'management',
+                    'control',
+                ],
+            ],
+
             'github' => [
                 'authorize_url' => 'https://github.com/login/oauth/authorize',
                 'token_url' => 'https://github.com/login/oauth/access_token',
@@ -298,6 +329,46 @@ return [
      * - API v1, z.B. purchase-orders mit grossem pageSize auf hohen Seiten
      *   ("cURL error 28 ... for /api/v1/{tenantId}/purchase-orders?page=7&pageSize=200")
      */
+    /**
+     * NinjaOne (Public API 2.0) Konfiguration
+     *
+     * Client-ID, Secret, Region und Scopes liegen pro Verbindung in der DB
+     * (IntegrationConnection); hier stehen nur die Vorgaben und das Timeout.
+     *
+     * REGION: NinjaOne betreibt getrennte Instanzen (us/eu/oc/ca). Die Region
+     * bestimmt sowohl die API- als auch die OAuth-Endpunkte und gehoert
+     * deshalb zur Verbindung — NINJA_REGION ist nur der Vorgabewert.
+     *
+     * SCOPES: monitoring (lesen), management (veraendern), control
+     * (Fernsteuerung). Veraendernde Tools verlangen zusaetzlich confirm=true.
+     * Soll die Integration ausschliesslich lesen, hier auf monitoring
+     * beschraenken — dann lehnt NinjaOne schreibende Aufrufe serverseitig ab.
+     *
+     * @see https://app.ninjarmm.com/apidocs/
+     */
+    'ninja' => [
+        'region' => env('NINJA_REGION', 'us'),
+
+        'scopes' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('NINJA_SCOPES', 'monitoring,management,control'))
+        ))),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('NINJA_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('NINJA_CONNECT_TIMEOUT', 10),
+        ],
+
+        // Wiederholversuche bei sporadischen Verbindungsabbruechen (Connect,
+        // DNS, Reset) — nicht bei Read-Timeouts, siehe HttpTransientFailure.
+        // Greift nur fuer idempotente Methoden (GET/HEAD).
+        'retry' => [
+            'times' => (int) env('NINJA_RETRY_TIMES', 2),
+            'sleep_ms' => (int) env('NINJA_RETRY_SLEEP_MS', 500),
+        ],
+    ],
+
     'necta' => [
         // Timeout-Konfiguration
         'timeout' => [

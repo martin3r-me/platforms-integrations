@@ -173,6 +173,19 @@
             'meta' => fn ($c) => ($c->credentials['project'] ?? null) ? ['Projekt: ' . $c->credentials['project'], 'mono'] : null,
         ],
         [
+            'key' => 'ninja', 'group' => 'dev', 'label' => 'NinjaOne', 'icon' => 'heroicon-o-computer-desktop',
+            'desc' => 'RMM: Geräte, Monitoring, Patches und Automatisierung',
+            'conns' => $ninjaConnections,
+            'connect' => ['wire' => 'openNinjaModal', 'label' => 'NinjaOne verbinden'],
+            'renew' => fn ($c) => ['wire' => "openNinjaModalForEdit({$c->id})", 'label' => 'Zugangsdaten aktualisieren'],
+            'test' => 'testNinjaConnection',
+            'meta' => fn ($c) => [
+                'Region: ' . strtoupper($c->credentials['region'] ?? 'us')
+                    . ' · ' . implode(', ', (array) ($c->credentials['scopes'] ?? ['monitoring'])),
+                'mono',
+            ],
+        ],
+        [
             'key' => 'google_search_console', 'group' => 'seo', 'label' => 'Google Search Console', 'icon' => 'heroicon-o-magnifying-glass-circle',
             'desc' => 'Search Analytics, Sitemaps und URL Inspection',
             'conns' => $googleSearchConsoleConnections,
@@ -794,6 +807,75 @@
             <div class="flex justify-end gap-2">
                 <x-nx-button variant="ghost" wire:click="closeHetznerModal">Abbrechen</x-nx-button>
                 <x-nx-button variant="primary" wire:click="saveHetznerConnection">Verbinden</x-nx-button>
+            </div>
+        </x-slot>
+    </x-nx-modal>
+
+    {{-- NinjaOne --}}
+    <x-nx-modal wire:model="ninjaModalShow">
+        <x-slot name="header">NinjaOne verbinden</x-slot>
+
+        <div class="space-y-4">
+            <x-nx-callout variant="info">
+                Lege in NinjaOne unter <strong>Administration → Apps → API</strong> eine Anwendung an.
+                Für den Maschine-zu-Maschine-Weg den Typ <strong>API Services</strong> wählen — der braucht
+                keine Redirect-URI. Für den Browser-Weg den Typ <strong>Web</strong> und dort
+                <code>{{ url('/integrations/oauth2/ninja/callback') }}</code> als Redirect-URI eintragen.
+            </x-nx-callout>
+
+            <div class="grid grid-cols-2 gap-4">
+                <x-nx-input-select name="ninjaRegion" label="Region"
+                    :options="[
+                        ['value' => 'us', 'label' => 'US — app.ninjarmm.com'],
+                        ['value' => 'eu', 'label' => 'EU — eu.ninjarmm.com'],
+                        ['value' => 'oc', 'label' => 'Oceania — oc.ninjarmm.com'],
+                        ['value' => 'ca', 'label' => 'Canada — ca.ninjarmm.com'],
+                    ]"
+                    wire:model.live="ninjaRegion" errorKey="ninjaRegion" />
+                <x-nx-input-select name="ninjaAuthScheme" label="Anmeldeverfahren"
+                    :options="[
+                        ['value' => 'client_credentials', 'label' => 'Client Credentials (empfohlen)'],
+                        ['value' => 'oauth2', 'label' => 'Browser-Autorisierung'],
+                    ]"
+                    wire:model.live="ninjaAuthScheme" errorKey="ninjaAuthScheme" />
+            </div>
+
+            <x-nx-input-text name="ninjaClientId" label="Client ID" placeholder="Client ID der NinjaOne-App…"
+                wire:model.live="ninjaClientId" errorKey="ninjaClientId" />
+            <x-nx-input-text name="ninjaClientSecret" label="Client Secret" type="password"
+                placeholder="{{ $editingId ? 'Leer lassen, um das gespeicherte Secret zu behalten' : 'Client Secret der NinjaOne-App…' }}"
+                wire:model.live="ninjaClientSecret" errorKey="ninjaClientSecret" />
+
+            <div>
+                <span class="block text-sm font-medium text-[var(--ui-secondary)] mb-2">Berechtigungen (Scopes)</span>
+                <div class="space-y-2">
+                    @foreach ([
+                        'monitoring' => 'Monitoring — lesender Zugriff auf Geräte, Alarme und Auswertungen',
+                        'management' => 'Management — verändernde Aufrufe (Neustart, Patches, Skripte)',
+                        'control' => 'Control — Fernsteuerung von Geräten',
+                    ] as $value => $label)
+                        <label class="flex items-start gap-2 text-sm">
+                            <input type="checkbox" value="{{ $value }}" wire:model.live="ninjaScopes"
+                                class="mt-1 rounded border-[var(--ui-border)]">
+                            <span>{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('ninjaScopes')
+                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <p class="text-xs text-[var(--ui-muted)]">
+                Die Scopes müssen in der NinjaOne-App ebenfalls freigegeben sein. Verändernde Tools
+                verlangen zusätzlich immer eine ausdrückliche Bestätigung.
+            </p>
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex justify-end gap-2">
+                <x-nx-button variant="ghost" wire:click="closeNinjaModal">Abbrechen</x-nx-button>
+                <x-nx-button variant="primary" wire:click="saveNinjaConnection">Verbinden</x-nx-button>
             </div>
         </x-slot>
     </x-nx-modal>
