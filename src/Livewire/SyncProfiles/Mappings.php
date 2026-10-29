@@ -61,7 +61,7 @@ class Mappings extends Component
             'mappings' => $mappings,
             'typeOptions' => $this->typeOptions(),
             'kindOptions' => $this->kindOptions(),
-        ]);
+        ])->layout('platform::layouts.app');
     }
 
     public function openCreateModal(): void
