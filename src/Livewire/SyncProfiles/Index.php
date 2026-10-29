@@ -57,7 +57,7 @@ class Index extends Component
             'bridges' => $bridges,
             'lexofficeConnections' => $lexofficeConnections,
             'datevConnections' => $datevConnections,
-        ]);
+        ])->layout('platform::layouts.app');
     }
 
     public function openCreateModal(): void
