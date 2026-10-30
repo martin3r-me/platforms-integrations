@@ -1014,6 +1014,34 @@ class IntegrationsServiceProvider extends ServiceProvider
             \Log::warning('Integrations: NinjaOne Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }
 
+        // ---------------------------------------------------------------------
+        // cisbox Tools (Invoice API v1 — Eingangsrechnungen, lesend)
+        // ---------------------------------------------------------------------
+        try {
+            $registry = resolve(\Platform\Core\Tools\ToolRegistry::class);
+
+            // Referenz + Verbindung
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\CisboxOverviewTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\TestConnectionTool());
+
+            // Generischer Zugriff (deckt alle 27 Endpunkte der v1-API ab)
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\CallTool());
+
+            // Rechnungen
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListInvoicesTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\GetInvoiceTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListPendingInvoicesTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\GetInvoicePdfTool());
+
+            // Umfeld der Rechnung
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListCreditorsTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListDeliveriesTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListPaymentsTool());
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\ListMasterdataTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: cisbox Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
     }
 
     protected function registerLivewireComponents(): void

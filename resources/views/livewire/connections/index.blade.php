@@ -104,6 +104,17 @@
             'test' => 'testMossConnection',
         ],
         [
+            'key' => 'cisbox', 'group' => 'finance', 'label' => 'cisbox', 'icon' => 'heroicon-o-document-currency-euro',
+            'desc' => 'Eingangsrechnungen, offene Posten, Kreditoren, Lieferungen und Zahlungen — lesend',
+            'conns' => $cisboxConnections,
+            'connect' => ['wire' => 'openCisboxModal', 'label' => 'cisbox verbinden'],
+            'renew' => fn ($c) => ['wire' => "openCisboxModalForEdit({$c->id})", 'label' => 'API-Key aktualisieren'],
+            // Auch im Fehlerzustand testbar: ein erfolgreicher Test setzt die
+            // Verbindung wieder auf aktiv — der Key ist meist unveraendert gueltig.
+            'test' => 'testCisboxConnection', 'testStatuses' => ['active', 'error'],
+            'meta' => fn ($c) => ($c->credentials['base_url'] ?? null) ? [$c->credentials['base_url'], 'mono'] : null,
+        ],
+        [
             'key' => 'necta', 'group' => 'erp', 'label' => 'necta.one', 'icon' => 'heroicon-o-cube',
             'desc' => 'Warenwirtschaft: Produkte, Kunden, Bestellungen und Rechnungen',
             'conns' => $nectaConnections,
@@ -807,6 +818,38 @@
             <div class="flex justify-end gap-2">
                 <x-nx-button variant="ghost" wire:click="closeHetznerModal">Abbrechen</x-nx-button>
                 <x-nx-button variant="primary" wire:click="saveHetznerConnection">Verbinden</x-nx-button>
+            </div>
+        </x-slot>
+    </x-nx-modal>
+
+    {{-- cisbox --}}
+    <x-nx-modal wire:model="cisboxModalShow">
+        <x-slot name="header">cisbox verbinden</x-slot>
+
+        <div class="space-y-4">
+            <x-nx-callout title="API-Key erforderlich">
+                Den Key stellt dein cisbox-Ansprechpartner aus. Er gilt für <strong>genau eine
+                Installation</strong>, hängt an keinem Benutzerkonto und läuft nicht durch die
+                Rechteverwaltung von cisbox — er sieht also den gesamten Datenbestand. Die
+                Anbindung ist <strong>ausschließlich lesend</strong>; kein Tool kann in cisbox etwas ändern.
+            </x-nx-callout>
+
+            <x-nx-input-text name="cisboxApiKey" label="API-Key" type="password"
+                placeholder="{{ $editingId ? 'Leer lassen, um den gespeicherten Key zu behalten' : 'cisbox API-Key…' }}"
+                wire:model.live="cisboxApiKey" errorKey="cisboxApiKey" />
+            <x-nx-input-text name="cisboxInstanceLabel" label="Installation (optional)" placeholder="z. B. Produktion"
+                wire:model.live="cisboxInstanceLabel" errorKey="cisboxInstanceLabel"
+                hint="Unterscheidet mehrere Verbindungen und wird als Name übernommen." />
+            <x-nx-input-text name="cisboxBaseUrl" label="Abweichende Adresse (optional)"
+                placeholder="https://api.cisbox.com/invoice/v1"
+                wire:model.live="cisboxBaseUrl" errorKey="cisboxBaseUrl"
+                hint="Nur ausfüllen, wenn eure Installation nicht über api.cisbox.com läuft." />
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex justify-end gap-2">
+                <x-nx-button variant="ghost" wire:click="closeCisboxModal">Abbrechen</x-nx-button>
+                <x-nx-button variant="primary" wire:click="saveCisboxConnection">Verbinden</x-nx-button>
             </div>
         </x-slot>
     </x-nx-modal>

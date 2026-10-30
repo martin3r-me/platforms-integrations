@@ -37,6 +37,7 @@ use Platform\Integrations\Services\DedefleetIntegrationService;
 use Platform\Integrations\Services\ForgeIntegrationService;
 use Platform\Integrations\Services\HetznerIntegrationService;
 use Platform\Integrations\Services\NinjaIntegrationService;
+use Platform\Integrations\Services\CisboxIntegrationService;
 use Platform\Integrations\Models\IntegrationsHubspotContact;
 use Platform\Integrations\Models\IntegrationsHubspotCompany;
 use Platform\Integrations\Models\IntegrationsHubspotDeal;
@@ -132,6 +133,12 @@ class Index extends Component
     public string $hetznerApiToken = '';
     public string $hetznerProjectLabel = '';
 
+    // cisbox Modal
+    public bool $cisboxModalShow = false;
+    public string $cisboxApiKey = '';
+    public string $cisboxInstanceLabel = '';
+    public string $cisboxBaseUrl = '';
+
     // Share Modal
     public bool $shareModalShow = false;
     public ?int $shareConnectionId = null;
@@ -187,6 +194,7 @@ class Index extends Component
         $forgeConnections = $ofType('forge');
         $hetznerConnections = $ofType('hetzner');
         $ninjaConnections = $ofType('ninja');
+        $cisboxConnections = $ofType('cisbox');
 
         // Connections, die mir von anderen Usern freigegeben wurden
         $userTeamIds = $user->teams()->pluck('teams.id')->toArray();
@@ -236,6 +244,7 @@ class Index extends Component
             'forgeConnections' => $forgeConnections,
             'hetznerConnections' => $hetznerConnections,
             'ninjaConnections' => $ninjaConnections,
+            'cisboxConnections' => $cisboxConnections,
             'sharedWithMe' => $sharedWithMe,
             'userTeams' => $userTeams,
             'teamUsers' => $teamUsers,
@@ -2083,6 +2092,128 @@ class Index extends Component
             }
 
             $result = app(HetznerIntegrationService::class)->testConnection($hetznerConnection);
+
+            if ($result['success']) {
+                $this->syncMessage = $result['message'];
+                session()->flash('status', $this->syncMessage);
+            } else {
+                $this->syncError = $result['message'];
+            }
+        } catch (\Exception $e) {
+            $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== CISBOX METHODS ====================
+
+    public function openCisboxModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->cisboxApiKey = '';
+        $this->cisboxInstanceLabel = '';
+        $this->cisboxBaseUrl = '';
+
+        if ($connectionId) {
+            $connection = IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if ($connection) {
+                $service = app(CisboxIntegrationService::class);
+                $this->cisboxInstanceLabel = $service->getInstanceLabel($connection) ?? '';
+                // Nur eine abweichende Adresse vorbelegen — die Standard-Cloud
+                // bleibt im Feld leer, damit sie nicht versehentlich festgeschrieben wird.
+                $this->cisboxBaseUrl = $service->hasCustomBaseUrl($connection)
+                    ? $service->getBaseUrl($connection)
+                    : '';
+            }
+        }
+
+        $this->cisboxModalShow = true;
+    }
+
+    public function openCisboxModalForEdit(int $connectionId): void
+    {
+        $this->openCisboxModal($connectionId);
+    }
+
+    public function closeCisboxModal(): void
+    {
+        $this->cisboxModalShow = false;
+        $this->cisboxApiKey = '';
+        $this->cisboxInstanceLabel = '';
+        $this->cisboxBaseUrl = '';
+        $this->editingId = null;
+    }
+
+    public function saveCisboxConnection(): void
+    {
+        $this->validate([
+            // Beim Bearbeiten darf das Feld leer bleiben: der gespeicherte Key
+            // gilt dann weiter, und nur Label oder Adresse aendern sich.
+            'cisboxApiKey' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
+            'cisboxInstanceLabel' => ['nullable', 'string', 'max:255'],
+            'cisboxBaseUrl' => ['nullable', 'url', 'starts_with:https://', 'max:255'],
+        ], [
+            'cisboxApiKey.required' => 'Bitte gib deinen cisbox API-Key ein.',
+            'cisboxBaseUrl.url' => 'Bitte eine vollstaendige URL angeben, z. B. https://api.cisbox.com/invoice/v1.',
+            'cisboxBaseUrl.starts_with' => 'Die Adresse muss mit https:// beginnen.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(CisboxIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser(
+                $user,
+                $this->cisboxApiKey !== '' ? $this->cisboxApiKey : null,
+                $this->cisboxInstanceLabel,
+                $this->cisboxBaseUrl,
+                $this->editingId
+            );
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->cisboxModalShow = false;
+                $this->cisboxApiKey = '';
+                $this->cisboxInstanceLabel = '';
+                $this->cisboxBaseUrl = '';
+                $this->editingId = null;
+                session()->flash('status', 'cisbox-Verbindung erfolgreich hergestellt. ' . $testResult['message']);
+            } else {
+                $this->addError('cisboxApiKey', $testResult['message']);
+            }
+        } catch (\Exception $e) {
+            $this->addError('cisboxApiKey', 'Fehler: ' . $e->getMessage());
+            \Log::error('cisbox connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testCisboxConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        try {
+            $connection = IntegrationConnection::query()
+                ->with('integration')
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->first();
+
+            if (!$connection) {
+                $this->syncError = 'Keine cisbox-Verbindung gefunden.';
+                return;
+            }
+
+            $result = app(CisboxIntegrationService::class)->testConnection($connection);
 
             if ($result['success']) {
                 $this->syncMessage = $result['message'];

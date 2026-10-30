@@ -663,5 +663,47 @@ return [
             'connect' => (int) env('HETZNER_CONNECT_TIMEOUT', 10),
         ],
     ],
-];
 
+    /*
+    |--------------------------------------------------------------------------
+    | cisbox Invoice API v1
+    |--------------------------------------------------------------------------
+    |
+    | Lesende REST-API fuer Eingangsrechnungen, offene Posten, Kreditoren,
+    | Lieferungen, Zahlungen und Buchhaltungs-Stammdaten.
+    |
+    | AUTH: API-Key im Header X-API-Key. Der Key ist ein technisches Token: Er
+    | haengt NICHT an einem Benutzerkonto und laeuft nicht durch die
+    | Rechteverwaltung von cisbox, sieht also den gesamten Datenbestand seiner
+    | Installation. Er liegt deshalb je Verbindung in credentials.api_key und
+    | wird nie in die Konfiguration geschrieben.
+    |
+    | BASE-URL: in der Cloud fix. Abweichende Installationen hinterlegen ihre
+    | Adresse je Verbindung in credentials.base_url — der Wert hier ist nur die
+    | Vorgabe fuer neue Verbindungen.
+    |
+    | ENV-Variablen (optional, nur zum Ueberschreiben der Defaults):
+    | - CISBOX_API_BASE_URL
+    | - CISBOX_DEFAULT_TIMEOUT / CISBOX_CONNECT_TIMEOUT
+    | - CISBOX_RETRY_TIMES / CISBOX_RETRY_SLEEP_MS
+    |
+    | @see https://api.cisbox.com/docs/ui/invoice-api-v1
+    */
+    'cisbox' => [
+        'api_base_url' => env('CISBOX_API_BASE_URL', 'https://api.cisbox.com/invoice/v1'),
+
+        // Timeout-Konfiguration
+        'timeout' => [
+            'default' => (int) env('CISBOX_DEFAULT_TIMEOUT', 30),
+            'connect' => (int) env('CISBOX_CONNECT_TIMEOUT', 10),
+        ],
+
+        // Wiederholversuche bei sporadischen Verbindungsabbruechen (Connect,
+        // DNS, Reset) — nicht bei Read-Timeouts, siehe HttpTransientFailure.
+        // Die API kennt nur GET, jeder Aufruf ist also idempotent.
+        'retry' => [
+            'times' => (int) env('CISBOX_RETRY_TIMES', 2),
+            'sleep_ms' => (int) env('CISBOX_RETRY_SLEEP_MS', 500),
+        ],
+    ],
+];

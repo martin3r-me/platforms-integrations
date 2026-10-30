@@ -277,9 +277,93 @@ NINJA_AUTHORIZE_URL=https://eu.ninjarmm.com/oauth/authorize
 NINJA_TOKEN_URL=https://eu.ninjarmm.com/oauth/token
 ```
 
+## cisbox (Invoice API v1)
+
+Eingangsrechnungen aus cisbox: offene Posten, Kreditoren, Lieferungen, Zahlungen und die
+Buchhaltungs-Stammdaten dahinter.
+
+**Die API ist vollständig lesend.** Alle 27 Endpunkte sind GET; es gibt keinen Aufruf, der in
+cisbox etwas verändert. Deshalb kennt diese Integration auch keine Bestätigungspflicht.
+
+**Verbinden:** `/integrations` → „cisbox verbinden". Den API-Key stellt der
+cisbox-Ansprechpartner aus.
+
+**Der Key ist privilegiert.** Er ist ein technisches Token: Er hängt an keinem Benutzerkonto
+und läuft nicht durch die Rechteverwaltung von cisbox, sieht also den gesamten Datenbestand
+seiner Installation. Er gilt für genau eine Installation — für mehrere wird je eine eigene
+Verbindung angelegt und über `connection_id` angesprochen.
+
+**Antwort-Hülle:** Jede Antwort ist gleich aufgebaut:
+
+```json
+{ "status": "...", "data": [ … ], "meta": { "totalItems": 0, "totalPages": 0, "currentPage": 1, "itemsPerPage": 200 } }
+```
+
+`data` ist **immer** ein Array — auch bei Einzelabrufen wie `GET /invoices/{barcodeNo}`, die
+dann genau einen Eintrag enthalten. Die Tools packen das aus; im Katalog ist über `single`
+vermerkt, wo das zutrifft.
+
+**X-Request-Id:** Jede Antwort trägt diesen Header. Er wird als `request_id` durchgereicht und
+steht in jeder Fehlermeldung — ohne ihn lässt sich ein Vorfall im cisbox-Support nicht in den
+Server-Logs wiederfinden.
+
+**Paginierung:** `page` (ab 1) und `itemsPerPage` (Standard 200, Maximum 2000). Die Listen-Tools
+kennen `all_pages`; sie laufen dann bis zu 50 Seiten durch und melden über `meta.truncated`,
+wenn dabei gekürzt wurde.
+
+**Mehrfach-Parameter:** `status` wird bei offenen Posten und Zahlungen wiederholt gesetzt
+(`status=APPROVED&status=PAID`). Der Service baut den Query-String deshalb selbst — Guzzle
+würde ein Array als `status[0]=…` kodieren, was die API ignoriert. Das Ergebnis sähe dann
+gefiltert aus, obwohl der Filter nie gegriffen hat.
+
+**Tools:**
+
+| Tool | Zweck |
+|---|---|
+| `integrations.cisbox.overview` | Endpunkt-Katalog, Felder der Datentypen und Nutzungsregeln, ohne API-Aufruf |
+| `integrations.cisbox.test-connection` | Verbindung prüfen und Anzahl der Rechnungen melden |
+| `integrations.cisbox.call` | Generischer Zugriff auf alle 27 Endpunkte |
+| `integrations.cisbox.invoices.GET` | Eingangsrechnungen mit Datums-, Perioden- und Kreditorenfilter |
+| `integrations.cisbox.invoice.GET` | Eine Rechnung, auf Wunsch mit Positionen und Kontierungs-Splits |
+| `integrations.cisbox.invoices.pending.GET` | Offene Posten mit offenem Betrag, Fälligkeit und Skonto |
+| `integrations.cisbox.invoice.pdf.GET` | Beleg-PDF — standardmäßig nur Größe, Inhalt auf Anforderung |
+| `integrations.cisbox.creditors.GET` | Kreditoren, einzeln oder mit ihren Artikeln samt Preishistorie |
+| `integrations.cisbox.deliveries.GET` | Lieferscheine, einzeln oder mit Positionen |
+| `integrations.cisbox.payments.GET` | Zahlungen und Zahlungsvorschläge mit Status |
+| `integrations.cisbox.masterdata.GET` | Sachkonten, Zuordnungen, Code 1–3, Zahlungsarten, Steuerschlüssel |
+
+**Was vorab abgefangen wird,** statt im Fehler der API zu landen: Suchbegriffe unter vier
+Zeichen (cisbox antwortet mit 422), unbekannte Enum-Werte, Parameter, die es an diesem
+Endpunkt nicht gibt, und `all_pages` auf einer nicht paginierten Operation.
+
+**Das PDF** kommt als Base64 in `data[0].fileData` — die Spezifikation deklariert dort ein
+Array von Teilen, in der Praxis steht ein einzelner String. Beide Formen werden
+zusammengeführt. Ausgeliefert wird der Inhalt nur mit `include_data` und nur bis 256 KB;
+ein mehrere Megabyte großes Beleg-PDF gehört nicht in den Gesprächsverlauf.
+
+**Der Endpunkt-Katalog** in `CisboxResource` ist aus der offiziellen Spezifikation generiert
+(`https://cisbox-global.cisbox.com/resteasy/api-docs/invoice/v1`, Version 1.0). Neben den
+Operationen enthält er die Felder aller Antwort-Typen — sie beantworten, was sich als `fields`
+übergeben lässt. Ändert sich die API, wird er daraus neu erzeugt.
+
+**ENV-Variablen** (optional, überschreiben nur die Defaults):
+
+```env
+CISBOX_API_BASE_URL=https://api.cisbox.com/invoice/v1
+CISBOX_DEFAULT_TIMEOUT=30
+CISBOX_CONNECT_TIMEOUT=10
+CISBOX_RETRY_TIMES=2
+CISBOX_RETRY_SLEEP_MS=500
+```
+
+Läuft eure Installation nicht über `api.cisbox.com`, gehört die Adresse nicht hierher, sondern
+in die Verbindung: Das Feld „Abweichende Adresse" im Dialog legt sie in `credentials.base_url`
+ab und gilt dann nur für diese Verbindung.
+
 ## Für aufrufenden Code
 
-Beide API-Services bieten zwei Dinge, die längere Abläufe brauchen:
+Die API-Services von Hetzner und NinjaOne bieten zwei Dinge, die längere Abläufe brauchen
+(cisbox kennt davon `withObserver`, aber keinen Rate-Limit-Hinweis — die API nennt keinen):
 
 - `withObserver(callable $observer)` liefert eine Kopie des Services, die jeden
   ausgeführten Aufruf meldet, mit Methode, Pfad, Status, Dauer und den
