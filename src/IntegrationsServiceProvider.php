@@ -1038,6 +1038,9 @@ class IntegrationsServiceProvider extends ServiceProvider
             $registry->register(new \Platform\Integrations\Tools\Cisbox\ListDeliveriesTool());
             $registry->register(new \Platform\Integrations\Tools\Cisbox\ListPaymentsTool());
             $registry->register(new \Platform\Integrations\Tools\Cisbox\ListMasterdataTool());
+
+            // Auswertung ueber viele Rechnungen
+            $registry->register(new \Platform\Integrations\Tools\Cisbox\AccountingSummaryTool());
         } catch (\Throwable $e) {
             \Log::warning('Integrations: cisbox Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
         }

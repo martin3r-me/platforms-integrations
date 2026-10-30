@@ -349,6 +349,49 @@ Server-Logs wiederfinden.
 kennen `all_pages`; sie laufen dann bis zu 50 Seiten durch und melden über `meta.truncated`,
 wenn dabei gekürzt wurde.
 
+### Kontierung über viele Rechnungen auswerten
+
+Die Kontierung — Sachkonto und Kostenstellen — steht in cisbox **nicht an der Rechnung, sondern
+an deren Positionen**. Ein Betriebsmonat mit rund 250 Rechnungen braucht also 250 Einzelabrufe
+mit zusammen etwa 700.000 Zeichen Rohdaten. Durch ein Sprachmodell gereicht ist das weder
+bezahlbar noch lesbar.
+
+`integrations.cisbox.accounting.summary` zieht diese Schleife in den Server: Es holt die
+Positionen gebündelt (acht gleichzeitig, rund fünf Sekunden für einen Betriebsmonat), summiert
+sie nach den gewünschten Dimensionen und gibt eine Tabelle zurück — aus 700.000 Zeichen werden
+rund 3.000.
+
+Gruppiert wird nach beliebiger Kombination aus `account`, `code1`, `code2`, `code3`, `taxCode`,
+`creditorNo`, `debtorNo`, `accountingPeriod` und `invoice`. Mit `group_by: ["invoice"]` und
+einem Zeilenfilter kommt man von einer auffälligen Summe zu den Belegen dahinter.
+
+Drei Dinge, die dabei leicht schiefgehen und die das Tool deshalb übernimmt:
+
+- **`code1` an `GET /invoices` filtert Rechnungen, nicht Zeilen.** Es wählt alle Rechnungen
+  aus, die *irgendeine* Zeile auf dieser Kostenstelle haben. In einem gemessenen Monat
+  enthielten die so gefundenen Rechnungen 23.035,75 € — davon lagen nur 18.365,10 € wirklich
+  auf der gesuchten Kostenstelle. Wer die Rechnungsbeträge summiert, liegt um ein Viertel
+  daneben. Die Auswertung filtert und summiert deshalb immer auf Zeilenebene.
+- **Die Kontierung summiert netto, der Rechnungskopf nennt brutto.** Beides gegeneinander zu
+  halten sieht nach einer Lücke aus, wo keine ist. Das Ergebnis weist beide Summen getrennt aus.
+- **`GET /invoices` kennt keinen Filter auf den Debitor**, obwohl der in manchen Installationen
+  die Betriebsstätte bezeichnet. `debtorNo` wird deshalb nach dem Laden angewandt — der Zeitraum
+  muss vollständig geholt werden, und ein Zeitraum ist Pflicht.
+
+Zusätzlich meldet das Tool, was beim Durchsehen einer Summenliste sonst untergeht: Rechnungen
+ganz ohne Kontierung, Zeilen ohne Konto oder ohne Kostenstelle, und Rechnungen, deren
+Kontierungssumme nicht zum Bruttobetrag passt. Letzteres über das Verhältnis brutto/netto:
+unter 1 kontiert eine Rechnung mehr, als sie kostet; über 1,19 läge mehr Steuer darauf, als es
+in Deutschland gibt. In einer geprüften Periode mit 1.305 Rechnungen fand das fünf Fälle,
+darunter einen mit 15,66 € brutto gegen 26,31 € Kontierung.
+
+**Nebenläufigkeit:** `CisboxApiService::fetchMany()` holt bis zu acht Ressourcen gleichzeitig.
+Anders als `call()` wirft ein einzelner Fehlschlag dort nicht — die Auswertung soll „248 von
+250 ausgewertet, diese zwei fehlen" sagen können, statt wegen einer Rechnung ganz auszufallen.
+Die Ausfälle stehen unter `errors` im Ergebnis. Nur ein Key-Fehler bricht ab: Der gilt für alle
+weiteren Aufrufe ohnehin. Der Verbindungsstatus wird einmal am Ende geschrieben statt pro
+Antwort — sonst stünden 250 identische UPDATEs in der Datenbank.
+
 **Mehrfach-Parameter:** `status` wird bei offenen Posten und Zahlungen wiederholt gesetzt
 (`status=APPROVED&status=PAID`). Der Service baut den Query-String deshalb selbst — Guzzle
 würde ein Array als `status[0]=…` kodieren, was die API ignoriert. Das Ergebnis sähe dann
@@ -369,6 +412,7 @@ gefiltert aus, obwohl der Filter nie gegriffen hat.
 | `integrations.cisbox.deliveries.GET` | Lieferscheine, einzeln oder mit Positionen |
 | `integrations.cisbox.payments.GET` | Zahlungen und Zahlungsvorschläge mit Status |
 | `integrations.cisbox.masterdata.GET` | Sachkonten, Zuordnungen, Code 1–3, Zahlungsarten, Steuerschlüssel |
+| `integrations.cisbox.accounting.summary` | Kontierung vieler Rechnungen auf einmal: Summen je Konto und Kostenstelle statt Einzelsätze |
 
 **Was vorab abgefangen wird,** statt im Fehler der API zu landen: Suchbegriffe unter vier
 Zeichen (cisbox antwortet mit 422), unbekannte Enum-Werte, Parameter, die es an diesem

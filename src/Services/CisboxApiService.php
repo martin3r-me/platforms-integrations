@@ -44,6 +44,15 @@ class CisboxApiService
     /** Obergrenze der API für itemsPerPage. */
     public const MAX_ITEMS_PER_PAGE = 2000;
 
+    /**
+     * Obergrenze gleichzeitiger Aufrufe in {@see fetchMany()}.
+     *
+     * Acht Verbindungen holen 250 Rechnungen in rund zwei Sekunden. Hoeher zu
+     * gehen bringt wenig und setzt eine fremde API unnoetig unter Last — der
+     * Key gilt fuer die ganze Installation, nicht nur fuer uns.
+     */
+    public const MAX_CONCURRENCY = 8;
+
     /** Mindestlänge des Volltext-Parameters "q" — kürzer antwortet die API mit 422. */
     public const MIN_SEARCH_LENGTH = 4;
 
@@ -260,6 +269,151 @@ class CisboxApiService
         $first = $this->items($response)[0] ?? null;
 
         return is_array($first) ? $first : null;
+    }
+
+    /**
+     * Holt viele Einzelressourcen nebenlaeufig.
+     *
+     * Gedacht fuer Auswertungen, die pro Rechnung einen eigenen Aufruf
+     * brauchen — die Kontierung steht in cisbox nur an den Positionen, also
+     * unter /invoices/{barcodeNo}/items. Nacheinander dauern 250 Rechnungen
+     * rund 20 Sekunden; gebuendelt sind es zwei bis drei.
+     *
+     * Bewusst anders als {@see request()}:
+     *
+     * - Der Verbindungsstatus wird EINMAL am Ende geschrieben, nicht pro
+     *   Antwort. Sonst stuenden 250 identische UPDATEs in der Datenbank.
+     * - Ein einzelner Fehlschlag wirft nicht. Die Auswertung soll sagen
+     *   koennen "248 von 250 ausgewertet, diese zwei fehlen", statt wegen
+     *   einer Rechnung ganz auszufallen. Nur ein Key-Fehler bricht ab: Der
+     *   gilt dann fuer alle weiteren Aufrufe auch.
+     *
+     * Http::pool() kennt kein retry(), deshalb werden gescheiterte Aufrufe
+     * einmal einzeln nachgezogen — ueber den regulaeren Weg mitsamt Retry.
+     *
+     * Die Operation wird wie bei {@see call()} gegen den Katalog geprueft und
+     * die Platzhalter werden hier eingesetzt. Fertige Pfade entgegenzunehmen
+     * waere bequemer, haette aber das Versprechen des Services ausgehoehlt,
+     * dass jeder Aufruf katalogisiert ist — ein Tippfehler im Pfad endete dann
+     * nicht in einer klaren Meldung, sondern in 250 Mal 404.
+     *
+     * @param string $path Katalogpfad mit Platzhaltern, z.B. /invoices/{barcodeNo}/items
+     * @param array<string|int, array<string, mixed>> $paramSets Je Eintrag die Pfad-Parameter,
+     *                                                           z.B. ['4711' => ['barcodeNo' => 4711]]
+     * @return array{responses: array<string|int, array<mixed>>, errors: array<string|int, string>, calls: int}
+     *
+     * @throws CisboxApiException
+     */
+    public function fetchMany(?User $user, string $path, array $paramSets, int $concurrency = 8): array
+    {
+        $path = '/' . ltrim(trim($path), '/');
+
+        if (!CisboxResource::exists('GET', $path)) {
+            throw CisboxApiException::unknownOperation('GET', $path);
+        }
+
+        if ($paramSets === []) {
+            return ['responses' => [], 'errors' => [], 'calls' => 0];
+        }
+
+        $paths = [];
+
+        foreach ($paramSets as $key => $params) {
+            $paths[$key] = $this->resolvePath($path, is_array($params) ? $params : []);
+        }
+
+        $connection = $this->resolveConnection($user);
+        $apiKey = $this->integrationService->getApiKey($connection);
+
+        if (!$apiKey) {
+            throw CisboxApiException::unauthorized();
+        }
+
+        $baseUrl = $this->integrationService->getBaseUrl($connection);
+        $concurrency = max(1, min($concurrency, self::MAX_CONCURRENCY));
+
+        $responses = [];
+        $failed = [];
+        $calls = 0;
+
+        foreach (array_chunk($paths, $concurrency, true) as $chunk) {
+            $pooled = Http::pool(function ($pool) use ($chunk, $apiKey, $baseUrl) {
+                $requests = [];
+
+                foreach ($chunk as $key => $path) {
+                    $requests[] = $pool->as((string) $key)
+                        ->withHeaders(['X-API-Key' => $apiKey, 'Accept' => 'application/json'])
+                        ->connectTimeout((int) config('integrations.cisbox.timeout.connect', 10))
+                        ->timeout((int) config('integrations.cisbox.timeout.default', 30))
+                        ->get($baseUrl . $path);
+                }
+
+                return $requests;
+            });
+
+            foreach ($chunk as $key => $path) {
+                $calls++;
+                $result = $pooled[(string) $key] ?? null;
+
+                if ($result instanceof Response && $result->successful() && is_array($result->json())) {
+                    $responses[$key] = $result->json();
+
+                    continue;
+                }
+
+                // Ein ungueltiger Key trifft jeden weiteren Aufruf genauso —
+                // weiterzulaufen hiesse, 250 Mal dasselbe zu erfahren.
+                if ($result instanceof Response) {
+                    $error = CisboxApiException::fromResponse(
+                        $result->status(),
+                        is_array($result->json()) ? $result->json() : [],
+                        $result->body(),
+                        $result->header('X-Request-Id') ?: null
+                    );
+
+                    if ($error->indicatesInvalidKey()) {
+                        $this->markBroken($connection, $error->getMessage());
+
+                        throw $error;
+                    }
+                }
+
+                $failed[$key] = $path;
+            }
+        }
+
+        $errors = [];
+
+        foreach ($failed as $key => $path) {
+            $calls++;
+
+            try {
+                $responses[$key] = $this->request($user, $path);
+            } catch (CisboxApiException $e) {
+                if ($e->indicatesInvalidKey()) {
+                    throw $e;
+                }
+
+                $errors[$key] = $e->getMessage();
+            }
+        }
+
+        $connection->status = 'active';
+        $connection->last_error = null;
+        $connection->last_tested_at = now();
+        $connection->save();
+
+        ksort($errors);
+
+        return ['responses' => $responses, 'errors' => $errors, 'calls' => $calls];
+    }
+
+    private function markBroken(IntegrationConnection $connection, string $message): void
+    {
+        $connection->status = 'error';
+        $connection->last_error = $message;
+        $connection->last_tested_at = now();
+        $connection->save();
     }
 
     // =========================================================================
