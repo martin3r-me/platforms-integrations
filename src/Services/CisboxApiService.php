@@ -499,9 +499,11 @@ class CisboxApiService
             $requestId
         );
 
-        // Nur 401/403 markieren die Verbindung als defekt — fachliche Fehler
-        // (404, 422, 429, 5xx) lassen sie aktiv.
-        if (in_array($response->status(), [401, 403], true)) {
+        // Nur ein Key-Fehler markiert die Verbindung als defekt — fachliche
+        // Fehler (404, 422, 429) und Störungen lassen sie aktiv. Der 502 des
+        // Gateways bei ungültigem Key zählt als Key-Fehler, siehe
+        // CisboxApiException::indicatesInvalidKey().
+        if ($exception->indicatesInvalidKey()) {
             $connection->status = 'error';
         }
 

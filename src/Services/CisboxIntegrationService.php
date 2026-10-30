@@ -21,10 +21,15 @@ use Platform\Integrations\Support\HttpTransientFailure;
  * damit ein privilegiertes Geheimnis — und der Grund, weshalb hier je
  * Installation eine eigene Verbindung angelegt wird statt einer je Person.
  *
- * Base-URL ist in der Cloud fix https://api.cisbox.com/invoice/v1. Für
- * abweichende Installationen lässt sie sich je Verbindung in
- * credentials.base_url hinterlegen; ein optionales Label liegt in
- * credentials.instance.
+ * Base-URL: In der Cloud https://api.cisbox.com/invoice/v1. Eigene
+ * Installationen — etwa White-Label-Portale — liefern dieselbe API unter
+ * ihrer eigenen Domain aus, dort aber unter dem JAX-RS-Präfix
+ * /resteasy/api/invoice/v1. Die nackte Domain genügt also nicht: Sie
+ * beantwortet API-Pfade mit einer Weiterleitung auf die Web-Anmeldung.
+ * {@see normalizeBaseUrl()} ergänzt den Pfad deshalb selbst.
+ *
+ * Die Adresse liegt je Verbindung in credentials.base_url, ein optionales
+ * Label in credentials.instance.
  *
  * @see https://api.cisbox.com/docs/ui/invoice-api-v1
  */
@@ -34,6 +39,16 @@ class CisboxIntegrationService
 
     /** Leichtgewichtiger Endpunkt für den Verbindungstest. */
     public const PROBE_PATH = '/invoices';
+
+    /**
+     * Pfad, unter dem eine eigene Installation die Invoice-API ausliefert.
+     *
+     * Die Cloud liegt hinter einem Gateway (api.cisbox.com/invoice/v1), eine
+     * Installation bringt JAX-RS direkt mit: /resteasy/api-docs/... ist die
+     * Spezifikation, /resteasy/api/... die API. Andere Pfade derselben Domain
+     * gehören zur Web-Oberfläche und leiten auf deren Anmeldung um.
+     */
+    public const INSTANCE_API_PATH = '/resteasy/api/invoice/v1';
 
     protected IntegrationConnectionResolver $resolver;
 
@@ -85,10 +100,15 @@ class CisboxIntegrationService
         $baseUrl = $baseUrl !== null ? trim((string) $baseUrl) : '';
 
         if ($baseUrl === '') {
-            $baseUrl = (string) config('integrations.cisbox.api_base_url', 'https://api.cisbox.com/invoice/v1');
+            return rtrim((string) config(
+                'integrations.cisbox.api_base_url',
+                'https://api.cisbox.com/invoice/v1'
+            ), '/');
         }
 
-        return rtrim($baseUrl, '/');
+        // Auch beim Lesen normalisieren: Verbindungen aus früheren Ständen
+        // können eine blanke Domain gespeichert haben.
+        return self::normalizeBaseUrl($baseUrl);
     }
 
     /** Weicht die Verbindung von der Standard-Cloud ab? */
@@ -97,6 +117,55 @@ class CisboxIntegrationService
         $configured = ($connection->credentials ?? [])['base_url'] ?? null;
 
         return $configured !== null && trim((string) $configured) !== '';
+    }
+
+    /**
+     * Die Adresse, die im Verbindungsdialog stehen soll — ohne den technischen
+     * API-Pfad, denn den trägt niemand von Hand ein.
+     */
+    public function getInstanceHost(IntegrationConnection $connection): ?string
+    {
+        if (!$this->hasCustomBaseUrl($connection)) {
+            return null;
+        }
+
+        $url = $this->getBaseUrl($connection);
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        $host = parse_url($url, PHP_URL_HOST);
+        $port = parse_url($url, PHP_URL_PORT);
+        $path = rtrim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        if (!$scheme || !$host) {
+            return $url;
+        }
+
+        $origin = $scheme . '://' . $host . ($port ? ':' . $port : '');
+
+        // Nur den Standardpfad verschweigen. Hat jemand bewusst einen anderen
+        // eingetragen, muss er im Dialog sichtbar bleiben — sonst wäre er beim
+        // nächsten Speichern still verschwunden.
+        return $path === self::INSTANCE_API_PATH ? $origin : $url;
+    }
+
+    /**
+     * Macht aus einer Eingabe eine aufrufbare Base-URL.
+     *
+     * Eingetippt wird die Portal-Adresse (https://rechnungen.beispiel.de); die
+     * API liegt dort aber unter {@see INSTANCE_API_PATH}. Wer den vollständigen
+     * Pfad angibt, behält ihn — manche Installation weicht ab, und dann wäre
+     * ein erzwungener Standardpfad schlimmer als gar keine Hilfe.
+     */
+    public static function normalizeBaseUrl(string $url): string
+    {
+        $url = rtrim(trim($url), '/');
+
+        if ($url === '') {
+            return '';
+        }
+
+        $path = rtrim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        return $path === '' ? $url . self::INSTANCE_API_PATH : $url;
     }
 
     public function updateApiKey(IntegrationConnection $connection, string $apiKey): void
@@ -189,7 +258,7 @@ class CisboxIntegrationService
         }
 
         if ($baseUrl !== null) {
-            $baseUrl = rtrim(trim($baseUrl), '/');
+            $baseUrl = self::normalizeBaseUrl($baseUrl);
             if ($baseUrl !== '') {
                 $credentials['base_url'] = $baseUrl;
             } else {
@@ -289,17 +358,19 @@ class CisboxIntegrationService
             return $result;
         }
 
-        $message = CisboxApiException::fromResponse(
+        $exception = CisboxApiException::fromResponse(
             $response->status(),
             is_array($response->json()) ? $response->json() : [],
             $response->body(),
             $requestId
-        )->getMessage();
+        );
+        $message = $exception->getMessage();
 
-        // Nur 401/403 sagen etwas über den Key aus. 404, 422 und 5xx sind
-        // fachliche oder serverseitige Fehler und dürfen die Verbindung nicht
-        // für alle Mitnutzer stilllegen.
-        $broken = in_array($response->status(), [401, 403], true);
+        // Nur ein Key-Fehler legt die Verbindung still. 404, 422 und echte
+        // Störungen sagen nichts über den Key aus und dürfen sie nicht für
+        // alle Mitnutzer sperren — ein 502 des Gateways zählt allerdings dazu,
+        // wenn darin "Invalid API key" steht.
+        $broken = $exception->indicatesInvalidKey();
 
         Log::warning('cisbox testConnection failed', [
             'connection_id' => $connection->id,

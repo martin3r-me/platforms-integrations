@@ -112,7 +112,9 @@
             // Auch im Fehlerzustand testbar: ein erfolgreicher Test setzt die
             // Verbindung wieder auf aktiv — der Key ist meist unveraendert gueltig.
             'test' => 'testCisboxConnection', 'testStatuses' => ['active', 'error'],
-            'meta' => fn ($c) => ($c->credentials['base_url'] ?? null) ? [$c->credentials['base_url'], 'mono'] : null,
+            'meta' => fn ($c) => ($c->credentials['base_url'] ?? null)
+                ? [$c->credentials['base_url'], 'mono']
+                : ['cisbox Cloud', 'plain'],
         ],
         [
             'key' => 'necta', 'group' => 'erp', 'label' => 'necta.one', 'icon' => 'heroicon-o-cube',
@@ -834,16 +836,32 @@
                 Anbindung ist <strong>ausschließlich lesend</strong>; kein Tool kann in cisbox etwas ändern.
             </x-nx-callout>
 
+            <x-nx-input-select name="cisboxHostMode" label="Zugang"
+                :options="[
+                    ['value' => 'cloud', 'label' => 'cisbox Cloud — api.cisbox.com'],
+                    ['value' => 'custom', 'label' => 'Eigene Installation (White-Label-Portal)'],
+                ]"
+                wire:model.live="cisboxHostMode" errorKey="cisboxHostMode" />
+
+            @if($cisboxHostMode === 'custom')
+                <div class="space-y-1">
+                    <x-nx-input-text name="cisboxBaseUrl" label="Adresse eures cisbox-Portals"
+                        placeholder="https://rechnungen.beispiel.de"
+                        wire:model.live="cisboxBaseUrl" errorKey="cisboxBaseUrl" />
+                    <p class="text-xs text-[var(--ui-muted)]">
+                        Die Adresse, unter der ihr euch anmeldet — ohne Pfad. Den technischen API-Pfad
+                        <span class="font-mono">/resteasy/api/invoice/v1</span> hängt die Integration selbst an.
+                        Weicht eure Installation davon ab, trag den vollständigen Pfad ein; er bleibt dann erhalten.
+                    </p>
+                </div>
+            @endif
+
             <x-nx-input-text name="cisboxApiKey" label="API-Key" type="password"
                 placeholder="{{ $editingId ? 'Leer lassen, um den gespeicherten Key zu behalten' : 'cisbox API-Key…' }}"
                 wire:model.live="cisboxApiKey" errorKey="cisboxApiKey" />
             <x-nx-input-text name="cisboxInstanceLabel" label="Installation (optional)" placeholder="z. B. Produktion"
                 wire:model.live="cisboxInstanceLabel" errorKey="cisboxInstanceLabel"
                 hint="Unterscheidet mehrere Verbindungen und wird als Name übernommen." />
-            <x-nx-input-text name="cisboxBaseUrl" label="Abweichende Adresse (optional)"
-                placeholder="https://api.cisbox.com/invoice/v1"
-                wire:model.live="cisboxBaseUrl" errorKey="cisboxBaseUrl"
-                hint="Nur ausfüllen, wenn eure Installation nicht über api.cisbox.com läuft." />
         </div>
 
         <x-slot name="footer">

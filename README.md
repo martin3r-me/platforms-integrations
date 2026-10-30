@@ -288,6 +288,24 @@ cisbox etwas verändert. Deshalb kennt diese Integration auch keine Bestätigung
 **Verbinden:** `/integrations` → „cisbox verbinden". Den API-Key stellt der
 cisbox-Ansprechpartner aus.
 
+**Cloud oder eigene Installation.** cisbox wird auch als White-Label-Portal unter eigener
+Domain betrieben. Beide liefern dieselbe API-Version aus — die Spezifikation einer
+Installation ist byte-identisch mit der der Cloud —, aber sie hängt an einem anderen Pfad:
+
+| Zugang | Base-URL |
+|---|---|
+| cisbox Cloud | `https://api.cisbox.com/invoice/v1` |
+| Eigene Installation | `https://<eure-domain>/resteasy/api/invoice/v1` |
+
+Im Dialog wird nur die Portal-Adresse eingetragen, unter der man sich anmeldet; den Pfad
+`/resteasy/api/invoice/v1` hängt die Integration selbst an. Die nackte Domain allein führt ins
+Leere: Alles außerhalb von `/resteasy/api/` beantwortet eine Installation mit einer
+Weiterleitung auf ihre Web-Anmeldung, nicht mit API-Daten. Weicht eine Installation vom
+Standardpfad ab, wird der vollständige Pfad eingetragen und bleibt dann unangetastet.
+
+Die `servers`-Angabe in der Spezifikation hilft hier übrigens nicht weiter: Auch eine
+Installation nennt dort die Cloud-Adresse, weil sie das Dokument unverändert mitausliefert.
+
 **Der Key ist privilegiert.** Er ist ein technisches Token: Er hängt an keinem Benutzerkonto
 und läuft nicht durch die Rechteverwaltung von cisbox, sieht also den gesamten Datenbestand
 seiner Installation. Er gilt für genau eine Installation — für mehrere wird je eine eigene
@@ -302,6 +320,19 @@ Verbindung angelegt und über `connection_id` angesprochen.
 `data` ist **immer** ein Array — auch bei Einzelabrufen wie `GET /invoices/{barcodeNo}`, die
 dann genau einen Eintrag enthalten. Die Tools packen das aus; im Katalog ist über `single`
 vermerkt, wo das zutrifft.
+
+**Ein ungültiger Key sieht je nach Zugang völlig verschieden aus** — und in beiden Fällen
+nicht so, wie die Spezifikation es beschreibt:
+
+- Die **Cloud** antwortet mit **HTTP 502** und `{"message": "Invalid API key in request"}`.
+  Das kommt vom API-Gateway, nicht von der Anwendung. Nach Status allein beurteilt wäre das
+  eine Störung bei cisbox — die Verbindung bliebe aktiv, und niemand käme auf den Key.
+- Eine **eigene Installation** antwortet mit **HTTP 401 und einer HTML-Seite**, weil der
+  Auth-Filter vor JAX-RS sitzt.
+
+`CisboxApiException::indicatesInvalidKey()` erkennt beides; nur dann wird eine Verbindung als
+defekt markiert. HTML-Antworten werden auf ihren Text reduziert, statt roh in die Meldung zu
+wandern.
 
 **X-Request-Id:** Jede Antwort trägt diesen Header. Er wird als `request_id` durchgereicht und
 steht in jeder Fehlermeldung — ohne ihn lässt sich ein Vorfall im cisbox-Support nicht in den
@@ -357,8 +388,9 @@ CISBOX_RETRY_SLEEP_MS=500
 ```
 
 Läuft eure Installation nicht über `api.cisbox.com`, gehört die Adresse nicht hierher, sondern
-in die Verbindung: Das Feld „Abweichende Adresse" im Dialog legt sie in `credentials.base_url`
-ab und gilt dann nur für diese Verbindung.
+in die Verbindung: Die Auswahl „Eigene Installation" im Dialog legt sie normalisiert in
+`credentials.base_url` ab und gilt dann nur für diese Verbindung. `CISBOX_API_BASE_URL` ist
+lediglich die Vorgabe für Verbindungen ohne eigene Adresse.
 
 ## Für aufrufenden Code
 

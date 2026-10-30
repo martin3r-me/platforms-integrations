@@ -137,6 +137,7 @@ class Index extends Component
     public bool $cisboxModalShow = false;
     public string $cisboxApiKey = '';
     public string $cisboxInstanceLabel = '';
+    public string $cisboxHostMode = 'cloud';   // 'cloud' | 'custom'
     public string $cisboxBaseUrl = '';
 
     // Share Modal
@@ -2112,6 +2113,7 @@ class Index extends Component
         $this->editingId = $connectionId;
         $this->cisboxApiKey = '';
         $this->cisboxInstanceLabel = '';
+        $this->cisboxHostMode = 'cloud';
         $this->cisboxBaseUrl = '';
 
         if ($connectionId) {
@@ -2123,11 +2125,12 @@ class Index extends Component
             if ($connection) {
                 $service = app(CisboxIntegrationService::class);
                 $this->cisboxInstanceLabel = $service->getInstanceLabel($connection) ?? '';
-                // Nur eine abweichende Adresse vorbelegen — die Standard-Cloud
-                // bleibt im Feld leer, damit sie nicht versehentlich festgeschrieben wird.
-                $this->cisboxBaseUrl = $service->hasCustomBaseUrl($connection)
-                    ? $service->getBaseUrl($connection)
-                    : '';
+
+                if ($service->hasCustomBaseUrl($connection)) {
+                    $this->cisboxHostMode = 'custom';
+                    // Ohne den technischen API-Pfad — den ergaenzt der Service.
+                    $this->cisboxBaseUrl = $service->getInstanceHost($connection) ?? '';
+                }
             }
         }
 
@@ -2144,6 +2147,7 @@ class Index extends Component
         $this->cisboxModalShow = false;
         $this->cisboxApiKey = '';
         $this->cisboxInstanceLabel = '';
+        $this->cisboxHostMode = 'cloud';
         $this->cisboxBaseUrl = '';
         $this->editingId = null;
     }
@@ -2155,10 +2159,17 @@ class Index extends Component
             // gilt dann weiter, und nur Label oder Adresse aendern sich.
             'cisboxApiKey' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
             'cisboxInstanceLabel' => ['nullable', 'string', 'max:255'],
-            'cisboxBaseUrl' => ['nullable', 'url', 'starts_with:https://', 'max:255'],
+            'cisboxHostMode' => ['required', Rule::in(['cloud', 'custom'])],
+            'cisboxBaseUrl' => [
+                $this->cisboxHostMode === 'custom' ? 'required' : 'nullable',
+                'url',
+                'starts_with:https://',
+                'max:255',
+            ],
         ], [
             'cisboxApiKey.required' => 'Bitte gib deinen cisbox API-Key ein.',
-            'cisboxBaseUrl.url' => 'Bitte eine vollstaendige URL angeben, z. B. https://api.cisbox.com/invoice/v1.',
+            'cisboxBaseUrl.required' => 'Bitte gib die Adresse eurer cisbox-Installation ein, z. B. https://rechnungen.beispiel.de.',
+            'cisboxBaseUrl.url' => 'Bitte eine vollstaendige URL angeben, z. B. https://rechnungen.beispiel.de.',
             'cisboxBaseUrl.starts_with' => 'Die Adresse muss mit https:// beginnen.',
         ]);
 
@@ -2171,7 +2182,9 @@ class Index extends Component
                 $user,
                 $this->cisboxApiKey !== '' ? $this->cisboxApiKey : null,
                 $this->cisboxInstanceLabel,
-                $this->cisboxBaseUrl,
+                // Beim Wechsel zurueck auf die Cloud muss die gespeicherte
+                // Adresse verschwinden — '' loescht sie, null liesse sie stehen.
+                $this->cisboxHostMode === 'custom' ? $this->cisboxBaseUrl : '',
                 $this->editingId
             );
 
@@ -2181,6 +2194,7 @@ class Index extends Component
                 $this->cisboxModalShow = false;
                 $this->cisboxApiKey = '';
                 $this->cisboxInstanceLabel = '';
+                $this->cisboxHostMode = 'cloud';
                 $this->cisboxBaseUrl = '';
                 $this->editingId = null;
                 session()->flash('status', 'cisbox-Verbindung erfolgreich hergestellt. ' . $testResult['message']);

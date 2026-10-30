@@ -7,8 +7,19 @@ use Exception;
 /**
  * Exception für Fehler der cisbox Invoice API v1.
  *
- * cisbox liefert Fehler einheitlich als:
+ * cisbox liefert Fehler der Anwendung als:
  *   { "status": "error", "errors": [ { "parameter": "page", "message": "must be >= 1" } ] }
+ *
+ * Davor sitzen aber noch zwei Schichten, die sich NICHT daran halten:
+ *
+ * - Das API-Gateway der Cloud antwortet auf einen ungueltigen Key mit
+ *   HTTP 502 und { "message": "Invalid API key in request" } — nicht mit 401.
+ *   Ohne Sonderbehandlung sähe ein falscher Key wie eine Stoerung bei cisbox aus.
+ * - Eigene Installationen haben einen Auth-Filter vor JAX-RS, der mit
+ *   HTTP 401 und einer HTML-Seite antwortet statt mit JSON.
+ *
+ * Beides wird hier erkannt, damit der Aufrufer eine brauchbare Meldung bekommt
+ * und {@see indicatesInvalidKey()} verlaesslich sagt, ob der Key schuld ist.
  *
  * Jede Antwort — auch die fehlerhafte — trägt den Header X-Request-Id. Er wird
  * hier festgehalten und in die Meldung aufgenommen: Ohne ihn lässt sich ein
@@ -84,12 +95,25 @@ class CisboxApiException extends Exception
             $parts[] = $parameter !== '' ? "{$parameter}: {$text}" : $text;
         }
 
+        // Das Gateway nutzt ein eigenes Format: { "message": "..." }.
+        if ($parts === [] && is_string($responseData['message'] ?? null)) {
+            $gatewayMessage = trim($responseData['message']);
+
+            if ($gatewayMessage !== '') {
+                $parts[] = $gatewayMessage;
+            }
+        }
+
         $message = $parts !== []
             ? implode(' · ', $parts)
             : (self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler');
 
-        if ($parts === [] && $responseData === [] && $rawBody !== null && trim($rawBody) !== '') {
-            $message .= ' — ' . mb_substr(trim($rawBody), 0, 300);
+        if ($parts === []) {
+            $detail = self::plainText($rawBody);
+
+            if ($detail !== '') {
+                $message .= ' — ' . $detail;
+            }
         }
 
         if ($requestId) {
@@ -152,6 +176,51 @@ class CisboxApiException extends Exception
             500,
             'INVALID_RESPONSE'
         );
+    }
+
+    /**
+     * Macht aus einem Antwort-Body eine Zeile Klartext.
+     *
+     * Auth-Filter und Reverse Proxies antworten gern mit einer HTML-Seite. Die
+     * roh an die Meldung zu haengen macht sie unlesbar, also bleibt nur der
+     * Text uebrig — und nur so viel davon, wie eine Fehlermeldung vertraegt.
+     */
+    private static function plainText(?string $body): string
+    {
+        $body = trim((string) $body);
+
+        if ($body === '') {
+            return '';
+        }
+
+        if (str_starts_with($body, '<')) {
+            // Tags durch ein Leerzeichen ersetzen, nicht ersatzlos streichen:
+            // </title></head><body> hat keinen Zwischenraum, und strip_tags
+            // machte daraus "ErrorUnauthorized".
+            $body = preg_replace('/<[^>]*>/', ' ', $body) ?? $body;
+            $body = trim(preg_replace('/\s+/', ' ', $body) ?? $body);
+        }
+
+        return mb_substr($body, 0, 300);
+    }
+
+    /**
+     * Deutet dieser Fehler auf einen ungueltigen oder fehlenden API-Key hin?
+     *
+     * Nur in diesem Fall darf eine Verbindung als defekt markiert werden. Ein
+     * 404 oder eine Stoerung bei cisbox sagt nichts ueber den Key aus und
+     * wuerde eine geteilte Verbindung sonst fuer alle sperren.
+     */
+    public function indicatesInvalidKey(): bool
+    {
+        if (in_array($this->getCode(), [401, 403], true)) {
+            return true;
+        }
+
+        // Das Gateway verpackt den Key-Fehler in einen 502. Erkennbar ist er
+        // nur am Text — der Status allein wuerde ihn als Stoerung durchgehen
+        // lassen.
+        return str_contains(mb_strtolower($this->getMessage()), 'invalid api key');
     }
 
     public function getErrorCode(): ?string
