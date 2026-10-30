@@ -306,6 +306,13 @@ Standardpfad ab, wird der vollständige Pfad eingetragen und bleibt dann unanget
 Die `servers`-Angabe in der Spezifikation hilft hier übrigens nicht weiter: Auch eine
 Installation nennt dort die Cloud-Adresse, weil sie das Dokument unverändert mitausliefert.
 
+**Ein eigenes Portal heißt nicht automatisch ein eigener API-Zugang.** Beides wird getrennt
+betrieben: Ein Key kann für die Cloud ausgestellt sein und dort den vollen Datenbestand der
+Installation liefern, während derselbe Key am REST-Endpunkt der Installation mit 401
+abgewiesen wird. Wer also 401 von der eigenen Domain bekommt, probiert denselben Key gegen
+die Cloud, bevor er beim Support einen neuen anfordert — im Zweifel sagt der Ansprechpartner
+bei cisbox, für welchen der beiden Zugänge der Key gilt.
+
 **Der Key ist privilegiert.** Er ist ein technisches Token: Er hängt an keinem Benutzerkonto
 und läuft nicht durch die Rechteverwaltung von cisbox, sieht also den gesamten Datenbestand
 seiner Installation. Er gilt für genau eine Installation — für mehrere wird je eine eigene
