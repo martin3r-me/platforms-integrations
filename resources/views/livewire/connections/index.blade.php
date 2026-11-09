@@ -136,6 +136,15 @@
             'test' => 'testDedefleetConnection',
         ],
         [
+            'key' => 'meinconnect', 'group' => 'erp', 'label' => 'MeinConnect', 'icon' => 'heroicon-o-fire',
+            'desc' => 'CoolCooking-Boxen: Modus, Temperaturen, Tür und Fehler über einen Gastfreigabe-Link',
+            'conns' => $meinconnectConnections,
+            'connect' => ['wire' => 'openMeinconnectModal', 'label' => 'MeinConnect verbinden'],
+            'renew' => fn ($c) => ['wire' => "openMeinconnectModalForEdit({$c->id})", 'label' => 'Freigabelink aktualisieren'],
+            // Auch im Fehlerzustand testbar: die Quelle ist oft nur kurz nicht erreichbar.
+            'test' => 'testMeinconnectConnection', 'testStatuses' => ['active', 'error'],
+        ],
+        [
             'key' => 'hubspot', 'group' => 'crm', 'label' => 'HubSpot', 'icon' => 'heroicon-o-users',
             'desc' => 'Contacts, Companies, Deals und Engagements — per Private App Token',
             'conns' => $hubspotConnections,
@@ -770,6 +779,34 @@
             <div class="flex justify-end gap-2">
                 <x-nx-button variant="ghost" wire:click="closeDedefleetModal">Abbrechen</x-nx-button>
                 <x-nx-button variant="primary" wire:click="saveDedefleetConnection">Verbinden</x-nx-button>
+            </div>
+        </x-slot>
+    </x-nx-modal>
+
+    {{-- MeinConnect --}}
+    <x-nx-modal wire:model="meinconnectModalShow">
+        <x-slot name="header">MeinConnect verbinden</x-slot>
+
+        <div class="space-y-4">
+            <x-nx-callout title="Gastfreigabe-Link">
+                In MeinConnect die gewünschten Geräte für einen Gast freigeben und den Link
+                <span class="font-mono text-xs">https://meinconnect.app/freigabe/…</span> hier einfügen.
+                Wer den Link kennt, sieht die Geräte – bitte nicht per Mail oder Chat weitergeben.
+                Geräte mit „Testgerät“ im Namen werden ausgeblendet.
+            </x-nx-callout>
+
+            <x-nx-input-text name="meinconnectName" label="Bezeichnung (optional)" placeholder="z. B. Kita-Boxen"
+                wire:model.live="meinconnectName" errorKey="meinconnectName" />
+
+            <x-nx-input-text name="meinconnectShareUrl" label="Freigabelink" type="password" placeholder="https://meinconnect.app/freigabe/…"
+                wire:model.live="meinconnectShareUrl" errorKey="meinconnectShareUrl"
+                hint="Verschlüsselt gespeichert, nur für dich sichtbar. Beim Speichern wird die Freigabe einmal testweise abgerufen." />
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex justify-end gap-2">
+                <x-nx-button variant="ghost" wire:click="closeMeinconnectModal">Abbrechen</x-nx-button>
+                <x-nx-button variant="primary" wire:click="saveMeinconnectConnection">Verbinden</x-nx-button>
             </div>
         </x-slot>
     </x-nx-modal>

@@ -842,6 +842,16 @@ class IntegrationsServiceProvider extends ServiceProvider
         }
 
         // ---------------------------------------------------------------------
+        // MeinConnect Tools (CoolCooking-Boxen über Gastfreigabe, read-only)
+        // ---------------------------------------------------------------------
+        try {
+            resolve(\Platform\Core\Tools\ToolRegistry::class)
+                ->register(new \Platform\Integrations\Tools\MeinConnect\ListDevicesTool());
+        } catch (\Throwable $e) {
+            \Log::warning('Integrations: MeinConnect Tool-Registrierung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
+
+        // ---------------------------------------------------------------------
         // DedeFleet Tools (Ortung & Tourenplanung, RPC /data/api/2)
         // ---------------------------------------------------------------------
         try {

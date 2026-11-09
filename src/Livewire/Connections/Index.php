@@ -34,6 +34,7 @@ use Platform\Integrations\Services\DatevIntegrationService;
 use Platform\Integrations\Services\EasybillIntegrationService;
 use Platform\Integrations\Services\NectaIntegrationService;
 use Platform\Integrations\Services\DedefleetIntegrationService;
+use Platform\Integrations\Services\MeinConnectIntegrationService;
 use Platform\Integrations\Services\ForgeIntegrationService;
 use Platform\Integrations\Services\HetznerIntegrationService;
 use Platform\Integrations\Services\NinjaIntegrationService;
@@ -112,6 +113,11 @@ class Index extends Component
     // DedeFleet Modal
     public bool $dedefleetModalShow = false;
     public string $dedefleetApiToken = '';
+
+    // MeinConnect Modal (Gastfreigabe-Link = Geheimnis)
+    public bool $meinconnectModalShow = false;
+    public string $meinconnectShareUrl = '';
+    public string $meinconnectName = '';
 
     // Laravel Forge Modal
     public bool $forgeModalShow = false;
@@ -192,6 +198,7 @@ class Index extends Component
         $easybillConnections = $ofType('easybill');
         $nectaConnections = $ofType('necta');
         $dedefleetConnections = $ofType('dedefleet');
+        $meinconnectConnections = $ofType('meinconnect');
         $forgeConnections = $ofType('forge');
         $hetznerConnections = $ofType('hetzner');
         $ninjaConnections = $ofType('ninja');
@@ -242,6 +249,7 @@ class Index extends Component
             'easybillConnections' => $easybillConnections,
             'nectaConnections' => $nectaConnections,
             'dedefleetConnections' => $dedefleetConnections,
+            'meinconnectConnections' => $meinconnectConnections,
             'forgeConnections' => $forgeConnections,
             'hetznerConnections' => $hetznerConnections,
             'ninjaConnections' => $ninjaConnections,
@@ -1883,6 +1891,100 @@ class Index extends Component
             }
         } catch (\Exception $e) {
             $this->syncError = 'Fehler: ' . $e->getMessage();
+        }
+    }
+
+    // ==================== MEINCONNECT METHODS ====================
+
+    public function openMeinconnectModal(?int $connectionId = null): void
+    {
+        $this->resetValidation();
+        $this->editingId = $connectionId;
+        $this->meinconnectShareUrl = '';
+        $this->meinconnectName = '';
+
+        // Name vorbelegen; der Link wird aus Sicherheitsgründen nie zurückgespielt.
+        if ($connectionId) {
+            $this->meinconnectName = (string) IntegrationConnection::query()
+                ->where('id', $connectionId)
+                ->where('owner_user_id', auth()->id())
+                ->value('name');
+        }
+
+        $this->meinconnectModalShow = true;
+    }
+
+    public function openMeinconnectModalForEdit(int $connectionId): void
+    {
+        $this->openMeinconnectModal($connectionId);
+    }
+
+    public function closeMeinconnectModal(): void
+    {
+        $this->meinconnectModalShow = false;
+        $this->meinconnectShareUrl = '';
+        $this->meinconnectName = '';
+        $this->editingId = null;
+    }
+
+    public function saveMeinconnectConnection(): void
+    {
+        $this->validate([
+            'meinconnectShareUrl' => ['required', 'string', 'max:500'],
+            'meinconnectName' => ['nullable', 'string', 'max:120'],
+        ], [
+            'meinconnectShareUrl.required' => 'Bitte den MeinConnect-Freigabelink eingeben.',
+        ]);
+
+        try {
+            /** @var User $user */
+            $user = auth()->user();
+
+            $service = app(MeinConnectIntegrationService::class);
+            $connection = $service->createOrUpdateConnectionForUser($user, $this->meinconnectShareUrl, $this->editingId, $this->meinconnectName);
+
+            $testResult = $service->testConnection($connection);
+
+            if ($testResult['success']) {
+                $this->closeMeinconnectModal();
+                session()->flash('status', 'MeinConnect verbunden: ' . $testResult['message']);
+            } else {
+                $this->addError('meinconnectShareUrl', $testResult['message']);
+            }
+        } catch (\Platform\Integrations\Exceptions\MeinConnectApiException $e) {
+            $this->addError('meinconnectShareUrl', $e->getMessage());
+        } catch (\Exception $e) {
+            $this->addError('meinconnectShareUrl', 'Fehler beim Speichern der Verbindung.');
+            \Log::error('MeinConnect connection error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function testMeinconnectConnection(int $connectionId): void
+    {
+        $this->syncError = null;
+        $this->syncMessage = null;
+
+        $connection = IntegrationConnection::query()
+            ->with('integration')
+            ->where('id', $connectionId)
+            ->where('owner_user_id', auth()->id())
+            ->first();
+
+        if (!$connection) {
+            $this->syncError = 'Keine MeinConnect-Connection gefunden.';
+            return;
+        }
+
+        $result = app(MeinConnectIntegrationService::class)->testConnection($connection);
+
+        if ($result['success']) {
+            $this->syncMessage = 'MeinConnect: ' . $result['message'];
+            session()->flash('status', $this->syncMessage);
+        } else {
+            $this->syncError = $result['message'];
         }
     }
 
