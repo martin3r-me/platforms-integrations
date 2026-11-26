@@ -44,6 +44,14 @@ class DataForSeoApiException extends Exception
         $message = $responseData['status_message'] ?? self::HTTP_STATUS_MESSAGES[$httpStatusCode] ?? 'Unbekannter Fehler';
         $errorCode = isset($responseData['status_code']) ? (string) $responseData['status_code'] : null;
 
+        // Diagnose: HTTP-Status und Task-Status ergänzen (Top-Level "Ok." allein ist nicht aussagekräftig)
+        $task = $responseData['tasks'][0] ?? null;
+        $details = ['HTTP ' . $httpStatusCode];
+        if (is_array($task) && isset($task['status_code'])) {
+            $details[] = 'Task ' . $task['status_code'] . (isset($task['status_message']) ? ' ' . $task['status_message'] : '');
+        }
+        $message .= ' (' . implode(', ', $details) . ')';
+
         return new self($message, $httpStatusCode, $errorCode, $responseData);
     }
 
